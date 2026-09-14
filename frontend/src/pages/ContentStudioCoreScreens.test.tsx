@@ -64,6 +64,51 @@ describe('Content Studio core screens', () => {
     expect(screen.queryByRole('button', { name: 'Publish now' })).not.toBeInTheDocument()
   })
 
+  it('publishes a scheduled post from the calendar schedule list', async () => {
+    const scheduled = structuredClone(contentStudioMockCalendar.items[0])
+    scheduled.status = 'SCHEDULED'
+    scheduled.review_group = 'APPROVED'
+    const submitted = { ...scheduled, status: 'SUBMITTED' as const }
+    vi.mocked(contentStudioApi.calendar)
+      .mockResolvedValueOnce({ ...structuredClone(contentStudioMockCalendar), items: [scheduled] })
+      .mockResolvedValue({ ...structuredClone(contentStudioMockCalendar), items: [submitted] })
+    vi.spyOn(contentStudioApi, 'publishNow').mockResolvedValue({
+      variant: submitted,
+      publish_job: { id: 'job-1', status: 'SUBMITTED', external_id: 'provider-1', failure_message: '' },
+    })
+
+    renderScreen('/content/calendar')
+    const list = (await screen.findByRole('heading', { name: 'Schedule list' })).closest('section')!
+    const label = 'Publish ' + scheduled.topic + ' to ' + scheduled.network_label + ' now'
+    fireEvent.click(await within(list).findByRole('button', { name: label }))
+
+    await waitFor(() => expect(contentStudioApi.publishNow).toHaveBeenCalledWith(scheduled.id))
+    expect(await screen.findByText(/Post submitted for publishing/i)).toBeInTheDocument()
+    await waitFor(() => expect(within(list).queryByRole('button', { name: label })).not.toBeInTheDocument())
+  })
+
+  it('publishes a scheduled variant from Content Library', async () => {
+    const scheduledPost = structuredClone(contentStudioMockLibrary[0])
+    scheduledPost.state = 'SCHEDULED'
+    scheduledPost.variants[0].status = 'SCHEDULED'
+    const submittedPost = structuredClone(scheduledPost)
+    submittedPost.variants[0].status = 'SUBMITTED'
+    vi.mocked(contentStudioApi.library)
+      .mockResolvedValueOnce([scheduledPost])
+      .mockResolvedValue([submittedPost])
+    vi.spyOn(contentStudioApi, 'publishNow').mockResolvedValue({
+      variant: { ...structuredClone(contentStudioMockCalendar.items[0]), id: scheduledPost.variants[0].id, status: 'SUBMITTED' },
+      publish_job: { id: 'job-2', status: 'SUBMITTED', external_id: 'provider-2', failure_message: '' },
+    })
+
+    renderScreen('/content/library?status=SCHEDULED')
+    const label = 'Publish ' + scheduledPost.idea_title + ' to ' + scheduledPost.variants[0].network_label + ' now'
+    fireEvent.click(await screen.findByRole('button', { name: label }))
+
+    await waitFor(() => expect(contentStudioApi.publishNow).toHaveBeenCalledWith(scheduledPost.variants[0].id))
+    expect(await screen.findByText(/Post submitted for publishing/i)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument())
+  })
   it('shows advisory quality details without blocking approval', async () => {
     const needsReview = structuredClone(contentStudioMockApprovals.NEEDS_REVIEW[0])
     const report = needsReview.versions![0].quality_check!

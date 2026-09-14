@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, List, LoaderCircle } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, List, LoaderCircle, Send } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { contentStudioApi } from '../../../api/contentStudio'
@@ -28,6 +28,7 @@ export function ContentCalendarView() {
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const load = useCallback(async () => {
     setError('')
@@ -46,7 +47,7 @@ export function ContentCalendarView() {
   }, [calendar])
 
   const reschedule = async (item: StudioVariantCard, scheduledFor: string) => {
-    setBusy(item.id); setError('')
+    setBusy(item.id + '-RESCHEDULE'); setError('')
     try {
       if (isDemo) setCalendar((current) => current ? { ...current, items: current.items.map((row) => row.id === item.id ? { ...row, scheduled_for: scheduledFor, status: row.status === 'APPROVED' ? 'NEEDS_REVIEW' : row.status } : row) } : current)
       else { await contentStudioApi.reschedule(item.id, scheduledFor); await load() }
@@ -54,6 +55,21 @@ export function ContentCalendarView() {
     finally { setBusy('') }
   }
 
+  const publishNow = async (item: StudioVariantCard) => {
+    setBusy(item.id + '-PUBLISH'); setError(''); setNotice('')
+    try {
+      if (isDemo) {
+        setCalendar((current) => current ? { ...current, items: current.items.map((row) => row.id === item.id ? { ...row, status: 'SUBMITTED' } : row) } : current)
+        setNotice('Post submitted for publishing. Its status will update automatically.')
+      } else {
+        const result = await contentStudioApi.publishNow(item.id)
+        await load()
+        setNotice(result.publish_job.status === 'PUBLISHED' ? 'Post published successfully.' : 'Post submitted for publishing. Its status will update automatically.')
+      }
+    } catch (publishError) {
+      setError(customerSafeMessage(publishError instanceof Error ? publishError.message : undefined, 'Could not publish this post.'))
+    } finally { setBusy('') }
+  }
   const movePeriod = (direction: -1 | 1) => {
     const date = new Date(`${anchor}T12:00:00`)
     if (view === 'WEEK') date.setDate(date.getDate() + direction * 7)
@@ -72,10 +88,11 @@ export function ContentCalendarView() {
 
   return <section className="studio-screen" aria-label="Publishing calendar">
     {error && <div className="li-banner error" role="alert">{error}</div>}
+    {notice && <div className="li-banner success" role="status">{notice}</div>}
     <div className="calendar-toolbar"><div className="view-switch" aria-label="Calendar view"><button className={view === 'WEEK' ? 'active' : ''} aria-pressed={view === 'WEEK'} onClick={() => setView('WEEK')}>Week</button><button className={view === 'MONTH' ? 'active' : ''} aria-pressed={view === 'MONTH'} onClick={() => setView('MONTH')}>Month</button></div><span className="calendar-timezone">{calendar ? `Times shown in ${calendar.timezone}` : 'Loading timezone…'}</span><div className="calendar-period"><button aria-label="Previous period" onClick={() => movePeriod(-1)}><ChevronLeft size={16} /></button><input aria-label="Calendar date" type="date" value={anchor} onChange={(event) => setAnchor(event.target.value)} /><button aria-label="Next period" onClick={() => movePeriod(1)}><ChevronRight size={16} /></button></div></div>
     {!calendar ? <div className="li-loading" role="status">Loading calendar…</div> : calendar.items.length === 0 ? <div className="card"><EmptyState icon={CalendarDays} title="Nothing scheduled here" detail="Create or approve a post to add it to the calendar." action={{ label: 'Create a post', to: '/content/create' }} /></div> : <>
-      <div className={`studio-calendar-grid ${view.toLowerCase()}`}>{days.map((day) => { const items = calendar.items.filter((item) => zonedDateKey(item.scheduled_for, calendar.timezone) === day); return <section className="calendar-drop-day" key={day} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropOnDay(day, event.dataTransfer.getData('text/plain'))}><header><strong>{new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: view === 'WEEK' ? 'long' : 'short', day: 'numeric', month: view === 'WEEK' ? 'short' : undefined })}</strong><small>{items.length || ''}</small></header>{items.map((item) => <CalendarCard item={item} zone={calendar.timezone} busy={busy === item.id} key={item.id} />)}</section> })}</div>
-      <section className="card calendar-list-fallback" aria-labelledby="calendar-list-title"><header><List size={17} /><div><h3 id="calendar-list-title">Schedule list</h3><p>Keyboard-friendly alternative for changing dates and times.</p></div></header><div className="schedule-list">{calendar.items.map((item) => <ScheduleRow item={item} zone={calendar.timezone} busy={busy === item.id} onSave={(value) => void reschedule(item, new Date(value).toISOString())} key={item.id} />)}</div></section>
+      <div className={`studio-calendar-grid ${view.toLowerCase()}`}>{days.map((day) => { const items = calendar.items.filter((item) => zonedDateKey(item.scheduled_for, calendar.timezone) === day); return <section className="calendar-drop-day" key={day} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropOnDay(day, event.dataTransfer.getData('text/plain'))}><header><strong>{new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: view === 'WEEK' ? 'long' : 'short', day: 'numeric', month: view === 'WEEK' ? 'short' : undefined })}</strong><small>{items.length || ''}</small></header>{items.map((item) => <CalendarCard item={item} zone={calendar.timezone} busy={busy.startsWith(item.id + '-')} key={item.id} />)}</section> })}</div>
+      <section className="card calendar-list-fallback" aria-labelledby="calendar-list-title"><header><List size={17} /><div><h3 id="calendar-list-title">Schedule list</h3><p>Change schedules or publish approved posts immediately.</p></div></header><div className="schedule-list">{calendar.items.map((item) => <ScheduleRow item={item} zone={calendar.timezone} busy={busy.startsWith(item.id + '-')} publishing={busy === item.id + '-PUBLISH'} onSave={(value) => void reschedule(item, new Date(value).toISOString())} onPublish={() => void publishNow(item)} key={item.id} />)}</div></section>
     </>}
   </section>
 }
@@ -84,8 +101,8 @@ function CalendarCard({ item, zone, busy }: { item: StudioVariantCard; zone: str
   return <Link draggable className="calendar-post-card" to={`/content/create?draft=${item.post_id}`} onDragStart={(event) => event.dataTransfer.setData('text/plain', item.id)}>{item.media_thumbnail ? <img src={backendAssetUrl(item.media_thumbnail)} alt="" /> : <span className="calendar-network">{item.network === 'LINKEDIN' ? 'in' : item.network === 'INSTAGRAM' ? '◎' : 'X'}</span>}<div><strong>{item.topic}</strong><small>{displayTime(item.scheduled_for, zone)} · {item.account?.display_name || 'Draft only'}</small><span>{item.network_label} · {item.status.replaceAll('_', ' ')}</span></div>{busy && <LoaderCircle className="spin" size={15} />}</Link>
 }
 
-function ScheduleRow({ item, zone, busy, onSave }: { item: StudioVariantCard; zone: string; busy: boolean; onSave: (value: string) => void }) {
+function ScheduleRow({ item, zone, busy, publishing, onSave, onPublish }: { item: StudioVariantCard; zone: string; busy: boolean; publishing: boolean; onSave: (value: string) => void; onPublish: () => void }) {
   const [value, setValue] = useState(inputDateTime(item.scheduled_for))
   useEffect(() => setValue(inputDateTime(item.scheduled_for)), [item.scheduled_for])
-  return <div className="schedule-row"><Clock3 size={16} /><span><strong>{item.topic}</strong><small>{item.network_label} · {item.account?.display_name || 'Draft only'} · shown in {zone}</small></span><input aria-label={`Schedule ${item.topic}`} type="datetime-local" value={value} onChange={(event) => setValue(event.target.value)} /><button className="li-quiet-button" disabled={busy || !value} onClick={() => onSave(value)}>{busy ? 'Moving…' : 'Update'}</button></div>
+  return <div className="schedule-row"><Clock3 size={16} /><span><strong>{item.topic}</strong><small>{item.network_label} · {item.account?.display_name || 'Draft only'} · {item.status.replaceAll('_', ' ').toLowerCase()} · shown in {zone}</small></span><input aria-label={`Schedule ${item.topic}`} type="datetime-local" value={value} onChange={(event) => setValue(event.target.value)} /><button className="li-quiet-button" disabled={busy || !value} onClick={() => onSave(value)}>{busy && !publishing ? 'Moving…' : 'Update'}</button>{(item.status === 'APPROVED' || item.status === 'SCHEDULED') && <button className="button button-dark" type="button" disabled={busy} aria-busy={publishing} aria-label={'Publish ' + item.topic + ' to ' + item.network_label + ' now'} onClick={onPublish}>{publishing ? <LoaderCircle className="spin" size={15} /> : <Send size={15} />} Publish now</button>}</div>
 }

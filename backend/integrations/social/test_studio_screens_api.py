@@ -24,6 +24,7 @@ from integrations.social.models import (
 )
 from integrations.social.publishing.fakes import FakeUploadPostProvider
 from integrations.social.services.composer import submit_for_review
+from integrations.social.services.publishing_routing import create_publish_job
 from integrations.social.services.studio import approve_exact_version
 from prospecting.models import Workspace, WorkspaceMembership
 
@@ -147,6 +148,46 @@ class ContentStudioScreensApiTests(TestCase):
         self.assertLessEqual(job.scheduled_for, timezone.now())
         self.assertEqual(provider.calls.count("publish_now"), 1)
 
+    def test_existing_scheduled_job_can_publish_now(self):
+        version = self.variant.versions.latest("version")
+        provider = FakeUploadPostProvider()
+        with patch(
+            "integrations.social.services.studio.publishing_provider_registry.create",
+            return_value=provider,
+        ):
+            approve_exact_version(self.variant, version.id, user=self.user)
+        self.variant.refresh_from_db()
+        version.refresh_from_db()
+        route = create_publish_job(
+            variant=self.variant,
+            approved_version=version,
+            idempotency_key="existing-scheduled-job",
+            scheduled_for=timezone.now() + timedelta(days=2),
+            provider_account_id=self.connection.provider_account_id,
+            provider_profile_id=self.connection.provider_profile_id,
+        )
+        self.assertTrue(route.ready)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.status, SocialPostState.SCHEDULED)
+        approvals = self.client.get(reverse("social-approvals"))
+        self.assertIn(str(self.variant.id), [item["id"] for item in approvals.data["APPROVED"]])
+
+        with patch(
+            "integrations.social.services.lifecycle.publishing_provider_registry.create",
+            return_value=provider,
+        ):
+            response = self.client.post(
+                reverse("social-publish-now", args=[self.variant.id]),
+                {},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(response.data["publish_job"]["id"], str(route.publish_job_id))
+        self.assertEqual(PublishJob.objects.filter(variant=self.variant).count(), 1)
+        job = PublishJob.objects.get(pk=route.publish_job_id)
+        self.assertLessEqual(job.scheduled_for, timezone.now())
+        self.assertEqual(provider.calls.count("publish_now"), 1)
     def test_request_changes_reject_and_batch_approval(self):
         changed = self.client.post(reverse("social-approval-action", args=[self.variant.id]), {
             "action": "REQUEST_CHANGES", "note": "Use a clearer opening.",

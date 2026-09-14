@@ -23,9 +23,7 @@ async function request(path: string, options: RequestInit = {}): Promise<AuthSes
   headers.set('Accept', 'application/json')
   if (method !== 'GET') {
     headers.set('Content-Type', 'application/json')
-    headers.set('withCredentials', 'true')
     const token = csrfToken()
-    console.log(token)
     if (token) headers.set('X-CSRFToken', token)
   }
   const response = await fetch(`${baseUrl}${path}`, { ...options, credentials: 'include', headers })
