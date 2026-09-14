@@ -232,6 +232,19 @@ class ZernioProvider(PublishingProvider):
         )
         return ListSocialAccountsResult(provider=self.provider, accounts=accounts)
 
+    def remove_account(self, *, workspace_id, provider_profile_id, provider_account_id):
+        """Disconnect a workspace-owned account in Zernio. A repeated removal is safe."""
+        if not self._config.api_base_url or not self._config.api_key:
+            raise ProviderConfigurationError("Publishing service configuration is incomplete.")
+        if not provider_profile_id or not provider_account_id:
+            raise ProviderValidationError("The social account connection is incomplete.")
+        self._assert_workspace_profile(workspace_id, provider_profile_id)
+        self._request(
+            "DELETE",
+            f"/v1/accounts/{quote(str(provider_account_id), safe='')}",
+            allowed_statuses={200, 404},
+        )
+
     def validate_post(self, request: ValidatePostRequest) -> ValidatePostResult:
         errors = []
         if request.account.network != request.post.network:

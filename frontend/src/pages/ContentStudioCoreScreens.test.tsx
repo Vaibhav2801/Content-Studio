@@ -184,6 +184,19 @@ describe('Content Studio core screens', () => {
     expect(document.body.textContent).not.toMatch(/Upload Post|Zernio/i)
   })
 
+  it('removes a connected publishing account from the list after confirmation', async () => {
+    const account: StudioConnection = { ...structuredClone(contentStudioMockConnections[0]), can_remove: true }
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([account])
+    vi.spyOn(contentStudioApi, 'connectionAction').mockResolvedValue({ id: account.id, removed: true })
+    renderScreen('/content/connections')
+    const card = (await screen.findByText('LumaDesk')).closest('article')!
+    fireEvent.click(within(card).getByRole('button', { name: /^Remove$/i }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/removed from the publishing service/i)
+    fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
+    await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith(account.id, 'REMOVE'))
+    expect(await screen.findByText('No social accounts yet')).toBeInTheDocument()
+  })
+
   it('lets a user connect their first social account from the empty Connections screen', async () => {
     vi.mocked(contentStudioApi.connections).mockResolvedValue([])
     const open = vi.spyOn(window, 'open').mockImplementation(() => null)

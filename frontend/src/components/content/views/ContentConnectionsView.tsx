@@ -21,7 +21,7 @@ export function ContentConnectionsView() {
   }, [isDemo])
   useEffect(() => { void load() }, [load])
 
-  const act = async (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT') => {
+  const act = async (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'REMOVE') => {
     setBusy(`${connection.id}-${action}`); setError('')
     try {
       if (isDemo) {
@@ -32,11 +32,15 @@ export function ContentConnectionsView() {
           window.location.assign(result.authorization_url)
           return true
         }
-        setConnections((current) => current?.map((item) => item.id === result.id ? result : item) ?? current)
+        if ('removed' in result) {
+          setConnections((current) => current?.filter((item) => item.id !== result.id) ?? current)
+        } else {
+          setConnections((current) => current?.map((item) => item.id === result.id ? result : item) ?? current)
+        }
       }
       return true
     } catch (actionError) {
-      setError(customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : 'Could not disconnect this social account.'))
+      setError(customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : action === 'REMOVE' ? 'Could not remove this social account.' : 'Could not disconnect this social account.'))
       return false
     }
     finally { setBusy('') }
@@ -44,7 +48,7 @@ export function ContentConnectionsView() {
 
   return <section className="studio-screen" aria-label="Social account connections">
     {error && <div className="li-banner error" role="alert">{error}</div>}
-    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || studioBusy === 'connection'} aria-busy={studioBusy === "connection"} onClick={() => void connectLinkedIn()}>{studioBusy === 'connection' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
+    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || studioBusy === 'connection'} aria-busy={studioBusy === "connection"} onClick={() => void connectLinkedIn()}>{studioBusy === 'connection' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
     <div className="card content-connect-options">
       <h2>Connect another account</h2>
       <p>Choose a LinkedIn Company Page or connect an Instagram Business or Creator account.</p>
@@ -55,23 +59,26 @@ export function ContentConnectionsView() {
   </section>
 }
 
-function ConnectionCard({ connection, busy, onAction }: { connection: StudioConnection; busy: string; onAction: (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT') => Promise<boolean> }) {
+function ConnectionCard({ connection, busy, onAction }: { connection: StudioConnection; busy: string; onAction: (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'REMOVE') => Promise<boolean> }) {
   const Icon = networkIcons[connection.network] ?? Link2
   const healthy = connection.health === 'HEALTHY'
   const disconnected = connection.status === 'DISCONNECTED'
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
+  const canRemove = Boolean(connection.can_remove)
+  const [confirming, setConfirming] = useState(false)
+  const action = canRemove ? 'REMOVE' : 'DISCONNECT'
+  const pending = busy === `${connection.id}-${action}`
 
-  const disconnect = async () => {
-    if (await onAction(connection, 'DISCONNECT')) setConfirmingDisconnect(false)
+  const confirmAction = async () => {
+    if (await onAction(connection, action)) setConfirming(false)
   }
 
   return <article className={`card studio-connection-card ${disconnected ? 'disconnected' : healthy ? 'healthy' : 'attention'}`}>
     <header><span className="connection-network-icon"><Icon size={21} /></span><div><span>{connection.network_label}</span><h3>{connection.display_name || 'Account name unavailable'}</h3><p>{connection.account_type || 'Social account'}</p></div><span className={`connection-health ${disconnected ? 'disconnected' : healthy ? 'ready' : 'attention'}`}>{disconnected ? <Unlink size={15} /> : healthy ? <CheckCircle2 size={15} /> : <RefreshCw size={15} />} {disconnected ? 'Disconnected' : healthy ? 'Ready' : 'Needs attention'}</span></header>
     <div className="connection-detail"><strong>{connection.message}</strong><small>{connection.status === 'DISCONNECTED' && connection.disconnected_at ? `Disconnected ${new Date(connection.disconnected_at).toLocaleDateString()}` : connection.connected_at ? `Connected ${new Date(connection.connected_at).toLocaleDateString()}` : 'Not currently connected'} · Checked {new Date(connection.last_checked_at).toLocaleString()}</small></div>
-    <footer>{!disconnected ? confirmingDisconnect ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`disconnect-${connection.id}-title`} aria-describedby={`disconnect-${connection.id}-description`}>
-      <strong id={`disconnect-${connection.id}-title`}>Disconnect {connection.display_name || connection.network_label}?</strong>
-      <p id={`disconnect-${connection.id}-description`}>Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.</p>
-      <div><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => setConfirmingDisconnect(false)}>Keep connected</button><button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={busy === connection.id + "-DISCONNECT"} onClick={() => void disconnect()}>{busy === connection.id + "-DISCONNECT" ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} Disconnect account</button></div>
-    </div> : <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirmingDisconnect(true)}><Unlink size={15} /> Disconnect</button> : <button className="button button-dark" type="button" disabled={Boolean(busy)} aria-busy={busy === connection.id + "-RECONNECT"} onClick={() => void onAction(connection, 'RECONNECT')}>{busy === connection.id + "-RECONNECT" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Reconnect</button>}</footer>
+    <footer>{confirming ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`disconnect-${connection.id}-title`} aria-describedby={`disconnect-${connection.id}-description`}>
+      <strong id={`disconnect-${connection.id}-title`}>{canRemove ? 'Remove' : 'Disconnect'} {connection.display_name || connection.network_label}?</strong>
+      <p id={`disconnect-${connection.id}-description`}>{canRemove ? 'This account will be removed from the publishing service and your connected accounts. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
+      <div><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(false)}>Keep connected</button><button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} {canRemove ? 'Remove account' : 'Disconnect account'}</button></div>
+    </div> : disconnected ? <div className="connection-card-actions"><button className="button button-dark" type="button" disabled={Boolean(busy)} aria-busy={busy === `${connection.id}-RECONNECT`} onClick={() => void onAction(connection, 'RECONNECT')}>{busy === `${connection.id}-RECONNECT` ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Reconnect</button>{canRemove && <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(true)}><Unlink size={15} /> Remove</button>}</div> : <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(true)}><Unlink size={15} /> {canRemove ? 'Remove' : 'Disconnect'}</button>}</footer>
   </article>
 }

@@ -452,9 +452,11 @@ export function SocialComposer({ onPostChange }: Props) {
 
       let imageWarning = false
 
-      if (controls.include_image && !isDemo) {
+      const imageTargets = generated.variants.filter((variant) => !variant.media.length && (variant.network === 'INSTAGRAM' || controls.include_image))
 
-        const imageResults = await Promise.allSettled(generated.variants.filter((variant) => !variant.media.length).map((variant) => socialComposerApi.regenerateImage(variant.id, variant.metadata.image_prompt || ideaTitle)))
+      if (imageTargets.length && !isDemo) {
+
+        const imageResults = await Promise.allSettled(imageTargets.map((variant) => socialComposerApi.regenerateImage(variant.id, variant.metadata.image_prompt || ideaTitle)))
 
         imageWarning = imageResults.some((result) => result.status === 'rejected')
 
@@ -654,9 +656,9 @@ export function SocialComposer({ onPostChange }: Props) {
 
         </>}
 
-        <PlatformSelector connections={options.connections} selected={networks} onChange={setNetworks} />
+        <PlatformSelector connections={options.connections} selected={networks} onChange={(next) => { setNetworks(next); markUnsaved() }} />
 
-        <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image</label></fieldset>
+        <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image for other platforms</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}</fieldset>
 
       </section>
 

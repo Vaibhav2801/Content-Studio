@@ -386,6 +386,7 @@ def serialize_connection(connection):
         "connected_at": connection.connected_at.isoformat() if connection.connected_at else None,
         "disconnected_at": connection.disconnected_at.isoformat() if connection.disconnected_at else None,
         "last_checked_at": connection.updated_at.isoformat(),
+        "can_remove": connection.provider == ProviderName.ZERNIO.value and bool(connection.provider_account_id),
     }
 
 
@@ -420,6 +421,29 @@ def disconnect_connection(connection):
     connection.status = ConnectionState.DISCONNECTED
     connection.disconnected_at = timezone.now()
     connection.save(update_fields=["status", "disconnected_at", "updated_at"])
+    return connection
+
+
+@transaction.atomic
+def remove_connection(connection):
+    connection = SocialConnection.objects.select_for_update().get(pk=connection.pk)
+    if connection.provider != ProviderName.ZERNIO.value or not connection.provider_account_id:
+        raise ValidationError({"detail": "This social account cannot be removed here."})
+    if connection.publish_jobs.filter(
+        status__in={PublishJobState.PUBLISHING, PublishJobState.SUBMITTED, PublishJobState.UNKNOWN},
+    ).exists():
+        raise ValidationError({
+            "detail": "A post is still being processed for this account. Wait for it to finish before removing it."
+        })
+    publishing_provider_registry.create(ProviderName.ZERNIO).remove_account(
+        workspace_id=connection.workspace_id,
+        provider_profile_id=connection.provider_profile_id,
+        provider_account_id=connection.provider_account_id,
+    )
+    connection = disconnect_connection(connection)
+    connection.provider_profile_id = ""
+    connection.provider_account_id = ""
+    connection.save(update_fields=["provider_profile_id", "provider_account_id", "updated_at"])
     return connection
 
 

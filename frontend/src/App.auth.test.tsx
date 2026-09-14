@@ -19,6 +19,15 @@ describe('Content Studio authentication routes', () => {
     vi.spyOn(authApi, 'session').mockResolvedValue(anonymous)
   })
 
+  it('shows the public homepage and pricing before sign in', async () => {
+    window.history.replaceState({}, '', '/')
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: /Great content needs room to think/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Pay for the creative work you use/i })).toBeInTheDocument()
+    expect(screen.getByText('100 AI credits each month')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+  })
+
   it('redirects an anonymous visitor to sign in and opens the studio after login', async () => {
     const signin = vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     render(<App />)

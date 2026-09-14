@@ -88,6 +88,23 @@ class ZernioProviderTests(SimpleTestCase):
             capabilities=self.provider.capabilities,
         )
 
+    def test_remove_account_calls_zernio_delete_and_allows_repeat(self):
+        self.session.request.side_effect = [
+            self.profile_response(),
+            MockResponse(200, {"message": "Account disconnected successfully"}),
+            MockResponse(404, {"error": "Not found"}),
+        ]
+        request = dict(
+            workspace_id=self.workspace_id,
+            provider_profile_id=self.profile_id,
+            provider_account_id=self.account_id,
+        )
+        self.provider.remove_account(**request)
+        self.provider.remove_account(**request)
+        calls = self.session.request.call_args_list
+        self.assertEqual(calls[1].args[:2], ("DELETE", f"https://api.example.invalid/v1/accounts/{self.account_id}"))
+        self.assertEqual(calls[2].args[:2], ("DELETE", f"https://api.example.invalid/v1/accounts/{self.account_id}"))
+
     def publish_request(self, *, media=(), idempotency_key="job-idempotency-key"):
         return PublishNowRequest(
             workspace_id=self.workspace_id,

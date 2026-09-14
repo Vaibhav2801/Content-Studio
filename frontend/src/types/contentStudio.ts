@@ -92,6 +92,7 @@ export interface StudioConnection {
   connected_at: string | null
   disconnected_at: string | null
   last_checked_at: string
+  can_remove?: boolean
 }
 
 export interface HomeSummary {

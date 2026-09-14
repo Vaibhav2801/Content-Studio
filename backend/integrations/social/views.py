@@ -124,6 +124,7 @@ from integrations.social.services.studio import (
     home_summary,
     library_posts,
     reconnect_connection,
+    remove_connection,
     reject_variant,
     request_changes,
     reschedule_variant,
@@ -829,7 +830,7 @@ class SocialConnectionsAPIView(SocialWorkspaceScopedAPIView):
         connections = SocialConnection.objects.filter(
             workspace=self.workspace(request),
             provider__in=[SocialProvider.UPLOAD_POST, SocialProvider.ZERNIO],
-        ).order_by("network", "display_name")
+        ).exclude(status=ConnectionState.DISCONNECTED, provider_account_id="").order_by("network", "display_name")
         return Response([serialize_connection(connection) for connection in connections])
 
 
@@ -837,6 +838,26 @@ class SocialConnectionActionAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request, connection_id):
         connection = self.connection(request, connection_id)
         action = str(request.data.get("action") or "").upper()
+        if action == "REMOVE":
+            try:
+                removed_id = str(connection.id)
+                connection = remove_connection(connection)
+            except DjangoValidationError as error:
+                return social_validation_response(error)
+            except PublishingProviderError as error:
+                logger.warning("Social account removal failed for workspace %s: %s", connection.workspace_id, error.category.value)
+                return Response({"detail": "Could not remove this account from the publishing service. Try again."}, status=502)
+            except Exception as error:
+                logger.error("Social account removal failed for workspace %s: %s", connection.workspace_id, type(error).__name__)
+                return Response({"detail": "Could not remove this social account. Try again."}, status=502)
+            record_audit_event(
+                workspace=connection.workspace,
+                event_type=SocialAuditEventType.CONNECTION_DISCONNECTED,
+                actor=request.user,
+                target=connection,
+                details={"network": connection.network, "removed": True},
+            )
+            return Response({"id": removed_id, "removed": True})
         if action == "DISCONNECT":
             try:
                 connection = disconnect_connection(connection)
@@ -882,7 +903,7 @@ class SocialConnectionActionAPIView(SocialWorkspaceScopedAPIView):
                 details={"network": connection.network, "reconnect": True},
             )
             return Response({"authorization_url": authorization_url, "expires_at": expires_at.isoformat() if expires_at else None})
-        return Response({"action": ["Choose reconnect or disconnect."]}, status=400)
+        return Response({"action": ["Choose reconnect, disconnect, or remove."]}, status=400)
 
 
 class ContentStudioOnboardingAPIView(SocialWorkspaceScopedAPIView):

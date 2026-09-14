@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './components/content/AuthContext'
 import { AuthPage } from './pages/AuthPage'
+import { LandingPage } from './pages/LandingPage'
 import { ContentStudioPage } from './pages/ContentStudioPage'
 import { ContentHomeView } from './components/content/views/ContentHomeView'
 import { ContentCreateView } from './components/content/views/ContentCreateView'
@@ -27,7 +28,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
       <Routes>
-        <Route path="/" element={<Navigate to="/content" replace />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/content" element={<ProtectedStudio />}>
@@ -42,7 +43,7 @@ export default function App() {
           <Route path="settings" element={<ContentSettingsView />} />
           <Route path="onboarding" element={<ContentOnboardingView />} />
         </Route>
-        <Route path="*" element={<Navigate to="/content" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </AuthProvider>
     </BrowserRouter>

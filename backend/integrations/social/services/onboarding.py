@@ -100,7 +100,7 @@ def _connection_for(workspace):
         workspace=workspace,
         network__in=[SocialNetwork.LINKEDIN, SocialNetwork.INSTAGRAM],
         provider=selected_provider(workspace).value,
-    ).order_by(
+    ).exclude(status=ConnectionState.DISCONNECTED, provider_account_id="").order_by(
         models_connection_priority(), "-updated_at"
     ).first()
 

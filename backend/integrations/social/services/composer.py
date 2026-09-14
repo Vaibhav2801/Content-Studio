@@ -382,6 +382,7 @@ def generate_variants(*, post, networks, controls, generator=None):
         value = generated[network]
         value["metadata"] = {
             **value["metadata"],
+            "include_image": controls["include_image"] or network == SocialNetwork.INSTAGRAM,
             "brand_brain_version": {"id": str(brand_version.id), "version": brand_version.version},
             "source_references": source_references,
         }

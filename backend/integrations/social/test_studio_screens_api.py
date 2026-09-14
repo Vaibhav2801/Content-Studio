@@ -22,7 +22,8 @@ from integrations.social.models import (
     PublishJob,
     PublishJobState,
 )
-from integrations.social.publishing.fakes import FakeUploadPostProvider
+from integrations.social.publishing.fakes import FakeUploadPostProvider, FakeZernioProvider
+from integrations.social.publishing.errors import ProviderTemporaryFailureError
 from integrations.social.services.composer import submit_for_review
 from integrations.social.services.publishing_routing import create_publish_job
 from integrations.social.services.studio import approve_exact_version
@@ -286,6 +287,73 @@ class ContentStudioScreensApiTests(TestCase):
         self.assertEqual(reconnect.status_code, 200)
         self.assertIn("authorization_url", reconnect.data)
         self.assertNotContains(reconnect, "Upload Post")
+
+    def test_remove_zernio_account_removes_remote_connection_and_hides_local_record(self):
+        account = SocialConnection.objects.create(
+            workspace=self.workspace,
+            network=SocialNetwork.INSTAGRAM,
+            provider=SocialProvider.ZERNIO,
+            provider_profile_id="zernio-profile",
+            provider_account_id="zernio-account",
+            display_name="@studio",
+            status=ConnectionState.CONNECTED,
+        )
+        fake = FakeZernioProvider()
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[account.id]),
+                {"action": "REMOVE"}, format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {"id": str(account.id), "removed": True})
+        self.assertEqual(fake.removed_account, (self.workspace.id, "zernio-profile", "zernio-account"))
+        account.refresh_from_db()
+        self.assertEqual(account.status, ConnectionState.DISCONNECTED)
+        self.assertEqual(account.provider_account_id, "")
+        self.assertNotIn(str(account.id), [row["id"] for row in self.client.get(reverse("social-connections")).data])
+
+    def test_remove_zernio_account_is_workspace_scoped(self):
+        other_account = SocialConnection.objects.create(
+            workspace=self.other_workspace,
+            network=SocialNetwork.INSTAGRAM,
+            provider=SocialProvider.ZERNIO,
+            provider_profile_id="other-profile",
+            provider_account_id="other-account",
+            display_name="@other",
+            status=ConnectionState.CONNECTED,
+        )
+        fake = FakeZernioProvider()
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[other_account.id]),
+                {"action": "REMOVE"}, format="json",
+            )
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("remove_account", fake.calls)
+        other_account.refresh_from_db()
+        self.assertEqual(other_account.status, ConnectionState.CONNECTED)
+
+    def test_failed_zernio_removal_keeps_account_connected(self):
+        account = SocialConnection.objects.create(
+            workspace=self.workspace,
+            network=SocialNetwork.INSTAGRAM,
+            provider=SocialProvider.ZERNIO,
+            provider_profile_id="zernio-profile",
+            provider_account_id="zernio-account",
+            display_name="@studio",
+            status=ConnectionState.CONNECTED,
+        )
+        fake = FakeZernioProvider()
+        fake.remove_account = lambda **kwargs: (_ for _ in ()).throw(ProviderTemporaryFailureError("Temporary failure"))
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[account.id]),
+                {"action": "REMOVE"}, format="json",
+            )
+        self.assertEqual(response.status_code, 502)
+        account.refresh_from_db()
+        self.assertEqual(account.status, ConnectionState.CONNECTED)
+        self.assertEqual(account.provider_account_id, "zernio-account")
 
     def test_disconnect_is_blocked_while_provider_submission_is_in_flight(self):
         _, variant = self.make_post("Publishing now", SocialPostState.SUBMITTED)

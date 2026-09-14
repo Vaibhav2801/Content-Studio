@@ -484,6 +484,7 @@
 .connection-detail strong { font-size: .8rem; }
 .connection-detail small { color: var(--muted); font-size: .7rem; }
 .studio-connection-card footer { margin-top: auto; display: flex; justify-content: flex-end; }
+.connection-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .connection-disconnect-confirm { width: 100%; padding: 12px; border: 1px solid #efc4c0; border-radius: 10px; background: #fff7f6; }
 .connection-disconnect-confirm > strong { color: #7f2e28; font-size: .82rem; }
 .connection-disconnect-confirm > p { margin: 5px 0 11px; color: #6f5653; font-size: .74rem; line-height: 1.45; }

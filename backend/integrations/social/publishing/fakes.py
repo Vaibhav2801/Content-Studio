@@ -214,3 +214,7 @@ class FakeUploadPostProvider(FakePublishingProvider):
 
 class FakeZernioProvider(FakePublishingProvider):
     provider = ProviderName.ZERNIO
+
+    def remove_account(self, *, workspace_id, provider_profile_id, provider_account_id):
+        self.calls.append("remove_account")
+        self.removed_account = (workspace_id, provider_profile_id, provider_account_id)

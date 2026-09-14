@@ -40,7 +40,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
 
   return <div className="auth-page">
     <aside className="auth-story">
-      <Link className="auth-brand" to="/signin"><span><Sparkles size={23} /></span><strong>content studio</strong></Link>
+      <Link className="auth-brand" to="/"><span><Sparkles size={23} /></span><strong>content studio</strong></Link>
       <div className="auth-story-body">
         <div className="auth-eyebrow"><span /> YOUR CONTENT WORKSPACE</div>
         <h1>Make room for<br /><em>better ideas.</em></h1>
