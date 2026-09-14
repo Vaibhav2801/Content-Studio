@@ -402,11 +402,14 @@ def disconnect_connection(connection):
             "detail": "A post is still being processed for this account. Wait for it to finish before disconnecting."
         })
     pausable_job_states = {PublishJobState.APPROVED, PublishJobState.SCHEDULED}
+    affected_variant_ids = SocialPostVariant.objects.filter(
+        connection=connection,
+        publish_jobs__status__in=pausable_job_states,
+    ).values_list("id", flat=True).distinct()
     affected_variants = list(
         SocialPostVariant.objects.select_for_update().select_related("post").filter(
-            connection=connection,
-            publish_jobs__status__in=pausable_job_states,
-        ).distinct()
+            id__in=affected_variant_ids,
+        )
     )
     connection.publish_jobs.filter(status__in=pausable_job_states).update(
         status=PublishJobState.CONNECTION_REQUIRED,
