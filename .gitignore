@@ -1,0 +1,28 @@
+# Local secrets
+.env
+backend/.env
+frontend/.env
+
+# Python
+backend/venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Django/runtime data
+backend/media/
+backend/.private_social_media/
+backend/discovery_traces/
+backend/llm_telemetry.sqlite3
+*.sqlite3
+
+# Node/Vite
+frontend/node_modules/
+frontend/dist/
+*.log
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

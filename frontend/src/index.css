@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap');
+
+:root {
+  --ink: #14231d;
+  --muted: #64716b;
+  --muted-2: #89938e;
+  --line: #e3e8e1;
+  --surface: #fff;
+  --canvas: #f4f6f1;
+  --nav: #13261f;
+  --lime: #c9f85b;
+  --lime-dark: #769c19;
+  --blue: #6f8ef6;
+  --amber: #f5b648;
+  --rose: #ef7a72;
+  --violet: #9a7de9;
+  --teal: #4cbba4;
+  --shadow: 0 1px 2px #14231d0a, 0 10px 30px #14231d09;
+  --font-geist-sans: 'Geist', Arial, sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-decoration: none; }
+button { color: inherit; }
+::selection { background: var(--lime); color: var(--ink); }
+
+.li-studio { padding: 32px 24px 56px; }
+@media (max-width: 600px) {
+  .li-studio { padding: 20px 14px 40px; }
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  transition: transform .16s, box-shadow .16s, background .16s;
+}
+.button:hover { transform: translateY(-1px); }
+.button-dark {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 3px 10px #14231d1f;
+}
+.button-dark:hover { background: #203b30; }
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: box-shadow .22s ease, border-color .22s ease;
+}
+.card:hover { border-color: #d6ddd5; }
+.page-enter { animation: page-in .38s cubic-bezier(.22, .8, .38, 1) both; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}

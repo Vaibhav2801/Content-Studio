@@ -1,0 +1,317 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { LinkedInApiError, linkedinApi } from '../../api/linkedin'
+import { contentOnboardingApi } from '../../api/contentOnboarding'
+import { contentOnboardingMock, linkedinMockDashboard } from '../../api/linkedinMock'
+import type { ContentDashboard, ContentPost, ContentPostStatus, ContentSettings, ContentStudioOnboarding } from '../../types/content'
+import { customerSafeMessage } from './contentUtils'
+
+type PostAction = 'approve' | 'publish' | 'cancel'
+
+interface ContentStudioState {
+  dashboard: ContentDashboard
+  onboarding: ContentStudioOnboarding
+  settingsDraft: ContentSettings
+  selected?: ContentPost
+  selectedId: string
+  selectedBriefId: string
+  context: string
+  contextLabel: string
+  saveContext: boolean
+  busy: string
+  notice: string
+  noticeError: boolean
+  isDemo: boolean
+  setSelectedId: (id: string) => void
+  setSelectedBriefId: (id: string) => void
+  setContext: (value: string) => void
+  setContextLabel: (value: string) => void
+  setSaveContext: (value: boolean) => void
+  setSettingsDraft: (settings: ContentSettings) => void
+  dismissNotice: () => void
+  generate: () => Promise<void>
+  runPostAction: (action: PostAction) => Promise<void>
+  updatePost: (body: string, imagePrompt: string) => Promise<void>
+  regenerateImage: () => Promise<void>
+  saveSettings: () => Promise<void>
+  toggleAutomation: () => Promise<void>
+  startOnboarding: () => Promise<void>
+  moveOnboardingStep: (step: number) => Promise<void>
+  completeOnboardingStep: (step: number, payload: Record<string, unknown>) => Promise<ContentStudioOnboarding | undefined>
+  connectLinkedIn: (network?: "LINKEDIN" | "INSTAGRAM") => Promise<void>
+  completeLinkedInConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => Promise<void>
+  selectLinkedInConnection: (payload: { state: string; pending_data_token: string; organization_id: string; connect_token?: string }) => Promise<boolean>
+  cancelLinkedInConnection: () => Promise<void>
+  reload: () => Promise<void>
+}
+
+const ContentStudioContext = createContext<ContentStudioState | null>(null)
+const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
+
+export function ContentStudioProvider({ children }: { children: ReactNode }) {
+  const [dashboard, setDashboard] = useState<ContentDashboard | null>(null)
+  const [onboarding, setOnboarding] = useState<ContentStudioOnboarding | null>(null)
+  const [settingsDraft, setSettingsDraft] = useState<ContentSettings | null>(null)
+  const [selectedId, setSelectedId] = useState('')
+  const [selectedBriefId, setSelectedBriefId] = useState('')
+  const [context, setContext] = useState('')
+  const [contextLabel, setContextLabel] = useState('')
+  const [saveContext, setSaveContext] = useState(true)
+  const [isDemo, setIsDemo] = useState(demoMode)
+  const [loadError, setLoadError] = useState('')
+  const [busy, setBusy] = useState('')
+  const [notice, setNotice] = useState('')
+  const [noticeError, setNoticeError] = useState(false)
+
+  const load = async () => {
+    setLoadError('')
+    if (demoMode) {
+      const data = structuredClone(linkedinMockDashboard)
+      setDashboard(data)
+      setOnboarding(structuredClone(contentOnboardingMock))
+      setSettingsDraft(data.settings)
+      setIsDemo(true)
+      setSelectedId((current) => current || data.posts[0]?.id || '')
+      setSelectedBriefId((current) => current || data.briefs[0]?.id || '')
+      return
+    }
+    try {
+      const [data, onboardingState] = await Promise.all([linkedinApi.dashboard(), contentOnboardingApi.get()])
+      setDashboard(data)
+      setOnboarding(onboardingState)
+      setSettingsDraft(data.settings)
+      setIsDemo(false)
+      setSelectedId((current) => current || data.posts[0]?.id || '')
+      setSelectedBriefId((current) => current || data.briefs[0]?.id || '')
+    } catch (error) {
+      setDashboard(null)
+      setOnboarding(null)
+      setSettingsDraft(null)
+      setIsDemo(false)
+      setLoadError(customerSafeMessage(error instanceof Error ? error.message : undefined, 'Could not load Content Studio.'))
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+  const selected = useMemo(() => dashboard?.posts.find((post) => post.id === selectedId) ?? dashboard?.posts[0], [dashboard, selectedId])
+  const replacePost = (post: ContentPost) => setDashboard((current) => current ? {
+    ...current,
+    posts: current.posts.map((item) => item.id === post.id ? post : item),
+  } : current)
+  const fail = (error: unknown, fallback: string) => {
+    setNoticeError(true)
+    setNotice(customerSafeMessage(error instanceof Error ? error.message : undefined, fallback))
+  }
+
+  const generate = async () => {
+    setBusy('generate'); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) {
+        const demoPost = {
+          ...linkedinMockDashboard.posts[0],
+          id: `demo-${Date.now()}`,
+          topic: contextLabel || 'New social post',
+          scheduled_for: dashboard?.next_slots[0] || new Date().toISOString(),
+        }
+        setDashboard((current) => current ? { ...current, posts: [demoPost, ...current.posts] } : current)
+        setSelectedId(demoPost.id)
+        setNotice('Demo post created. Connect the backend to create a live post.')
+      } else {
+        const posts = await linkedinApi.generate({
+          context: context.trim() || undefined,
+          label: contextLabel.trim() || undefined,
+          brief_id: context.trim() ? undefined : selectedBriefId || undefined,
+          is_evergreen: saveContext,
+          count: 1,
+        })
+        setDashboard((current) => current ? { ...current, posts: [...posts, ...current.posts] } : current)
+        setSelectedId(posts[0]?.id ?? '')
+        setNotice('Post, hashtags, and image direction created.')
+      }
+      setContext(''); setContextLabel('')
+    } catch (error) { fail(error, 'Could not create the post.') }
+    finally { setBusy('') }
+  }
+
+  const runPostAction = async (action: PostAction) => {
+    if (!selected) return
+    setBusy(action); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) {
+        const status: ContentPostStatus = action === 'approve' ? 'SCHEDULED' : action === 'publish' ? 'SUBMITTED' : 'CANCELLED'
+        replacePost({ ...selected, status })
+      } else {
+        const post = action === 'approve' ? await linkedinApi.approve(selected.id)
+          : action === 'publish' ? await linkedinApi.publishNow(selected.id)
+          : await linkedinApi.cancel(selected.id)
+        replacePost(post)
+      }
+      setNotice(action === 'approve' ? 'Approved and added to the schedule.' : action === 'publish' ? 'Post accepted for publishing. Its status will update automatically.' : 'Removed from the schedule.')
+    } catch (error) {
+      if (error instanceof LinkedInApiError && typeof error.payload.id === 'string') replacePost(error.payload as unknown as ContentPost)
+      fail(error, 'Could not complete that action.')
+    } finally { setBusy('') }
+  }
+
+  const updatePost = async (body: string, imagePrompt: string) => {
+    if (!selected) return
+    setBusy('edit'); setNotice(''); setNoticeError(false)
+    try {
+      const updated = isDemo ? { ...selected, body, image_prompt: imagePrompt, character_count: body.length + selected.hashtags.join(' ').length }
+        : await linkedinApi.updatePost(selected.id, { body, image_prompt: imagePrompt })
+      replacePost(updated)
+      setNotice('Post changes saved.')
+    } catch (error) { fail(error, 'Could not save the post.') }
+    finally { setBusy('') }
+  }
+
+  const regenerateImage = async () => {
+    if (!selected) return
+    setBusy('image'); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) setNotice('Image creation is unavailable in demo mode.')
+      else {
+        replacePost(await linkedinApi.regenerateImage(selected.id))
+        setNotice('A new image was created from the visual direction.')
+      }
+    } catch (error) { fail(error, 'Could not create a new image.') }
+    finally { setBusy('') }
+  }
+
+  const saveSettings = async () => {
+    if (!settingsDraft) return
+    setBusy('settings'); setNotice(''); setNoticeError(false)
+    try {
+      const saved = isDemo ? settingsDraft : await linkedinApi.saveSettings(settingsDraft)
+      setDashboard((current) => current ? { ...current, settings: saved } : current)
+      setSettingsDraft(saved)
+      setNotice(isDemo ? 'Demo settings updated for this visit.' : 'Content Studio settings saved.')
+    } catch (error) { fail(error, 'Could not save settings.') }
+    finally { setBusy('') }
+  }
+
+  const toggleAutomation = async () => {
+    if (!settingsDraft) return
+    const previous = settingsDraft
+    const next = { ...settingsDraft, is_active: !settingsDraft.is_active }
+    setBusy('automation')
+    setSettingsDraft(next)
+    try {
+      if (isDemo) {
+        setDashboard((current) => current ? { ...current, settings: next } : current)
+      } else {
+        const saved = await linkedinApi.saveSettings({ is_active: next.is_active })
+        setDashboard((current) => current ? { ...current, settings: saved } : current)
+        setSettingsDraft(saved)
+      }
+    } catch (error) {
+      setSettingsDraft(previous)
+      fail(error, 'Could not change publishing status.')
+    } finally { setBusy('') }
+  }
+
+  const startOnboardingFlow = async () => {
+    if (isDemo) {
+      setOnboarding({ ...contentOnboardingMock, status: 'IN_PROGRESS', current_step: 1, completed_steps: [] })
+      return
+    }
+    try { setOnboarding(await contentOnboardingApi.start()) }
+    catch (error) { fail(error, 'Could not start setup.') }
+  }
+
+  const moveOnboardingStep = async (step: number) => {
+    if (!onboarding) return
+    if (isDemo) { setOnboarding({ ...onboarding, current_step: step, status: 'IN_PROGRESS' }); return }
+    try { setOnboarding(await contentOnboardingApi.setCurrentStep(step)) }
+    catch (error) { fail(error, 'Could not save your setup progress.') }
+  }
+
+  const completeOnboardingStep = async (step: number, payload: Record<string, unknown>) => {
+    if (!onboarding) return undefined
+    try {
+      let saved: ContentStudioOnboarding
+      if (isDemo) {
+        saved = {
+          ...onboarding,
+          status: step === 4 ? 'COMPLETE' : 'IN_PROGRESS',
+          current_step: Math.min(4, step + 1),
+          completed_steps: [...new Set([...onboarding.completed_steps, step])].sort(),
+        }
+      } else {
+        saved = await contentOnboardingApi.completeStep(step, payload)
+      }
+      setOnboarding(saved)
+      if (!isDemo && (step === 2 || step === 3)) {
+        const data = await linkedinApi.dashboard()
+        setDashboard(data)
+        setSettingsDraft(data.settings)
+      }
+      return saved
+    } catch (error) { fail(error, 'Could not save this setup step.'); return undefined }
+  }
+
+  const connectLinkedIn = async (network: "LINKEDIN" | "INSTAGRAM" = "LINKEDIN") => {
+    setBusy('connection'); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) { setNotice('Social account connection is unavailable in demo mode.'); return }
+      const result = await contentOnboardingApi.startConnection(network)
+      window.open(result.authorization_url, '_self')
+    } catch (error) { fail(error, `Could not start the ${network === 'INSTAGRAM' ? 'Instagram' : 'LinkedIn'} connection.`) }
+    finally { setBusy('') }
+  }
+
+  const completeLinkedInConnection = async (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => {
+    setBusy('connection-return'); setNotice(''); setNoticeError(false)
+    try {
+      const saved = await contentOnboardingApi.completeConnection(payload)
+      setOnboarding(saved)
+      setNotice(payload.cancelled || payload.error ? 'The connection was cancelled.' : 'Social account connected successfully.')
+    } catch (error) {
+      fail(error, 'The social account could not be connected. Choose Reconnect to try again.')
+      try { setOnboarding(await contentOnboardingApi.get()) } catch { /* Keep the actionable connection error visible. */ }
+    }
+    finally { setBusy('') }
+  }
+
+  const selectLinkedInConnection = async (payload: { state: string; pending_data_token: string; organization_id: string; connect_token?: string }) => {
+    setBusy('connection-return'); setNotice(''); setNoticeError(false)
+    try {
+      const saved = await contentOnboardingApi.selectConnection(payload)
+      setOnboarding(saved)
+      setNotice('LinkedIn Company Page connected successfully.')
+      return true
+    } catch (error) {
+      fail(error, 'Could not connect that Company Page. Please try again.')
+      return false
+    } finally { setBusy('') }
+  }
+
+  const cancelLinkedInConnection = async () => {
+    setBusy('connection'); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) return
+      setOnboarding(await contentOnboardingApi.cancelConnection())
+      setNotice('The connection was cancelled. You can reconnect later.')
+    } catch (error) { fail(error, 'Could not cancel the connection step.') }
+    finally { setBusy('') }
+  }
+
+  if (loadError) return <div className="li-loading" role="alert">{loadError}<button className="button button-dark" type="button" onClick={() => void load()}>Try again</button></div>
+  if (!dashboard || !settingsDraft || !onboarding) return <div className="li-loading" role="status">Loading Content Studio…</div>
+
+  return <ContentStudioContext.Provider value={{
+    dashboard, onboarding, settingsDraft, selected, selectedId, selectedBriefId, context, contextLabel, saveContext,
+    busy, notice, noticeError, isDemo, setSelectedId, setSelectedBriefId, setContext, setContextLabel,
+    setSaveContext, setSettingsDraft, dismissNotice: () => { setNotice(''); setNoticeError(false) }, generate,
+    runPostAction, updatePost, regenerateImage, saveSettings, toggleAutomation,
+    startOnboarding: startOnboardingFlow, moveOnboardingStep, completeOnboardingStep,
+    connectLinkedIn, completeLinkedInConnection, selectLinkedInConnection, cancelLinkedInConnection, reload: load,
+  }}>{children}</ContentStudioContext.Provider>
+}
+
+// Context hooks intentionally live beside their provider to keep one public state contract.
+// eslint-disable-next-line react-refresh/only-export-components
+export function useContentStudio() {
+  const value = useContext(ContentStudioContext)
+  if (!value) throw new Error('useContentStudio must be used within ContentStudioProvider')
+  return value
+}
