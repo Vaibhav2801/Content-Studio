@@ -95,8 +95,17 @@ describe('Content Studio', () => {
     expect(screen.getByRole('tab', { name: 'New idea' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('checkbox', { name: /LinkedIn/i })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /@lumadesk · Profile/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Create a series automatically/i })).toHaveAttribute('href', '/content/series')
     expect(screen.getByRole('button', { name: /^Generate$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Send for approval/i })).toBeInTheDocument()
+  })
+
+  it('fills a new post from a quick-start idea', async () => {
+    renderStudio('/content/create?new=1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Common question' }))
+    expect(screen.getByLabelText('Working title')).toHaveValue('Answer a common customer question')
+    expect((screen.getByLabelText('What is the idea?') as HTMLTextAreaElement).value).toContain('question our customers often ask')
+    expect(screen.queryByRole('button', { name: 'Common question' })).not.toBeInTheDocument()
   })
 
   it('navigates directly to Calendar and Settings', async () => {

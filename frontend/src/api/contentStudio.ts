@@ -64,7 +64,7 @@ export const contentStudioApi = {
   },
   libraryAction: (postId: string, action: 'DUPLICATE' | 'REUSE_IDEA' | 'ARCHIVE') => request<LibraryPost>(`/posts/${postId}/library-action/`, { method: 'POST', body: JSON.stringify({ action }) }),
   connections: () => request<StudioConnection[]>('/connections/'),
-  connectionAction: (connectionId: string, action: 'RECONNECT' | 'DISCONNECT' | 'REMOVE') => request<StudioConnection | { authorization_url: string; expires_at: string | null } | { id: string; removed: true }>(`/connections/${connectionId}/action/`, { method: 'POST', body: JSON.stringify({ action }) }),
+  connectionAction: (connectionId: string, action: 'RECONNECT' | 'DISCONNECT' | 'PREPARE_REMOVE' | 'REMOVE') => request<StudioConnection | { authorization_url: string; expires_at: string | null } | { id: string; removed: true }>(`/connections/${connectionId}/action/`, { method: 'POST', body: JSON.stringify({ action }) }),
   exportData: () => request<ContentStudioExport>('/studio/data-export/'),
   deleteData: (confirmation: string) => request<{ deleted: Record<string, number> }>('/studio/data/', {
     method: 'DELETE',

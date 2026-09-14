@@ -3,7 +3,7 @@ import json
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from integrations.social.models import SocialConnection, SocialNetwork, SocialPost, SocialProvider
+from integrations.social.models import ConnectionState, SocialConnection, SocialNetwork, SocialPost, SocialProvider
 from prospecting.models import WorkspaceMembership
 
 
@@ -68,6 +68,7 @@ class ContentStudioAuthenticationTests(TestCase):
         first_connection = SocialConnection.objects.create(
             workspace_id=first_workspace_id, network=SocialNetwork.LINKEDIN,
             provider=SocialProvider.UPLOAD_POST, display_name="Alex LinkedIn",
+            provider_profile_id="alex-profile", provider_account_id="alex-account", status=ConnectionState.CONNECTED,
         )
         first_post = SocialPost.objects.create(workspace_id=first_workspace_id, idea_title="Alex private draft")
         self.post("studio-auth-signout", {})
@@ -76,6 +77,7 @@ class ContentStudioAuthenticationTests(TestCase):
         SocialConnection.objects.create(
             workspace_id=second_workspace_id, network=SocialNetwork.X,
             provider=SocialProvider.UPLOAD_POST, display_name="Sam X",
+            provider_profile_id="sam-profile", provider_account_id="sam-account", status=ConnectionState.CONNECTED,
         )
         SocialPost.objects.create(workspace_id=second_workspace_id, idea_title="Sam private draft")
         self.assertEqual(

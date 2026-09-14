@@ -24,6 +24,7 @@ from integrations.social.models import (
 )
 from integrations.social.publishing.fakes import FakeUploadPostProvider, FakeZernioProvider
 from integrations.social.publishing.errors import ProviderTemporaryFailureError
+from integrations.social.publishing.types import PublishingNetwork, SocialAccount
 from integrations.social.services.composer import submit_for_review
 from integrations.social.services.publishing_routing import create_publish_job
 from integrations.social.services.studio import approve_exact_version
@@ -267,6 +268,9 @@ class ContentStudioScreensApiTests(TestCase):
         listed = self.client.get(reverse("social-connections"))
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.data[0]["display_name"], "Studio Company Page")
+        self.assertEqual(listed.data[0]["provider_label"], "Upload Post")
+        self.assertTrue(listed.data[0]["can_remove"])
+        self.assertEqual(listed.data[0]["removal_method"], "PROVIDER_MANAGED")
         self.assertNotContains(listed, "UPLOAD_POST")
         disconnected = self.client.post(reverse("social-connection-action", args=[self.connection.id]), {"action": "DISCONNECT"}, format="json")
         self.assertEqual(disconnected.status_code, 200)
@@ -287,6 +291,54 @@ class ContentStudioScreensApiTests(TestCase):
         self.assertEqual(reconnect.status_code, 200)
         self.assertIn("authorization_url", reconnect.data)
         self.assertNotContains(reconnect, "Upload Post")
+
+    def test_upload_post_removal_requires_remote_disconnect(self):
+        fake = FakeUploadPostProvider()
+        fake.accounts = (SocialAccount(
+            provider_profile_id="profile-1",
+            provider_account_id="account-1",
+            network=PublishingNetwork.LINKEDIN,
+            display_name="Studio Company Page",
+            account_type="ORGANIZATION",
+            capabilities=fake.capabilities,
+        ),)
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[self.connection.id]),
+                {"action": "REMOVE"}, format="json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.status, ConnectionState.CONNECTED)
+        self.assertEqual(self.connection.provider_account_id, "account-1")
+
+    def test_upload_post_removal_after_remote_disconnect_frees_local_connection(self):
+        fake = FakeUploadPostProvider(accounts=())
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[self.connection.id]),
+                {"action": "REMOVE"}, format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {"id": str(self.connection.id), "removed": True})
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.status, ConnectionState.DISCONNECTED)
+        self.assertEqual(self.connection.provider_account_id, "")
+        self.assertNotIn(str(self.connection.id), [row["id"] for row in self.client.get(reverse("social-connections")).data])
+
+    def test_upload_post_removal_opens_provider_account_manager_without_disconnect(self):
+        fake = FakeUploadPostProvider()
+        with patch("integrations.social.services.studio.publishing_provider_registry.create", return_value=fake):
+            response = self.client.post(
+                reverse("social-connection-action", args=[self.connection.id]),
+                {"action": "PREPARE_REMOVE"}, format="json",
+                HTTP_ORIGIN="http://localhost:5173",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("authorization_url", response.data)
+        self.assertIn("get_connection_url", fake.calls)
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.status, ConnectionState.CONNECTED)
 
     def test_remove_zernio_account_removes_remote_connection_and_hides_local_record(self):
         account = SocialConnection.objects.create(

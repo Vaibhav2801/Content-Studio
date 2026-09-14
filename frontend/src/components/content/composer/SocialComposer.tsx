@@ -2,7 +2,7 @@ import { Check, LoaderCircle, Save, Send, Sparkles, TriangleAlert } from 'lucide
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { socialComposerApi } from '../../../api/socialComposer'
 
@@ -31,6 +31,13 @@ import { VariantEditor } from './VariantEditor'
 type StartMode = 'idea' | 'source' | 'draft'
 
 const defaultControls: GenerationControls = { tone: 'Professional', goal: 'Awareness', length: 'Medium', include_image: false }
+
+const ideaStarters = [
+  { label: 'Quick tip', title: 'A helpful tip for our audience', idea: 'Share one practical tip our audience can try today. Explain why it helps and end with one clear next step.' },
+  { label: 'Common question', title: 'Answer a common customer question', idea: 'Answer a question our customers often ask. Start with the short answer, add a useful example, and invite a follow-up.' },
+  { label: 'Behind the scenes', title: 'A look behind the scenes', idea: 'Show one real step in how our team works. Explain the care behind it without inventing details or results.' },
+  { label: 'Customer story', title: 'A customer story', idea: 'Tell a customer story using only facts we can verify. Describe the challenge, what changed, and the lesson others can use.' },
+]
 
 
 
@@ -645,10 +652,13 @@ export function SocialComposer({ onPostChange }: Props) {
         <div className="li-section-heading"><span>CREATE</span><h2 id="composer-start-title">Start with what you have</h2><p>Content Studio will shape a different draft for every selected network.</p></div>
 
         <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{([['idea', 'New idea'], ['source', 'Saved source'], ['draft', 'Existing draft']] as [StartMode, string][]).map(([value, label]) => <button type="button" role="tab" aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}>{label}</button>)}</div>
+        <p className="composer-series-link">Need several posts? <Link to="/content/series">Create a series automatically from one brief</Link></p>
 
         {mode === 'draft' ? <label className="li-field"><span>Choose a draft</span><select value={draftId} onChange={(event) => void loadDraft(event.target.value)}><option value="">Select a draft</option>{options.drafts.map((draft) => <option key={draft.id} value={draft.id}>{draft.idea_title}</option>)}</select></label> : <>
 
           {mode === 'source' && <fieldset className="composer-source-picker"><legend>Sources to use</legend><p className="composer-source-help">Saved sources provide approved facts and language for generated posts. Your prompt still decides the angle.</p>{options.sources.length === 0 && <p className="composer-source-help">No sources saved yet. <a href="/content/library?panel=sources">Add a source</a>, or choose New idea to write from a prompt.</p>}{options.sources.map((source) => <label key={source.id}><input type="checkbox" checked={sourceIds.includes(source.id)} disabled={source.processing_status !== 'READY'} onChange={(event) => { const next = event.target.checked ? [...sourceIds, source.id] : sourceIds.filter((id) => id !== source.id); setSourceIds(next); if (event.target.checked && !ideaTitle) setIdeaTitle(source.label); markUnsaved() }} /><span><strong>{source.label}</strong><small>{source.processing_status === 'READY' ? `${source.source_type.replaceAll('_', ' ').toLowerCase()} · ready` : `${source.source_type.replaceAll('_', ' ').toLowerCase()} · still processing`}</small></span></label>)}</fieldset>}
+
+          {mode === 'idea' && !post && !ideaTitle.trim() && !ideaText.trim() && <div className="composer-idea-starters"><span>Start a post faster</span><p>Choose a direction, then add your own details before generating.</p><div>{ideaStarters.map((starter) => <button type="button" key={starter.label} onClick={() => { setIdeaTitle(starter.title); setIdeaText(starter.idea); markUnsaved() }}>{starter.label}</button>)}</div></div>}
 
           <label className="li-field"><span>Working title</span><input value={ideaTitle} placeholder="For example: A simpler onboarding process" onChange={(event) => { setIdeaTitle(event.target.value); markUnsaved() }} /></label>
 

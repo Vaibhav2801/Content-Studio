@@ -22,6 +22,7 @@ function renderScreen(path: string) {
 describe('Content Studio core screens', () => {
   afterEach(cleanup)
   beforeEach(() => {
+    sessionStorage.clear()
     vi.restoreAllMocks()
     vi.spyOn(linkedinApi, 'dashboard').mockResolvedValue(structuredClone(linkedinMockDashboard))
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(structuredClone(contentOnboardingMock))
@@ -171,6 +172,7 @@ describe('Content Studio core screens', () => {
     renderScreen('/content/connections')
     expect(await screen.findByText('@lumadesk')).toBeInTheDocument()
     expect(within(screen.getByText('@lumadesk').closest('article')!).getByRole('button', { name: /^Disconnect$/i })).toBeInTheDocument()
+    expect(within(screen.getByText('@lumadesk').closest('article')!).getByText(/remove it in the publishing service's account manager/i)).toBeInTheDocument()
     const accountCard = screen.getByText('LumaDesk').closest('article')!
     fireEvent.click(within(accountCard).getByRole('button', { name: /Disconnect/i }))
     expect(contentStudioApi.connectionAction).not.toHaveBeenCalled()
@@ -181,20 +183,51 @@ describe('Content Studio core screens', () => {
     fireEvent.click(within(accountCard).getByRole('button', { name: /Disconnect account/i }))
     await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith('connection-1', 'DISCONNECT'))
     await waitFor(() => expect(within(accountCard).getByRole('button', { name: /Reconnect/i })).toBeInTheDocument())
-    expect(document.body.textContent).not.toMatch(/Upload Post|Zernio/i)
+    expect(within(accountCard).getByText(/via Upload Post/i)).toBeInTheDocument()
   })
 
   it('removes a connected publishing account from the list after confirmation', async () => {
-    const account: StudioConnection = { ...structuredClone(contentStudioMockConnections[0]), can_remove: true }
+    const account: StudioConnection = { ...structuredClone(contentStudioMockConnections[0]), can_remove: true, removal_method: 'DIRECT' }
     vi.mocked(contentStudioApi.connections).mockResolvedValue([account])
     vi.spyOn(contentStudioApi, 'connectionAction').mockResolvedValue({ id: account.id, removed: true })
     renderScreen('/content/connections')
     const card = (await screen.findByText('LumaDesk')).closest('article')!
-    fireEvent.click(within(card).getByRole('button', { name: /^Remove$/i }))
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(/removed from the publishing service/i)
+    expect(within(card).getByRole('button', { name: /^Disconnect$/i })).toBeInTheDocument()
+    fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/removed from Content Studio and Zernio/i)
     fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
     await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith(account.id, 'REMOVE'))
     expect(await screen.findByText('No social accounts yet')).toBeInTheDocument()
+  })
+
+  it('offers provider-managed removal for Upload Post accounts', async () => {
+    const account: StudioConnection = { ...structuredClone(contentStudioMockConnections[0]), can_remove: true, removal_method: 'PROVIDER_MANAGED' }
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([account])
+    vi.spyOn(contentStudioApi, 'connectionAction').mockResolvedValue({ id: account.id, removed: true })
+    renderScreen('/content/connections')
+    const card = (await screen.findByText('LumaDesk')).closest('article')!
+    fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/Open Upload Post in a new tab/i)
+    expect(within(card).getByRole('button', { name: /Open account manager/i })).toBeInTheDocument()
+    fireEvent.click(within(card).getByRole('button', { name: /Verify removal/i }))
+    await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith(account.id, 'REMOVE'))
+    expect(await screen.findByText('No social accounts yet')).toBeInTheDocument()
+  })
+
+  it('opens the provider manager in a new tab without leaving Connections', async () => {
+    const account: StudioConnection = { ...structuredClone(contentStudioMockConnections[0]), can_remove: true, removal_method: 'PROVIDER_MANAGED' }
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([account])
+    const assign = vi.fn()
+    const opened = vi.spyOn(window, 'open').mockReturnValue({ location: { assign }, close: vi.fn(), opener: null } as unknown as Window)
+    vi.spyOn(contentStudioApi, 'connectionAction').mockResolvedValue({ authorization_url: 'https://social.example/manage', expires_at: null })
+    renderScreen('/content/connections')
+    const card = (await screen.findByText('LumaDesk')).closest('article')!
+    fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
+    fireEvent.click(within(card).getByRole('button', { name: /Open account manager/i }))
+    await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith(account.id, 'PREPARE_REMOVE'))
+    expect(opened).toHaveBeenCalledWith('about:blank', '_blank')
+    expect(assign).toHaveBeenCalledWith('https://social.example/manage')
+    expect(sessionStorage.getItem('pending_account_removal')).toBe(account.id)
   })
 
   it('lets a user connect their first social account from the empty Connections screen', async () => {

@@ -18,7 +18,7 @@ const card = (index = 0): StudioVariantCard => ({
 export const contentStudioMockApprovals: ApprovalGroups = { NEEDS_REVIEW: [card()], CHANGES_REQUESTED: [], APPROVED: [] }
 export const contentStudioMockCalendar: CalendarResponse = { view: 'WEEK', timezone: 'Asia/Kolkata', start: new Date().toISOString(), end: new Date(Date.now() + 7 * 86400000).toISOString(), items: [card()] }
 export const contentStudioMockLibrary: LibraryPost[] = [post]
-export const contentStudioMockConnections: StudioConnection[] = [{ id: 'connection-1', network: 'LINKEDIN', network_label: 'LinkedIn', display_name: 'LumaDesk', account_type: 'Company Page', status: 'CONNECTED', health: 'HEALTHY', message: 'Ready', connected_at: new Date().toISOString(), disconnected_at: null, last_checked_at: new Date().toISOString() }]
+export const contentStudioMockConnections: StudioConnection[] = [{ id: 'connection-1', network: 'LINKEDIN', network_label: 'LinkedIn', display_name: 'LumaDesk', account_type: 'Company Page', provider_label: 'Upload Post', status: 'CONNECTED', health: 'HEALTHY', message: 'Ready', connected_at: new Date().toISOString(), disconnected_at: null, last_checked_at: new Date().toISOString() }]
 export const contentStudioMockHome: HomeSummary = { needs_approval: [card()], upcoming: [], failures: [], connections_needing_attention: 0, totals: { drafts: 3, needs_review: 1, scheduled: 2, published: 8 } }
 
 const metric = (label: string, value?: number): AnalyticsMetricCell => ({ label, available: value !== undefined, value: value ?? null, measured_posts: value === undefined ? 0 : 8 })

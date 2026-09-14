@@ -124,6 +124,7 @@ from integrations.social.services.studio import (
     home_summary,
     library_posts,
     reconnect_connection,
+    prepare_removal,
     remove_connection,
     reject_variant,
     request_changes,
@@ -145,7 +146,7 @@ from integrations.linkedin.workspaces import resolve_active_workspace
 logger = logging.getLogger(__name__)
 
 
-def connection_return_uri(request):
+def connection_return_uri(request, path="/content/onboarding"):
     """Keep OAuth on the authenticated frontend without accepting arbitrary redirects."""
     origin = request.headers.get("Origin", "").rstrip("/")
     parsed = urlsplit(origin)
@@ -156,7 +157,7 @@ def connection_return_uri(request):
         allowed.update({"http://localhost:5173", "http://127.0.0.1:5173"})
     if origin not in allowed:
         return ""
-    return f"{origin}/content/onboarding"
+    return f"{origin}{path}"
 
 
 class ContentStudioEnvelopeSerializer(serializers.Serializer):
@@ -838,6 +839,17 @@ class SocialConnectionActionAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request, connection_id):
         connection = self.connection(request, connection_id)
         action = str(request.data.get("action") or "").upper()
+        if action == "PREPARE_REMOVE":
+            try:
+                authorization_url = prepare_removal(
+                    connection, redirect_uri=connection_return_uri(request, "/content/connections"),
+                )
+            except DjangoValidationError as error:
+                return social_validation_response(error)
+            except PublishingProviderError as error:
+                logger.warning("Social account management failed for workspace %s: %s", connection.workspace_id, error.category.value)
+                return Response({"detail": "Could not open the publishing service's account manager. Try again."}, status=502)
+            return Response({"authorization_url": authorization_url, "expires_at": None})
         if action == "REMOVE":
             try:
                 removed_id = str(connection.id)

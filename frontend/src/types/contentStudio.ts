@@ -86,6 +86,7 @@ export interface StudioConnection {
   network_label: string
   display_name: string
   account_type: string
+  provider_label?: string
   status: 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED' | 'ERROR' | 'REVOKED'
   health: 'HEALTHY' | 'NEEDS_ATTENTION'
   message: string
@@ -93,6 +94,7 @@ export interface StudioConnection {
   disconnected_at: string | null
   last_checked_at: string
   can_remove?: boolean
+  removal_method?: "DIRECT" | "PROVIDER_MANAGED"
 }
 
 export interface HomeSummary {

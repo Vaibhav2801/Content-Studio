@@ -21,7 +21,9 @@ export function ContentConnectionsView() {
   }, [isDemo])
   useEffect(() => { void load() }, [load])
 
-  const act = async (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'REMOVE') => {
+  const act = async (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'PREPARE_REMOVE' | 'REMOVE') => {
+    const managerTab = action === 'PREPARE_REMOVE' && !isDemo ? window.open('about:blank', '_blank') : null
+    if (managerTab) managerTab.opener = null
     setBusy(`${connection.id}-${action}`); setError('')
     try {
       if (isDemo) {
@@ -29,10 +31,13 @@ export function ContentConnectionsView() {
       } else {
         const result = await contentStudioApi.connectionAction(connection.id, action)
         if ('authorization_url' in result) {
-          window.location.assign(result.authorization_url)
+          if (action === 'PREPARE_REMOVE') sessionStorage.setItem('pending_account_removal', connection.id)
+          if (managerTab) managerTab.location.assign(result.authorization_url)
+          else window.location.assign(result.authorization_url)
           return true
         }
         if ('removed' in result) {
+          sessionStorage.removeItem('pending_account_removal')
           setConnections((current) => current?.filter((item) => item.id !== result.id) ?? current)
         } else {
           setConnections((current) => current?.map((item) => item.id === result.id ? result : item) ?? current)
@@ -40,7 +45,8 @@ export function ContentConnectionsView() {
       }
       return true
     } catch (actionError) {
-      setError(customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : action === 'REMOVE' ? 'Could not remove this social account.' : 'Could not disconnect this social account.'))
+      managerTab?.close()
+      setError(customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : action === 'PREPARE_REMOVE' ? 'Could not open the account manager.' : action === 'REMOVE' ? 'Could not remove this social account.' : 'Could not disconnect this social account.'))
       return false
     }
     finally { setBusy('') }
@@ -59,26 +65,30 @@ export function ContentConnectionsView() {
   </section>
 }
 
-function ConnectionCard({ connection, busy, onAction }: { connection: StudioConnection; busy: string; onAction: (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'REMOVE') => Promise<boolean> }) {
+function ConnectionCard({ connection, busy, onAction }: { connection: StudioConnection; busy: string; onAction: (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'PREPARE_REMOVE' | 'REMOVE') => Promise<boolean> }) {
   const Icon = networkIcons[connection.network] ?? Link2
   const healthy = connection.health === 'HEALTHY'
   const disconnected = connection.status === 'DISCONNECTED'
   const canRemove = Boolean(connection.can_remove)
-  const [confirming, setConfirming] = useState(false)
-  const action = canRemove ? 'REMOVE' : 'DISCONNECT'
-  const pending = busy === `${connection.id}-${action}`
+  const providerManaged = connection.removal_method === 'PROVIDER_MANAGED'
+  const [confirming, setConfirming] = useState<'DISCONNECT' | 'REMOVE' | null>(() => sessionStorage.getItem('pending_account_removal') === connection.id ? 'REMOVE' : null)
+  const pending = confirming ? busy === `${connection.id}-${confirming}` : false
 
   const confirmAction = async () => {
-    if (await onAction(connection, action)) setConfirming(false)
+    if (confirming && await onAction(connection, confirming)) setConfirming(null)
   }
 
   return <article className={`card studio-connection-card ${disconnected ? 'disconnected' : healthy ? 'healthy' : 'attention'}`}>
-    <header><span className="connection-network-icon"><Icon size={21} /></span><div><span>{connection.network_label}</span><h3>{connection.display_name || 'Account name unavailable'}</h3><p>{connection.account_type || 'Social account'}</p></div><span className={`connection-health ${disconnected ? 'disconnected' : healthy ? 'ready' : 'attention'}`}>{disconnected ? <Unlink size={15} /> : healthy ? <CheckCircle2 size={15} /> : <RefreshCw size={15} />} {disconnected ? 'Disconnected' : healthy ? 'Ready' : 'Needs attention'}</span></header>
+    <header><span className="connection-network-icon"><Icon size={21} /></span><div><span>{connection.network_label}</span><h3>{connection.display_name || 'Account name unavailable'}</h3><p>{connection.account_type || 'Social account'}{connection.provider_label ? ` · via ${connection.provider_label}` : ''}</p></div><span className={`connection-health ${disconnected ? 'disconnected' : healthy ? 'ready' : 'attention'}`}>{disconnected ? <Unlink size={15} /> : healthy ? <CheckCircle2 size={15} /> : <RefreshCw size={15} />} {disconnected ? 'Disconnected' : healthy ? 'Ready' : 'Needs attention'}</span></header>
     <div className="connection-detail"><strong>{connection.message}</strong><small>{connection.status === 'DISCONNECTED' && connection.disconnected_at ? `Disconnected ${new Date(connection.disconnected_at).toLocaleDateString()}` : connection.connected_at ? `Connected ${new Date(connection.connected_at).toLocaleDateString()}` : 'Not currently connected'} · Checked {new Date(connection.last_checked_at).toLocaleString()}</small></div>
-    <footer>{confirming ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`disconnect-${connection.id}-title`} aria-describedby={`disconnect-${connection.id}-description`}>
-      <strong id={`disconnect-${connection.id}-title`}>{canRemove ? 'Remove' : 'Disconnect'} {connection.display_name || connection.network_label}?</strong>
-      <p id={`disconnect-${connection.id}-description`}>{canRemove ? 'This account will be removed from the publishing service and your connected accounts. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
-      <div><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(false)}>Keep connected</button><button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} {canRemove ? 'Remove account' : 'Disconnect account'}</button></div>
-    </div> : disconnected ? <div className="connection-card-actions"><button className="button button-dark" type="button" disabled={Boolean(busy)} aria-busy={busy === `${connection.id}-RECONNECT`} onClick={() => void onAction(connection, 'RECONNECT')}>{busy === `${connection.id}-RECONNECT` ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Reconnect</button>{canRemove && <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(true)}><Unlink size={15} /> Remove</button>}</div> : <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirming(true)}><Unlink size={15} /> {canRemove ? 'Remove' : 'Disconnect'}</button>}</footer>
+    <footer>{confirming ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`connection-${connection.id}-title`} aria-describedby={`connection-${connection.id}-description`}>
+      <strong id={`connection-${connection.id}-title`}>{confirming === 'REMOVE' ? 'Remove' : 'Disconnect'} {connection.display_name || connection.network_label}?</strong>
+      <p id={`connection-${connection.id}-description`}>{confirming === 'REMOVE' ? providerManaged ? 'Open Upload Post in a new tab and disconnect this account there. Return to this page and verify removal; Content Studio will remove the card only after Upload Post confirms the account is gone. Drafts and published posts stay.' : 'This account will be removed from Content Studio and Zernio, freeing its connected-account slot. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
+      <div><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => { sessionStorage.removeItem('pending_account_removal'); setConfirming(null) }}>Keep connected</button>{confirming === 'REMOVE' && providerManaged ? <><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => void onAction(connection, 'PREPARE_REMOVE')}>Open account manager</button><button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} Verify removal</button></> : <button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} {confirming === 'REMOVE' ? 'Remove account' : 'Disconnect account'}</button>}</div>
+    </div> : <div className="connection-card-actions">
+      {disconnected ? <button className="button button-dark" type="button" disabled={Boolean(busy)} aria-busy={busy === `${connection.id}-RECONNECT`} onClick={() => void onAction(connection, 'RECONNECT')}>{busy === `${connection.id}-RECONNECT` ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Reconnect</button> : <button className="li-text-button" type="button" disabled={Boolean(busy)} onClick={() => setConfirming('DISCONNECT')}><Unlink size={15} /> Disconnect</button>}
+      {canRemove && <button className="li-text-button danger" type="button" disabled={Boolean(busy)} onClick={() => setConfirming('REMOVE')}><Unlink size={15} /> Remove account</button>}
+      {!canRemove && <small className="connection-removal-note">To free this account's provider slot, remove it in the publishing service's account manager.</small>}
+    </div>}</footer>
   </article>
 }

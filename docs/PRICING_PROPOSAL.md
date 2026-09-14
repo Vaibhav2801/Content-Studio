@@ -6,11 +6,11 @@ Status: proposal only. The current app does not have checkout, a credit ledger, 
 
 | Plan | Monthly price | AI credits/month | Connected accounts | Approximate text + image posts |
 | --- | ---: | ---: | ---: | ---: |
-| Starter | $24 | 100 | 1 | 10 |
+| Starter | $19 | 50 | 1 | 5 |
 | Growth | $49 | 250 | 2 | 25 |
 | Studio | $99 | 600 | 4 | 60 |
 
-One platform-specific AI draft costs 2 credits. One standard AI image costs 8 credits. A typical Instagram draft with one image therefore costs 10 credits. One rewrite costs 1 credit. Manual editing, scheduling, approval, publishing, and analytics viewing do not consume credits. Charge only after an operation succeeds; retrying a failed operation does not charge again. Additional connected accounts would cost $12/month each, and a 100-credit top-up would cost $12. Monthly credits reset at renewal; top-ups should remain usable for 12 months. These rules are **product design**, not implemented behavior.
+Automatic single-post creation and automatic series creation use the same credit schedule per platform draft and image. One platform-specific AI draft costs 2 credits. One standard AI image costs 8 credits. A typical Instagram draft with one image therefore costs 10 credits. One rewrite costs 1 credit. Quick-start ideas, manual editing, the content library, scheduling, approval, publishing, and analytics viewing do not consume credits. Automatic series creation produces reviewable drafts with proposed publish times; it does not publish unattended. Charge only after an operation succeeds; retrying a failed operation does not charge again. Additional connected accounts would cost $12/month each, and a 100-credit top-up would cost $12. Monthly credits reset at renewal; top-ups should remain usable for 12 months. These rules are **product design**, not implemented behavior.
 
 This model assumes Zernio is the selected publishing provider. The repository currently defaults to Upload Post; verify that provider's contract and costs before using these prices there.
 
@@ -26,9 +26,11 @@ Assume a **20% sales/affiliate commission** on pre-tax revenue, a **3% + $0.30**
 
 | Plan | Revenue | 20% commission | 3% + $0.30 processing | Zernio reserve | Credit reserve | Service reserve | Estimated contribution | Margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Starter | $24.00 | $4.80 | $1.02 | $6.00 | $2.00 | $2.00 | $8.18 | 34.1% |
+| Starter | $19.00 | $3.80 | $0.87 | $6.00 | $1.00 | $2.00 | $5.33 | 28.1% |
 | Growth | $49.00 | $9.80 | $1.77 | $12.00 | $5.00 | $3.00 | $17.43 | 35.6% |
 | Studio | $99.00 | $19.80 | $3.27 | $24.00 | $12.00 | $5.00 | $34.93 | 35.3% |
+
+Starter is an entry tier below the 30% contribution target at full included usage. Growth and Studio remain above the target. Starter reaches 30% at approximately $19.79 under these assumptions, or if average AI use or affiliate commission is lower than the full reserve. Do not remove account limits or make automatic AI generation unmetered at this price.
 
 Formula: `contribution = pre-tax price − commission − processing − ($6 × included accounts) − ($0.02 × included credits) − service reserve`. This excludes acquisition costs, refunds, chargebacks, foreign-exchange costs, and usage beyond the covered features. Keep the first two free Zernio accounts as a buffer rather than promising the saving to any one customer.
 
@@ -38,4 +40,4 @@ Formula: `contribution = pre-tax price − commission − processing − ($6 × 
 2. Build an immutable credit ledger with idempotent charges, refunds on failed operations, monthly allocations, top-up expiry, and a visible balance. Prevent a user from starting an operation they cannot cover.
 3. Enforce connected-account limits on connection creation, not only in the UI. Decide whether unused accounts can be swapped immediately and how mid-cycle additions are prorated.
 4. Integrate checkout, tax calculation, invoicing, commission payouts, refunds, and cancellation. Keep tax separate from revenue in margin reports.
-5. Reprice if commission, processor rates, AI providers, or Zernio tiers change. Target at least 30% contribution after modeled commission at normal usage.
+5. Reprice if commission, processor rates, AI providers, or Zernio tiers change. Target at least 30% contribution after modeled commission at normal usage; validate whether the intentionally lower Starter margin improves conversion and upgrades.

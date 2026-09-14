@@ -24,7 +24,7 @@ from integrations.social.models import (
     SocialWorkspaceSettings,
 )
 from integrations.social.publishing.registry import publishing_provider_registry
-from integrations.social.publishing.types import ConnectionUrlRequest, ProviderName, PublishingNetwork
+from integrations.social.publishing.types import ConnectionUrlRequest, ListSocialAccountsRequest, ProviderName, PublishingNetwork
 from integrations.social.services.composer import NETWORK_LABELS, variant_validation
 from integrations.social.services.lifecycle import cancel_variant, edit_variant
 
@@ -380,13 +380,15 @@ def serialize_connection(connection):
         "network_label": NETWORK_LABELS[connection.network],
         "display_name": connection.display_name,
         "account_type": connection.get_account_type_display(),
+        "provider_label": "Zernio" if connection.provider == ProviderName.ZERNIO.value else "Upload Post",
         "status": connection.status,
         "health": "HEALTHY" if connection.status == ConnectionState.CONNECTED else "NEEDS_ATTENTION",
         "message": messages[connection.status],
         "connected_at": connection.connected_at.isoformat() if connection.connected_at else None,
         "disconnected_at": connection.disconnected_at.isoformat() if connection.disconnected_at else None,
         "last_checked_at": connection.updated_at.isoformat(),
-        "can_remove": connection.provider == ProviderName.ZERNIO.value and bool(connection.provider_account_id),
+        "can_remove": connection.provider in {ProviderName.ZERNIO.value, ProviderName.UPLOAD_POST.value} and bool(connection.provider_account_id),
+        "removal_method": "DIRECT" if connection.provider == ProviderName.ZERNIO.value else "PROVIDER_MANAGED",
     }
 
 
@@ -424,10 +426,22 @@ def disconnect_connection(connection):
     return connection
 
 
+def prepare_removal(connection, *, redirect_uri=""):
+    if connection.provider != ProviderName.UPLOAD_POST.value or not connection.provider_account_id:
+        raise ValidationError({"detail": "This account does not need a publishing-service manager."})
+    result = publishing_provider_registry.create(ProviderName.UPLOAD_POST).get_connection_url(ConnectionUrlRequest(
+        workspace_id=connection.workspace_id,
+        redirect_uri=redirect_uri,
+        state=secrets.token_urlsafe(32),
+        requested_networks=(PublishingNetwork(connection.network),),
+    ))
+    return result.url
+
+
 @transaction.atomic
 def remove_connection(connection):
     connection = SocialConnection.objects.select_for_update().get(pk=connection.pk)
-    if connection.provider != ProviderName.ZERNIO.value or not connection.provider_account_id:
+    if not connection.provider_account_id or connection.provider not in {ProviderName.ZERNIO.value, ProviderName.UPLOAD_POST.value}:
         raise ValidationError({"detail": "This social account cannot be removed here."})
     if connection.publish_jobs.filter(
         status__in={PublishJobState.PUBLISHING, PublishJobState.SUBMITTED, PublishJobState.UNKNOWN},
@@ -435,17 +449,29 @@ def remove_connection(connection):
         raise ValidationError({
             "detail": "A post is still being processed for this account. Wait for it to finish before removing it."
         })
-    publishing_provider_registry.create(ProviderName.ZERNIO).remove_account(
-        workspace_id=connection.workspace_id,
-        provider_profile_id=connection.provider_profile_id,
-        provider_account_id=connection.provider_account_id,
-    )
+    if connection.provider == ProviderName.ZERNIO.value:
+        publishing_provider_registry.create(ProviderName.ZERNIO).remove_account(
+            workspace_id=connection.workspace_id,
+            provider_profile_id=connection.provider_profile_id,
+            provider_account_id=connection.provider_account_id,
+        )
+    else:
+        accounts = publishing_provider_registry.create(ProviderName.UPLOAD_POST).list_social_accounts(
+            ListSocialAccountsRequest(
+                workspace_id=connection.workspace_id,
+                provider_connection_id=connection.provider_profile_id,
+                network=PublishingNetwork(connection.network),
+            )
+        ).accounts
+        if any(account.provider_account_id == connection.provider_account_id for account in accounts):
+            raise ValidationError({
+                "detail": "Disconnect this account in the publishing service's account manager, then return and verify removal."
+            })
     connection = disconnect_connection(connection)
     connection.provider_profile_id = ""
     connection.provider_account_id = ""
     connection.save(update_fields=["provider_profile_id", "provider_account_id", "updated_at"])
     return connection
-
 
 @transaction.atomic
 def reconnect_connection(connection, *, redirect_uri=""):

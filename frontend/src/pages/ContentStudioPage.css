@@ -313,6 +313,15 @@
 .composer-start-tabs, .platform-tabs { margin-top: 16px; display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: #eef1ee; }
 .composer-start-tabs button, .platform-tabs button { min-height: 36px; flex: 1; padding: 7px 9px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: .78rem; font-weight: 650; cursor: pointer; }
 .composer-start-tabs button[aria-selected="true"], .platform-tabs button[aria-selected="true"] { color: var(--ink); background: #fff; box-shadow: 0 1px 4px #16231c18; }
+.composer-series-link { margin: 10px 0 0; color: var(--muted); font-size: .76rem; }
+.composer-series-link a { color: #5745a8; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.composer-idea-starters { margin: 18px 0 4px; padding: 15px; border: 1px solid #e5e0f3; border-radius: 11px; background: #faf9ff; }
+.composer-idea-starters > span { color: var(--ink); font-size: .84rem; font-weight: 750; }
+.composer-idea-starters p { margin: 5px 0 12px; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.composer-idea-starters > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.composer-idea-starters button { padding: 7px 10px; border: 1px solid #d9d1ef; border-radius: 7px; color: #5745a8; background: #fff; font-size: .74rem; font-weight: 650; cursor: pointer; }
+.composer-idea-starters button:hover, .composer-idea-starters button:focus-visible { border-color: #8b79db; background: #f0ebff; }
+
 .composer-platforms, .generation-controls { margin: 18px 0 0; padding: 0; border: 0; }
 .composer-platforms legend, .generation-controls legend { margin-bottom: 8px; color: #39483f; font-size: .875rem; font-weight: 650; }
 .composer-platforms > label { margin-top: 7px; padding: 10px; display: grid; grid-template-columns: auto auto 1fr; gap: 9px; align-items: center; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
@@ -485,6 +494,7 @@
 .connection-detail small { color: var(--muted); font-size: .7rem; }
 .studio-connection-card footer { margin-top: auto; display: flex; justify-content: flex-end; }
 .connection-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.connection-removal-note { flex-basis: 100%; color: var(--muted); font-size: .68rem; line-height: 1.45; text-align: right; }
 .connection-disconnect-confirm { width: 100%; padding: 12px; border: 1px solid #efc4c0; border-radius: 10px; background: #fff7f6; }
 .connection-disconnect-confirm > strong { color: #7f2e28; font-size: .82rem; }
 .connection-disconnect-confirm > p { margin: 5px 0 11px; color: #6f5653; font-size: .74rem; line-height: 1.45; }

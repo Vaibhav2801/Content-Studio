@@ -24,7 +24,7 @@ describe('Content Studio authentication routes', () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: /Great content needs room to think/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Pay for the creative work you use/i })).toBeInTheDocument()
-    expect(screen.getByText('100 AI credits each month')).toBeInTheDocument()
+    expect(screen.getByText('50 AI credits each month')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/')
   })
 
