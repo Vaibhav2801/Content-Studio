@@ -15,7 +15,10 @@
 .auth-orbit { position: absolute; z-index: 1; width: 630px; height: 630px; border: 1px solid #9387eb23; border-radius: 50%; pointer-events: none; }
 .auth-orbit-one { right: -370px; bottom: -340px; }
 .auth-orbit-two { right: -440px; bottom: -410px; width: 770px; height: 770px; }
-.auth-main { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 0; padding: 50px 30px 30px; }
+.auth-main { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 0; padding: 50px 30px 30px; }
+.auth-home-link { position: absolute; top: 42px; right: 30px; display: inline-flex; align-items: center; gap: 7px; color: #7165bb; font-size: 12px; font-weight: 800; }
+.auth-home-link:hover { color: #5545cf; text-decoration: underline; }
+.auth-home-link:focus-visible { outline: 3px solid #a99cf8; outline-offset: 4px; border-radius: 3px; }
 .auth-form-wrap { width: min(100%, 430px); margin: auto 0; }
 .auth-form-kicker { color: #7165bb; }
 .auth-form-wrap h2 { margin: 17px 0 8px; font-family: Manrope, 'DM Sans', sans-serif; font-size: clamp(29px, 3vw, 39px); font-weight: 800; letter-spacing: -.05em; line-height: 1.17; }
@@ -40,7 +43,7 @@
 .auth-main-foot { color: #a0a1b0; font-size: 11px; }
 .auth-mobile-brand { display: none; }
 @media (max-width: 850px) { .auth-page { grid-template-columns: 1fr; } .auth-story { display: none; } .auth-main { min-height: 100vh; } .auth-mobile-brand { display: flex; align-items: center; gap: 9px; align-self: flex-start; margin-bottom: 55px; color: #4239a6; font-size: 16px; font-weight: 800; } .auth-form-wrap { margin: 0 auto auto; } .auth-main-foot { margin-top: 40px; } }
-@media (max-width: 480px) { .auth-main { padding: 24px 22px; } .auth-mobile-brand { margin-bottom: 55px; } .auth-form-wrap h2 { font-size: 30px; } }
+@media (max-width: 480px) { .auth-main { padding: 24px 22px; } .auth-home-link { top: 28px; right: 22px; } .auth-mobile-brand { margin-bottom: 55px; } .auth-form-wrap h2 { font-size: 30px; } }
 @media (prefers-reduced-motion: reduce) { .auth-form-wrap input, .auth-submit { transition: none; } }
 
 .auth-label-line { display: flex; align-items: center; justify-content: space-between; }

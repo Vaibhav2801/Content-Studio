@@ -1,4 +1,4 @@
-import { ArrowRight, Check, LockKeyhole, Mail, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, LockKeyhole, Mail, Sparkles } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
@@ -55,7 +55,8 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
       <div className="auth-orbit auth-orbit-one" /><div className="auth-orbit auth-orbit-two" />
     </aside>
     <main className="auth-main">
-      <div className="auth-mobile-brand"><Sparkles size={20} /> content studio</div>
+      <Link className="auth-home-link" to="/"><ArrowLeft size={16} /> Back to home</Link>
+      <Link className="auth-mobile-brand" to="/" aria-label="Content Studio home"><Sparkles size={20} /> content studio</Link>
       <div className="auth-form-wrap">
         <span className="auth-form-kicker">{isSignup ? 'START YOUR WORKSPACE' : 'WELCOME BACK'}</span>
         <h2>{isSignup ? 'Create your account' : 'Sign in to Content Studio'}</h2>

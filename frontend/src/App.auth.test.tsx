@@ -28,6 +28,14 @@ describe('Content Studio authentication routes', () => {
     expect(window.location.pathname).toBe('/')
   })
 
+  it.each(['/signin', '/signup'])('returns from %s to the public homepage', async (path) => {
+    window.history.replaceState({}, '', path)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('link', { name: 'Back to home' }))
+    expect(await screen.findByRole('heading', { name: /Great content needs room to think/i })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+  })
+
   it('redirects an anonymous visitor to sign in and opens the studio after login', async () => {
     const signin = vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     render(<App />)
