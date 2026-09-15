@@ -170,7 +170,28 @@ class ZernioProviderTests(SimpleTestCase):
         self.assertEqual(calls[0].kwargs["params"], {"token": "pending-token"})
         self.assertEqual(calls[2].args[:2], ("POST", "https://api.example.invalid/v1/connect/linkedin/select-organization"))
         self.assertEqual(calls[2].kwargs["json"]["selectedOrganization"], pending["organizations"][0])
+        self.assertEqual(calls[2].kwargs["json"]["accountType"], "organization")
         self.assertEqual(calls[2].kwargs["headers"]["X-Connect-Token"], "short-connect-token")
+
+    def test_headless_linkedin_selection_can_connect_personal_profile(self):
+        pending = {
+            "platform": "linkedin", "selectionType": "organizations", "profileId": self.profile_id,
+            "tempToken": "temporary-oauth-token",
+            "userProfile": {"id": "member-1", "displayName": "Example Member"},
+            "organizations": [{"id": "123", "name": "Example Company"}],
+        }
+        self.session.request.side_effect = [
+            MockResponse(200, pending), self.profile_response(),
+            MockResponse(200, {"account": {"accountId": "personal-id", "accountType": "personal"}}),
+        ]
+
+        self.provider.select_linkedin_account(
+            self.workspace_id, "pending-token", "personal", connect_token="short-connect-token"
+        )
+
+        selection = self.session.request.call_args_list[2]
+        self.assertEqual(selection.kwargs["json"]["accountType"], "personal")
+        self.assertNotIn("selectedOrganization", selection.kwargs["json"])
 
     def test_headless_linkedin_selection_rejects_unlisted_organization(self):
         pending = {
@@ -214,7 +235,7 @@ class ZernioProviderTests(SimpleTestCase):
             self.profile_id,
         )
 
-    def test_connection_refresh_lists_only_active_linkedin_company_pages(self):
+    def test_connection_refresh_lists_active_linkedin_pages_and_personal_profiles(self):
         personal = {**self.account_payload, "_id": "personal-id", "accountType": "personal"}
         inactive = {**self.account_payload, "_id": "inactive-id", "isActive": False}
         self.session.request.side_effect = [
@@ -227,7 +248,11 @@ class ZernioProviderTests(SimpleTestCase):
             provider_connection_id=self.profile_id,
         ))
 
-        self.assertEqual(result.accounts, (self.account,))
+        self.assertEqual(len(result.accounts), 2)
+        self.assertEqual(
+            [(account.provider_account_id, account.account_type) for account in result.accounts],
+            [(self.account_id, "ORGANIZATION"), ("personal-id", "PERSON")],
+        )
         account_call = self.session.request.call_args_list[1]
         self.assertEqual(account_call.kwargs["params"], {
             "profileId": self.profile_id,
@@ -249,7 +274,10 @@ class ZernioProviderTests(SimpleTestCase):
             provider_connection_id=self.profile_id,
         ))
 
-        self.assertEqual(result.accounts, (self.account,))
+        self.assertEqual(
+            [(account.provider_account_id, account.account_type) for account in result.accounts],
+            [(self.account_id, "ORGANIZATION"), ("personal-id", "PERSON")],
+        )
     def test_complete_connection_refreshes_accounts_from_workspace_profile(self):
         self.session.request.side_effect = [
             MockResponse(201, {"profile": {"_id": self.profile_id, "name": self.profile_name}}),
@@ -386,7 +414,7 @@ class ZernioProviderTests(SimpleTestCase):
         ))
         self.assertTrue(with_image.valid, with_image.errors)
 
-    def test_validation_enforces_company_page_linkedin_and_current_media_limits(self):
+    def test_validation_enforces_current_network_and_media_limits(self):
         result = self.provider.validate_post(ValidatePostRequest(
             account=SocialAccount(
                 provider_profile_id=self.profile_id,
@@ -408,8 +436,26 @@ class ZernioProviderTests(SimpleTestCase):
 
         self.assertFalse(result.valid)
         self.assertEqual({issue.code for issue in result.errors}, {
-            "NETWORK_UNSUPPORTED", "TEXT_TOO_LONG", "TOO_MANY_IMAGES", "ACCOUNT_TYPE_UNSUPPORTED",
+            "NETWORK_UNSUPPORTED", "TEXT_TOO_LONG", "TOO_MANY_IMAGES",
         })
+
+    def test_validation_accepts_personal_linkedin_profile(self):
+        result = self.provider.validate_post(ValidatePostRequest(
+            account=SocialAccount(
+                provider_profile_id=self.profile_id,
+                provider_account_id="personal-id",
+                network=PublishingNetwork.LINKEDIN,
+                display_name="Example Member",
+                account_type="PERSON",
+                capabilities=self.provider.capabilities,
+            ),
+            post=NormalizedPost(
+                network=PublishingNetwork.LINKEDIN,
+                text="A personal update",
+            ),
+        ))
+
+        self.assertTrue(result.valid, result.errors)
 
     def test_status_cancellation_and_duplicate_content_are_normalized(self):
         self.session.request.side_effect = [

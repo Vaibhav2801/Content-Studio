@@ -39,7 +39,7 @@ interface ContentStudioState {
   completeOnboardingStep: (step: number, payload: Record<string, unknown>) => Promise<ContentStudioOnboarding | undefined>
   connectLinkedIn: (network?: "LINKEDIN" | "INSTAGRAM") => Promise<void>
   completeLinkedInConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => Promise<void>
-  selectLinkedInConnection: (payload: { state: string; pending_data_token: string; organization_id: string; connect_token?: string }) => Promise<boolean>
+  selectLinkedInConnection: (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => Promise<boolean>
   cancelLinkedInConnection: () => Promise<void>
   reload: () => Promise<void>
 }
@@ -272,15 +272,15 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     finally { setBusy('') }
   }
 
-  const selectLinkedInConnection = async (payload: { state: string; pending_data_token: string; organization_id: string; connect_token?: string }) => {
+  const selectLinkedInConnection = async (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => {
     setBusy('connection-return'); setNotice(''); setNoticeError(false)
     try {
       const saved = await contentOnboardingApi.selectConnection(payload)
       setOnboarding(saved)
-      setNotice('LinkedIn Company Page connected successfully.')
+      setNotice('LinkedIn account connected successfully.')
       return true
     } catch (error) {
-      fail(error, 'Could not connect that Company Page. Please try again.')
+      fail(error, 'Could not connect that LinkedIn account. Please try again.')
       return false
     } finally { setBusy('') }
   }

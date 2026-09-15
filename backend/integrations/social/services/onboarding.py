@@ -46,7 +46,7 @@ def connection_start_error_message(error):
     }.get(error.category.value, "The social account connection step could not start. Try again.")
 ACCOUNT_TYPE_LABELS = {
     SocialAccountType.ORGANIZATION: "Company Page",
-    SocialAccountType.PERSON: "Profile",
+    SocialAccountType.PERSON: "Personal profile",
     SocialAccountType.CREATOR: "Creator account",
     SocialAccountType.BUSINESS: "Business account",
 }
@@ -381,7 +381,7 @@ def _pending_connection(workspace, state):
 def complete_connection(workspace, *, state, authorization_code="", selection_completed=False, expected_account_id=""):
     onboarding, provider, network = _pending_connection(workspace, state)
     if onboarding.answers.get("pending_selection_required") and not selection_completed:
-        raise ValidationError({"connection": "Choose a LinkedIn Company Page to finish connecting."})
+        raise ValidationError({"connection": "Choose a LinkedIn profile or Company Page to finish connecting."})
     adapter = publishing_provider_registry.create(provider)
     try:
         completed = adapter.complete_connection(CompleteConnectionRequest(
@@ -444,35 +444,89 @@ def complete_connection(workspace, *, state, authorization_code="", selection_co
 def pending_linkedin_choices(workspace, *, state, pending_data_token):
     onboarding, provider, network = _pending_connection(workspace, state)
     if provider != ProviderName.ZERNIO or network != PublishingNetwork.LINKEDIN or not onboarding.answers.get("pending_selection_required"):
-        raise ValidationError({"connection": "Start a LinkedIn connection to choose a Company Page."})
+        raise ValidationError({"connection": "Start a LinkedIn connection to choose an account."})
     adapter = publishing_provider_registry.create(provider)
     try:
         pending = adapter.pending_linkedin_selection(workspace.id, pending_data_token)
     except PublishingProviderError as exc:
-        raise ValidationError({"connection": "Could not load LinkedIn Company Pages. Choose Reconnect and try again."}) from exc
+        raise ValidationError({"connection": "Could not load LinkedIn accounts. Choose Reconnect and try again."}) from exc
+    user_profile = pending["userProfile"]
+    first_name = str(
+        user_profile.get("localizedFirstName")
+        or user_profile.get("firstName")
+        or user_profile.get("given_name")
+        or ""
+    ).strip()
+    last_name = str(
+        user_profile.get("localizedLastName")
+        or user_profile.get("lastName")
+        or user_profile.get("family_name")
+        or ""
+    ).strip()
+    personal_name = str(
+        user_profile.get("displayName")
+        or user_profile.get("name")
+        or " ".join(part for part in (first_name, last_name) if part)
+        or user_profile.get("username")
+        or "Personal profile"
+    )
+    personal_vanity_name = str(
+        user_profile.get("vanityName")
+        or user_profile.get("vanity_name")
+        or user_profile.get("preferred_username")
+        or ""
+    )
     organizations = [
-        {"id": str(item.get("id") or ""), "name": str(item.get("name") or item.get("localizedName") or "Company Page"), "vanity_name": str(item.get("vanityName") or "")}
+        {
+            "id": str(item.get("id") or ""),
+            "name": str(item.get("name") or item.get("localizedName") or "Company Page"),
+            "vanity_name": str(item.get("vanityName") or ""),
+            "account_type": SocialAccountType.ORGANIZATION,
+        }
         for item in pending["organizations"] if isinstance(item, dict) and item.get("id")
     ]
-    if not organizations:
-        raise ValidationError({"connection": "No LinkedIn Company Pages were found. Check Page admin access and reconnect."})
-    return organizations
+    return [{
+        "id": "personal",
+        "name": personal_name,
+        "vanity_name": personal_vanity_name,
+        "account_type": SocialAccountType.PERSON,
+    }, *organizations]
 
 
 @transaction.atomic
-def select_linkedin_choice(workspace, *, state, pending_data_token, organization_id, connect_token=""):
+def select_linkedin_choice(
+    workspace,
+    *,
+    state,
+    pending_data_token,
+    account_type=SocialAccountType.ORGANIZATION,
+    organization_id="",
+    connect_token="",
+):
     onboarding, provider, network = _pending_connection(workspace, state)
     if provider != ProviderName.ZERNIO or network != PublishingNetwork.LINKEDIN or not onboarding.answers.get("pending_selection_required"):
-        raise ValidationError({"connection": "Start a LinkedIn connection to choose a Company Page."})
+        raise ValidationError({"connection": "Start a LinkedIn connection to choose an account."})
+    try:
+        selected_account_type = SocialAccountType(str(account_type or "").upper())
+    except ValueError as exc:
+        raise ValidationError({"connection": "Choose a valid LinkedIn account."}) from exc
+    if selected_account_type not in {SocialAccountType.PERSON, SocialAccountType.ORGANIZATION}:
+        raise ValidationError({"connection": "Choose a valid LinkedIn account."})
     adapter = publishing_provider_registry.create(provider)
     try:
-        selected = adapter.select_linkedin_organization(workspace.id, pending_data_token, organization_id, connect_token)
+        selected = adapter.select_linkedin_account(
+            workspace.id,
+            pending_data_token,
+            "personal" if selected_account_type == SocialAccountType.PERSON else "organization",
+            organization_id if selected_account_type == SocialAccountType.ORGANIZATION else "",
+            connect_token,
+        )
     except PublishingProviderError as exc:
-        raise ValidationError({"connection": "Could not connect that Company Page. Check Page admin access and try again."}) from exc
+        raise ValidationError({"connection": "Could not connect that LinkedIn account. Check access and try again."}) from exc
     account = selected.get("account") if isinstance(selected, dict) and isinstance(selected.get("account"), dict) else {}
     account_id = str(account.get("accountId") or account.get("_id") or "")
     if not account_id:
-        raise ValidationError({"connection": "The selected Company Page could not be verified. Choose Reconnect and try again."})
+        raise ValidationError({"connection": "The selected LinkedIn account could not be verified. Choose Reconnect and try again."})
     return complete_connection(workspace, state=state, selection_completed=True, expected_account_id=account_id)
 
 

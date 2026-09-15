@@ -34,10 +34,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export interface LinkedInOrganizationChoice {
+export interface LinkedInAccountChoice {
   id: string
   name: string
   vanity_name: string
+  account_type: 'PERSON' | 'ORGANIZATION'
 }
 
 export const contentOnboardingApi = {
@@ -52,10 +53,10 @@ export const contentOnboardingApi = {
   startConnection: (network: 'LINKEDIN' | 'INSTAGRAM' = 'LINKEDIN') => request<{ authorization_url: string; expires_at: string }>('/onboarding/connection/start/', {
     method: 'POST', body: JSON.stringify({ network }),
   }),
-  connectionChoices: (payload: { state: string; pending_data_token: string }) => request<{ organizations: LinkedInOrganizationChoice[] }>('/onboarding/connection/choices/', {
+  connectionChoices: (payload: { state: string; pending_data_token: string }) => request<{ accounts: LinkedInAccountChoice[] }>('/onboarding/connection/choices/', {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  selectConnection: (payload: { state: string; pending_data_token: string; organization_id: string; connect_token?: string }) => request<ContentStudioOnboarding>('/onboarding/connection/select/', {
+  selectConnection: (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => request<ContentStudioOnboarding>('/onboarding/connection/select/', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   completeConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => request<ContentStudioOnboarding>('/onboarding/connection/complete/', {

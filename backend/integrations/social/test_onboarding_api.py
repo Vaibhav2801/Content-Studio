@@ -137,9 +137,10 @@ class ContentStudioOnboardingApiTests(TestCase):
         create_provider.return_value = self.fake
         self.fake.pending_linkedin_selection = Mock(return_value={
             "organizations": [{"id": "123", "name": "LumaDesk Company Page", "vanityName": "lumadesk"}],
-            "tempToken": "secret-temporary-token", "userProfile": {"id": "member-1"},
+            "tempToken": "secret-temporary-token",
+            "userProfile": {"id": "member-1", "displayName": "Onboarding Member", "vanityName": "member"},
         })
-        self.fake.select_linkedin_organization = Mock(return_value={"account": {"accountId": "page-1"}})
+        self.fake.select_linkedin_account = Mock(return_value={"account": {"accountId": "page-1"}})
         self.fake.complete_connection = Mock(return_value=CompleteConnectionResult(
             provider=ProviderName.ZERNIO, provider_connection_id="profile-1", connected=True,
         ))
@@ -163,19 +164,90 @@ class ContentStudioOnboardingApiTests(TestCase):
             "state": state, "pending_data_token": "pending-token",
         }, content_type="application/json")
         self.assertEqual(choices.status_code, 200, choices.data)
+        self.assertEqual(choices.data["accounts"], [
+            {"id": "personal", "name": "Onboarding Member", "vanity_name": "member", "account_type": "PERSON"},
+            {"id": "123", "name": "LumaDesk Company Page", "vanity_name": "lumadesk", "account_type": "ORGANIZATION"},
+        ])
         self.assertEqual(choices.data["organizations"], [{"id": "123", "name": "LumaDesk Company Page", "vanity_name": "lumadesk"}])
         self.assertNotIn("secret-temporary-token", str(choices.data))
         selected = self.client.post(reverse("content-studio-connection-select"), {
             "state": state, "pending_data_token": "pending-token", "organization_id": "123",
-            "connect_token": "short-connect-token",
+            "account_type": "ORGANIZATION", "connect_token": "short-connect-token",
         }, content_type="application/json")
         self.assertEqual(selected.status_code, 200, selected.data)
         self.assertEqual(selected.data["connection"]["display_name"], "LumaDesk Company Page")
-        self.fake.select_linkedin_organization.assert_called_once_with(
-            self.workspace.id, "pending-token", "123", "short-connect-token"
+        self.fake.select_linkedin_account.assert_called_once_with(
+            self.workspace.id, "pending-token", "organization", "123", "short-connect-token"
         )
         self.assertEqual(SocialConnection.objects.get(provider_account_id="page-1").provider, SocialProvider.ZERNIO)
         self.assertFalse(SocialConnection.objects.filter(provider_account_id="other-page").exists())
+
+    @override_settings(SOCIAL_PUBLISHER_DEFAULT="ZERNIO")
+    @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
+    def test_headless_linkedin_choice_connects_personal_profile(self, create_provider):
+        personal_account = SocialAccount(
+            provider_profile_id="profile-1",
+            provider_account_id="personal-1",
+            network=PublishingNetwork.LINKEDIN,
+            display_name="Onboarding Member",
+            account_type="PERSON",
+            capabilities=TARGET_CAPABILITIES,
+        )
+        self.fake.accounts = (personal_account,)
+        self.fake.pending_linkedin_selection = Mock(return_value={
+            "organizations": [],
+            "tempToken": "secret-temporary-token",
+            "userProfile": {"id": "member-1", "displayName": "Onboarding Member", "vanityName": "member"},
+        })
+        self.fake.select_linkedin_account = Mock(return_value={
+            "account": {"accountId": "personal-1", "accountType": "personal"},
+        })
+        self.fake.complete_connection = Mock(return_value=CompleteConnectionResult(
+            provider=ProviderName.ZERNIO,
+            provider_connection_id="profile-1",
+            connected=True,
+        ))
+        create_provider.return_value = self.fake
+        started = self.client.post(
+            reverse("content-studio-connection-start"),
+            {},
+            content_type="application/json",
+        )
+        state = self.connection_state(started)
+
+        choices = self.client.post(reverse("content-studio-connection-choices"), {
+            "state": state,
+            "pending_data_token": "pending-token",
+        }, content_type="application/json")
+        self.assertEqual(choices.status_code, 200, choices.data)
+        self.assertEqual(choices.data["accounts"], [{
+            "id": "personal",
+            "name": "Onboarding Member",
+            "vanity_name": "member",
+            "account_type": "PERSON",
+        }])
+
+        selected = self.client.post(reverse("content-studio-connection-select"), {
+            "state": state,
+            "pending_data_token": "pending-token",
+            "account_type": "PERSON",
+            "connect_token": "short-connect-token",
+        }, content_type="application/json")
+        self.assertEqual(selected.status_code, 200, selected.data)
+        self.assertEqual(selected.data["connection"]["display_name"], "Onboarding Member")
+        self.assertEqual(selected.data["connection"]["account_type"], "Personal profile")
+        self.fake.select_linkedin_account.assert_called_once_with(
+            self.workspace.id,
+            "pending-token",
+            "personal",
+            "",
+            "short-connect-token",
+        )
+        self.assertTrue(SocialConnection.objects.filter(
+            workspace=self.workspace,
+            provider_account_id="personal-1",
+            account_type="PERSON",
+        ).exists())
 
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
     def test_instagram_can_be_connected_during_onboarding(self, create_provider):

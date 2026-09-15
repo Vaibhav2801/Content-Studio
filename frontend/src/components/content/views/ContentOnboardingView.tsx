@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useContentStudio } from '../ContentStudioContext'
 import { ContentCreateView } from './ContentCreateView'
 import type { SocialPost } from '../../../types/socialComposer'
-import { contentOnboardingApi, type LinkedInOrganizationChoice } from '../../../api/contentOnboarding'
+import { contentOnboardingApi, type LinkedInAccountChoice } from '../../../api/contentOnboarding'
 
 const steps = [
   'Connect an account',
@@ -14,7 +14,7 @@ const steps = [
 ]
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-type PendingAccountSelection = { state: string; pendingDataToken: string; connectToken: string; organizations: LinkedInOrganizationChoice[]; loading: boolean }
+type PendingAccountSelection = { state: string; pendingDataToken: string; connectToken: string; accounts: LinkedInAccountChoice[]; loading: boolean }
 
 export function ContentOnboardingView() {
   const studio = useContentStudio()
@@ -30,7 +30,7 @@ export function ContentOnboardingView() {
   const [firstPost, setFirstPost] = useState<SocialPost | null>(null)
   const [pendingSelection, setPendingSelection] = useState<PendingAccountSelection | null>(null)
   const [selectionError, setSelectionError] = useState('')
-  const [selectionBusy, setSelectionBusy] = useState(false)
+  const [selectionBusy, setSelectionBusy] = useState('')
 
   useEffect(() => {
     if (onboarding.status === 'NOT_STARTED' && !startedOnboarding.current) {
@@ -47,11 +47,11 @@ export function ContentOnboardingView() {
       handledReturn.current = true
       const connectToken = searchParams.get('connect_token') || ''
       navigate('/content/onboarding', { replace: true })
-      setPendingSelection({ state, pendingDataToken, connectToken, organizations: [], loading: true })
+      setPendingSelection({ state, pendingDataToken, connectToken, accounts: [], loading: true })
       void contentOnboardingApi.connectionChoices({ state, pending_data_token: pendingDataToken })
-        .then(({ organizations }) => setPendingSelection((current) => current?.pendingDataToken === pendingDataToken ? { ...current, organizations, loading: false } : current))
+        .then(({ accounts }) => setPendingSelection((current) => current?.pendingDataToken === pendingDataToken ? { ...current, accounts, loading: false } : current))
         .catch((error) => {
-          setSelectionError(error instanceof Error ? error.message : 'Could not load Company Pages. Start the connection again.')
+          setSelectionError(error instanceof Error ? error.message : 'Could not load LinkedIn accounts. Start the connection again.')
           setPendingSelection((current) => current?.pendingDataToken === pendingDataToken ? { ...current, loading: false } : current)
         })
       return
@@ -74,19 +74,20 @@ export function ContentOnboardingView() {
     setTimezone(onboarding.schedule.timezone)
   }, [onboarding.schedule])
 
-  const chooseOrganization = async (organizationId: string) => {
+  const chooseAccount = async (account: LinkedInAccountChoice) => {
     if (!pendingSelection || selectionBusy) return
-    setSelectionBusy(true)
+    setSelectionBusy(`${account.account_type}:${account.id}`)
     setSelectionError('')
     try {
       const connected = await studio.selectLinkedInConnection({
         state: pendingSelection.state,
         pending_data_token: pendingSelection.pendingDataToken,
-        organization_id: organizationId,
+        account_type: account.account_type,
+        organization_id: account.account_type === 'ORGANIZATION' ? account.id : undefined,
         connect_token: pendingSelection.connectToken,
       })
       if (connected) setPendingSelection(null)
-    } finally { setSelectionBusy(false) }
+    } finally { setSelectionBusy('') }
   }
   const cancelSelection = async () => {
     await studio.cancelLinkedInConnection()
@@ -107,19 +108,23 @@ export function ContentOnboardingView() {
     if (saved?.status === 'COMPLETE') navigate('/content')
   }
 
-  if (pendingSelection) return <section className="onboarding" aria-labelledby="company-page-title">
+  if (pendingSelection) return <section className="onboarding" aria-labelledby="linkedin-account-title">
     <div className="card onboarding-panel">
-      <div className="onboarding-panel-head"><span>CONNECT LINKEDIN</span><h2 id="company-page-title">Choose your Company Page</h2><p>Select the LinkedIn Page that Content Studio should publish to.</p></div>
-      {pendingSelection.loading ? <div className="li-loading" role="status"><LoaderCircle className="spin" size={18} /> Loading your Pages…</div> : null}
+      <div className="onboarding-panel-head"><span>CONNECT LINKEDIN</span><h2 id="linkedin-account-title">Choose where to publish</h2><p>Select your personal LinkedIn profile or a Company Page.</p></div>
+      {pendingSelection.loading ? <div className="li-loading" role="status"><LoaderCircle className="spin" size={18} /> Loading your LinkedIn accountsâ€¦</div> : null}
       {selectionError ? <div className="onboarding-plain-error" role="alert"><TriangleAlert size={17} /><span>{selectionError}</span></div> : null}
       {!pendingSelection.loading && !selectionError ? <div className="onboarding-networks">
-        {pendingSelection.organizations.map((organization) => <article className="onboarding-network featured" key={organization.id}>
-          <span className="onboarding-network-icon"><Linkedin size={20} /></span>
-          <div><h3>{organization.name}</h3>{organization.vanity_name ? <p>linkedin.com/company/{organization.vanity_name}</p> : <p>LinkedIn Company Page</p>}</div>
-          <button className="button button-dark" type="button" disabled={selectionBusy} aria-busy={selectionBusy} onClick={() => void chooseOrganization(organization.id)}>Connect Page</button>
-        </article>)}
+        {pendingSelection.accounts.map((account) => {
+          const personal = account.account_type === 'PERSON'
+          const pending = selectionBusy === `${account.account_type}:${account.id}`
+          return <article className="onboarding-network featured" key={`${account.account_type}:${account.id}`}>
+            <span className="onboarding-network-icon"><Linkedin size={20} /></span>
+            <div><h3>{account.name}</h3>{account.vanity_name ? <p>linkedin.com/{personal ? 'in' : 'company'}/{account.vanity_name}</p> : <p>{personal ? 'Personal LinkedIn profile' : 'LinkedIn Company Page'}</p>}</div>
+            <button className="button button-dark" type="button" disabled={Boolean(selectionBusy)} aria-busy={pending} onClick={() => void chooseAccount(account)}>{pending ? <LoaderCircle className="spin" size={16} /> : null} Connect {personal ? 'Profile' : 'Page'}</button>
+          </article>
+        })}
       </div> : null}
-      <div className="onboarding-actions"><button className="li-quiet-button" type="button" disabled={selectionBusy} onClick={() => void cancelSelection()}>Cancel</button>{selectionError ? <button className="button button-dark" type="button" onClick={() => void studio.connectLinkedIn('LINKEDIN')}>Try again</button> : null}</div>
+      <div className="onboarding-actions"><button className="li-quiet-button" type="button" disabled={Boolean(selectionBusy)} onClick={() => void cancelSelection()}>Cancel</button>{selectionError ? <button className="button button-dark" type="button" onClick={() => void studio.connectLinkedIn('LINKEDIN')}>Try again</button> : null}</div>
     </div>
   </section>
 

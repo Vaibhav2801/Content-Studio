@@ -164,25 +164,29 @@ describe('Content Studio onboarding', () => {
     expect(screen.queryByText(/Upload Post|Zernio/i)).not.toBeInTheDocument()
   })
 
-  it('shows a custom LinkedIn Company Page picker after headless OAuth', async () => {
+  it('lets the user choose a personal LinkedIn profile or Company Page after OAuth', async () => {
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress())
-    vi.spyOn(contentOnboardingApi, 'connectionChoices').mockResolvedValue({ organizations: [
-      { id: '123', name: 'First Page', vanity_name: 'first-page' },
-      { id: '456', name: 'Routefloww', vanity_name: 'routefloww' },
+    vi.spyOn(contentOnboardingApi, 'connectionChoices').mockResolvedValue({ accounts: [
+      { id: 'personal', name: 'Onboarding Member', vanity_name: 'member', account_type: 'PERSON' },
+      { id: '123', name: 'First Page', vanity_name: 'first-page', account_type: 'ORGANIZATION' },
+      { id: '456', name: 'Routefloww', vanity_name: 'routefloww', account_type: 'ORGANIZATION' },
     ] })
     vi.spyOn(contentOnboardingApi, 'selectConnection').mockResolvedValue(inProgress({ connection: {
-      connected: true, display_name: 'Routefloww', account_type: 'Company Page', health: 'HEALTHY', message: 'Connection healthy',
+      connected: true, display_name: 'Onboarding Member', account_type: 'Profile', health: 'HEALTHY', message: 'Connection healthy',
     } }))
     renderOnboarding('/content/onboarding?state=return-state&step=select_organization&pendingDataToken=pending-token&connect_token=short-token')
-    expect(await screen.findByRole('heading', { name: 'Choose your Company Page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Choose where to publish' })).toBeInTheDocument()
+    expect(screen.getByText('Onboarding Member')).toBeInTheDocument()
+    expect(screen.getByText('linkedin.com/in/member')).toBeInTheDocument()
     expect(screen.getByText('Routefloww')).toBeInTheDocument()
     expect(screen.queryByText(/Zernio/i)).not.toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Connect Page' })[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Profile' }))
     await waitFor(() => expect(contentOnboardingApi.selectConnection).toHaveBeenCalledWith({
-      state: 'return-state', pending_data_token: 'pending-token', organization_id: '456', connect_token: 'short-token',
+      state: 'return-state', pending_data_token: 'pending-token', account_type: 'PERSON',
+      organization_id: undefined, connect_token: 'short-token',
     }))
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Choose your Company Page' })).not.toBeInTheDocument())
-    expect(screen.getByText('Routefloww')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Choose where to publish' })).not.toBeInTheDocument())
+    expect(screen.getByText('Onboarding Member')).toBeInTheDocument()
   })
 
   it('starts reconnection without showing a vendor choice', async () => {

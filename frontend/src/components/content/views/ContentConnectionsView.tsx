@@ -7,11 +7,13 @@ import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
 
 const networkIcons: Record<string, LucideIcon> = { LINKEDIN: Linkedin, INSTAGRAM: Instagram, X: Link2 }
+type ConnectButton = 'empty-linkedin' | 'options-linkedin' | 'options-instagram'
 
 export function ContentConnectionsView() {
   const { isDemo, onboarding, busy: studioBusy, connectLinkedIn } = useContentStudio()
   const [connections, setConnections] = useState<StudioConnection[] | null>(null)
   const [busy, setBusy] = useState('')
+  const [connectingButton, setConnectingButton] = useState<ConnectButton | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -52,14 +54,23 @@ export function ContentConnectionsView() {
     finally { setBusy('') }
   }
 
+  const connect = async (button: ConnectButton, network: 'LINKEDIN' | 'INSTAGRAM') => {
+    if (connectingButton) return
+    setConnectingButton(button)
+    try { await connectLinkedIn(network) }
+    finally { setConnectingButton(null) }
+  }
+
+  const connectionInProgress = connectingButton !== null || studioBusy === 'connection'
+
   return <section className="studio-screen" aria-label="Social account connections">
     {error && <div className="li-banner error" role="alert">{error}</div>}
-    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || studioBusy === 'connection'} aria-busy={studioBusy === "connection"} onClick={() => void connectLinkedIn()}>{studioBusy === 'connection' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
+    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || connectionInProgress} aria-busy={connectingButton === 'empty-linkedin'} onClick={() => void connect('empty-linkedin', 'LINKEDIN')}>{connectingButton === 'empty-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
     <div className="card content-connect-options">
       <h2>Connect another account</h2>
-      <p>Choose a LinkedIn Company Page or connect an Instagram Business or Creator account.</p>
-      <button className="button button-dark" type="button" disabled={isDemo || studioBusy === 'connection' || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={studioBusy === 'connection'} onClick={() => void connectLinkedIn('LINKEDIN')}><Linkedin size={16} /> Connect LinkedIn</button>
-      <button className="button button-dark" type="button" disabled={isDemo || studioBusy === 'connection' || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={studioBusy === 'connection'} onClick={() => void connectLinkedIn('INSTAGRAM')}><Instagram size={16} /> Connect Instagram</button>
+      <p>Choose a personal LinkedIn profile or Company Page, or connect an Instagram Business or Creator account.</p>
+      <button className="button button-dark" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={connectingButton === 'options-linkedin'} onClick={() => void connect('options-linkedin', 'LINKEDIN')}>{connectingButton === 'options-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Linkedin size={16} />} Connect LinkedIn</button>
+      <button className="button button-dark" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={connectingButton === 'options-instagram'} onClick={() => void connect('options-instagram', 'INSTAGRAM')}>{connectingButton === 'options-instagram' ? <LoaderCircle className="spin" size={16} /> : <Instagram size={16} />} Connect Instagram</button>
       {!onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled) && <small>Instagram connection is unavailable until the selected publishing provider is configured and healthy.</small>}
     </div>
   </section>

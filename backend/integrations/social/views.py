@@ -968,14 +968,19 @@ class ContentStudioConnectionStartAPIView(SocialWorkspaceScopedAPIView):
 class ContentStudioConnectionChoicesAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request):
         try:
-            organizations = pending_linkedin_choices(
+            accounts = pending_linkedin_choices(
                 self.workspace(request),
                 state=str(request.data.get("state") or ""),
                 pending_data_token=str(request.data.get("pending_data_token") or ""),
             )
         except DjangoValidationError as error:
             return onboarding_validation_response(error)
-        return Response({"organizations": organizations})
+        organizations = [
+            {key: account[key] for key in ("id", "name", "vanity_name")}
+            for account in accounts
+            if account["account_type"] == "ORGANIZATION"
+        ]
+        return Response({"accounts": accounts, "organizations": organizations})
 
 
 class ContentStudioConnectionSelectAPIView(SocialWorkspaceScopedAPIView):
@@ -985,6 +990,7 @@ class ContentStudioConnectionSelectAPIView(SocialWorkspaceScopedAPIView):
                 self.workspace(request),
                 state=str(request.data.get("state") or ""),
                 pending_data_token=str(request.data.get("pending_data_token") or ""),
+                account_type=str(request.data.get("account_type") or "ORGANIZATION"),
                 organization_id=str(request.data.get("organization_id") or ""),
                 connect_token=str(request.data.get("connect_token") or ""),
             )

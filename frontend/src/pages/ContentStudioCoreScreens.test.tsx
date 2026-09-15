@@ -235,7 +235,8 @@ describe('Content Studio core screens', () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null)
     renderScreen('/content/connections')
 
-    const connect = await screen.findByRole('button', { name: /Connect LinkedIn/i })
+    const emptyState = (await screen.findByText('No social accounts yet')).closest('.card') as HTMLElement
+    const connect = within(emptyState).getByRole('button', { name: /Connect LinkedIn/i })
     expect(connect).toBeEnabled()
     fireEvent.click(connect)
 
@@ -244,6 +245,31 @@ describe('Content Studio core screens', () => {
     expect(screen.getByText(/continue creating drafts without a connection/i)).toBeInTheDocument()
   })
 
+  it('shows connection progress only on the social network button that was clicked', async () => {
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([])
+    const onboarding = structuredClone(contentOnboardingMock)
+    onboarding.networks.find((network) => network.network === 'INSTAGRAM')!.enabled = true
+    vi.mocked(contentOnboardingApi.get).mockResolvedValue(onboarding)
+    let finishConnection!: (result: { authorization_url: string; expires_at: string }) => void
+    vi.mocked(contentOnboardingApi.startConnection).mockImplementation(() => new Promise((resolve) => { finishConnection = resolve }))
+    vi.spyOn(window, 'open').mockImplementation(() => null)
+    renderScreen('/content/connections')
+
+    const options = (await screen.findByRole('heading', { name: 'Connect another account' })).closest('.card') as HTMLElement
+    const linkedIn = within(options).getByRole('button', { name: /Connect LinkedIn/i })
+    const instagram = within(options).getByRole('button', { name: /Connect Instagram/i })
+    fireEvent.click(instagram)
+
+    await waitFor(() => expect(instagram).toHaveAttribute('aria-busy', 'true'))
+    expect(instagram).toBeDisabled()
+    expect(instagram.querySelector('.spin')).toBeInTheDocument()
+    expect(linkedIn).toBeDisabled()
+    expect(linkedIn).toHaveAttribute('aria-busy', 'false')
+    expect(linkedIn.querySelector('.spin')).not.toBeInTheDocument()
+
+    finishConnection({ authorization_url: 'https://social.example/connect', expires_at: new Date().toISOString() })
+    await waitFor(() => expect(contentOnboardingApi.startConnection).toHaveBeenCalledWith('INSTAGRAM'))
+  })
   it('summarizes setup, approvals, upcoming posts and failures on Home', async () => {
     const review = structuredClone(contentStudioMockApprovals.NEEDS_REVIEW[0])
     const summary: HomeSummary = { needs_approval: [review], upcoming: [{ ...review, id: 'upcoming', status: 'SCHEDULED' }], failures: [{ ...review, id: 'failed', status: 'FAILED' }], connections_needing_attention: 1 }

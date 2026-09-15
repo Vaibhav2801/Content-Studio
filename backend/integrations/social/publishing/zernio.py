@@ -69,6 +69,8 @@ ZERNIO_CAPABILITIES = ProviderCapabilities(
 LINKEDIN_TEXT_LIMIT = 3000
 LINKEDIN_IMAGE_LIMIT = 20
 ORGANIZATION_ACCOUNT_TYPES = frozenset({"organization", "organisation", "company", "company_page"})
+PERSONAL_ACCOUNT_TYPES = frozenset({"personal", "person", "member", "profile"})
+LINKEDIN_ACCOUNT_TYPES = ORGANIZATION_ACCOUNT_TYPES | PERSONAL_ACCOUNT_TYPES
 
 
 @dataclass(frozen=True)
@@ -186,31 +188,65 @@ class ZernioProvider(PublishingProvider):
             raise ProviderValidationError("No LinkedIn Company Pages were returned. Start again.")
         return payload
 
-    def select_linkedin_organization(self, workspace_id, pending_data_token, organization_id, connect_token=""):
+    def select_linkedin_account(
+        self,
+        workspace_id,
+        pending_data_token,
+        account_type,
+        organization_id="",
+        connect_token="",
+    ):
         pending = self.pending_linkedin_selection(workspace_id, pending_data_token)
-        organization = next(
-            (item for item in pending["organizations"] if isinstance(item, dict) and str(item.get("id") or "") == str(organization_id)),
-            None,
-        )
-        if organization is None:
-            raise ProviderValidationError("Choose a LinkedIn Company Page from the list.")
+        normalized_account_type = str(account_type or "").lower()
+        if normalized_account_type not in {"personal", "organization"}:
+            raise ProviderValidationError("Choose a valid LinkedIn account type.")
+        organization = None
+        if normalized_account_type == "organization":
+            organization = next(
+                (
+                    item
+                    for item in pending["organizations"]
+                    if isinstance(item, dict)
+                    and str(item.get("id") or "") == str(organization_id)
+                ),
+                None,
+            )
+            if organization is None:
+                raise ProviderValidationError("Choose a LinkedIn Company Page from the list.")
         connect_token = str(connect_token or "")
         if len(connect_token) > 2048 or "\r" in connect_token or "\n" in connect_token:
             raise ProviderValidationError("The account selection step is invalid. Start again.")
+        body = {
+            "profileId": str(pending["profileId"]),
+            "tempToken": str(pending["tempToken"]),
+            "userProfile": pending["userProfile"],
+            "accountType": normalized_account_type,
+        }
+        if organization is not None:
+            body["selectedOrganization"] = organization
         _, result = self._request(
             "POST",
             "/v1/connect/linkedin/select-organization",
-            json={
-                "profileId": str(pending["profileId"]),
-                "tempToken": str(pending["tempToken"]),
-                "userProfile": pending["userProfile"],
-                "accountType": "organization",
-                "selectedOrganization": organization,
-            },
+            json=body,
             headers={"X-Connect-Token": connect_token} if connect_token else {},
             allowed_statuses={200},
         )
         return result
+
+    def select_linkedin_organization(
+        self,
+        workspace_id,
+        pending_data_token,
+        organization_id,
+        connect_token="",
+    ):
+        return self.select_linkedin_account(
+            workspace_id,
+            pending_data_token,
+            "organization",
+            organization_id,
+            connect_token,
+        )
 
     def complete_connection(self, request: CompleteConnectionRequest) -> CompleteConnectionResult:
         self._require_publishing_configuration()
@@ -291,10 +327,13 @@ class ZernioProvider(PublishingProvider):
                 "Reconnect the social account before publishing.",
                 "account",
             ))
-        if request.post.network != PublishingNetwork.INSTAGRAM and request.account.account_type.lower() not in ORGANIZATION_ACCOUNT_TYPES:
+        if (
+            request.post.network == PublishingNetwork.LINKEDIN
+            and request.account.account_type.lower() not in LINKEDIN_ACCOUNT_TYPES
+        ):
             errors.append(ValidationIssue(
                 "ACCOUNT_TYPE_UNSUPPORTED",
-                "Only LinkedIn Company Pages are currently supported.",
+                "This LinkedIn account type is not supported.",
                 "account",
             ))
         return ValidatePostResult(valid=not errors, errors=tuple(errors))
@@ -683,7 +722,7 @@ class ZernioProvider(PublishingProvider):
                 continue
             metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
             account_type = str(item.get("accountType") or metadata.get("accountType") or "").lower()
-            if network == PublishingNetwork.LINKEDIN and account_type not in ORGANIZATION_ACCOUNT_TYPES:
+            if network == PublishingNetwork.LINKEDIN and account_type not in LINKEDIN_ACCOUNT_TYPES:
                 continue
             item_profile = item.get("profileId")
             item_profile_id = (
@@ -701,7 +740,13 @@ class ZernioProvider(PublishingProvider):
                 provider_account_id=account_id,
                 network=network,
                 display_name=str(item.get("displayName") or item.get("username") or network.value.title()),
-                account_type="ORGANIZATION" if network == PublishingNetwork.LINKEDIN else "BUSINESS",
+                account_type=(
+                    "PERSON"
+                    if network == PublishingNetwork.LINKEDIN and account_type in PERSONAL_ACCOUNT_TYPES
+                    else "ORGANIZATION"
+                    if network == PublishingNetwork.LINKEDIN
+                    else "BUSINESS"
+                ),
                 capabilities=self.capabilities,
             ))
         return tuple(accounts)
