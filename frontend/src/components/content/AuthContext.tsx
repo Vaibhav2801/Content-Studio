@@ -1,16 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { authApi, type AuthSession, type AuthUser, type AuthWorkspace } from '../../api/auth'
+import { authApi, type AuthSession, type AuthUser, type AuthWorkspace, type AuthWorkspaceMembership } from '../../api/auth'
 import { clearComposerRecovery, composerRecoveryKey } from './composer/composerRecovery'
 
 interface AuthState {
   user: AuthUser | null
   workspace: AuthWorkspace | null
+  workspaces: AuthWorkspaceMembership[]
   ready: boolean
   error: string
   reload: () => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signUp: (name: string, email: string, password: string, workspaceName: string) => Promise<void>
   signOut: () => Promise<void>
+  createWorkspace: (name: string) => Promise<void>
+  switchWorkspace: (workspaceId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -52,10 +55,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
     setError('')
   }
+  const createWorkspace = async (name: string) => {
+    const result = await authApi.createWorkspace(name)
+    setSession(result)
+    setError('')
+  }
+  const switchWorkspace = async (workspaceId: string) => {
+    if (workspaceId === session?.workspace?.id) return
+    if (session?.user && session.workspace) clearComposerRecovery(composerRecoveryKey(session.user.id, session.workspace.id))
+    const result = await authApi.switchWorkspace(workspaceId)
+    setSession(result)
+    setError('')
+  }
 
   return <AuthContext.Provider value={{
-    user: session?.user ?? null, workspace: session?.workspace ?? null, ready, error,
-    reload, signIn, signUp, signOut,
+    user: session?.user ?? null, workspace: session?.workspace ?? null, workspaces: session?.workspaces ?? [], ready, error,
+    reload, signIn, signUp, signOut, createWorkspace, switchWorkspace,
   }}>{children}</AuthContext.Provider>
 }
 

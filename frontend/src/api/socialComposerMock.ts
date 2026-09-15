@@ -2,9 +2,9 @@ import type { ComposerOptions, SocialPost } from '../types/socialComposer'
 
 export const socialComposerMockOptions: ComposerOptions = {
   connections: [
-    { network: 'LINKEDIN', label: 'LinkedIn', display_name: 'LumaDesk', account_type: 'Company Page', health: 'HEALTHY' },
-    { network: 'X', label: 'X', display_name: '@lumadesk', account_type: 'Profile', health: 'HEALTHY' },
-    { network: 'INSTAGRAM', label: 'Instagram', display_name: '@lumadesk', account_type: 'Business account', health: 'HEALTHY' },
+    { id: 'demo-linkedin', network: 'LINKEDIN', label: 'LinkedIn', display_name: 'LumaDesk', account_type: 'Company Page', health: 'HEALTHY' },
+    { id: 'demo-x', network: 'X', label: 'X', display_name: '@lumadesk', account_type: 'Profile', health: 'HEALTHY' },
+    { id: 'demo-instagram', network: 'INSTAGRAM', label: 'Instagram', display_name: '@lumadesk', account_type: 'Business account', health: 'HEALTHY' },
   ],
   sources: [{ id: 'source-1', source_type: 'TEXT', label: 'Customer onboarding notes', text_content: 'Simple onboarding works best when every next step is visible.', source_url: '', original_filename: '', processing_status: 'READY', metadata: {}, owner_name: 'Workspace', updated_at: new Date().toISOString() }],
   drafts: [],

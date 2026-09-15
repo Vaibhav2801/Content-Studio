@@ -281,6 +281,20 @@ class ContentStudioOnboardingApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(get_url.call_args.args[0].redirect_uri, "http://localhost:5173/content/onboarding")
 
+    @override_settings(CONTENT_STUDIO_FRONTEND_ORIGINS=["http://localhost:5173"])
+    @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
+    def test_connection_started_from_connections_returns_to_connections(self, create_provider):
+        create_provider.return_value = self.fake
+        with patch.object(self.fake, "get_connection_url", wraps=self.fake.get_connection_url) as get_url:
+            response = self.client.post(
+                reverse("content-studio-connection-start"),
+                {"return_to": "connections"},
+                content_type="application/json",
+                HTTP_ORIGIN="http://localhost:5173",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(get_url.call_args.args[0].redirect_uri, "http://localhost:5173/content/connections")
+
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
     def test_untrusted_origin_does_not_override_configured_return(self, create_provider):
         create_provider.return_value = self.fake
@@ -312,9 +326,32 @@ class ContentStudioOnboardingApiTests(TestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertIn("authorization_url", response.data)
-        self.assertEqual(get_url.call_args.args[0].redirect_uri, "http://localhost:5173/content/onboarding")
+        self.assertEqual(get_url.call_args.args[0].redirect_uri, "http://localhost:5173/content/connections")
         placeholder.refresh_from_db()
         self.assertEqual(placeholder.status, ConnectionState.DISCONNECTED)
+
+    def test_business_profile_can_be_saved_or_skipped_without_advancing_wizard(self):
+        initial = self.client.get(reverse("content-studio-onboarding"))
+        self.assertFalse(initial.data["business_profile_configured"])
+
+        skipped = self.client.post(
+            reverse("content-studio-business-profile"),
+            {"skip": True},
+            content_type="application/json",
+        )
+        self.assertEqual(skipped.status_code, 200, skipped.data)
+        self.assertTrue(skipped.data["business_prompt_skipped"])
+        self.assertEqual(skipped.data["current_step"], initial.data["current_step"])
+
+        saved = self.client.post(
+            reverse("content-studio-business-profile"),
+            {"name": "Second Brand", "description": "Workflow software", "audience": "Operations teams", "language": "English"},
+            content_type="application/json",
+        )
+        self.assertEqual(saved.status_code, 200, saved.data)
+        self.assertTrue(saved.data["business_profile_configured"])
+        self.assertFalse(saved.data["business_prompt_skipped"])
+        self.assertEqual(saved.data["business"]["name"], "Second Brand")
 
     @override_settings(SOCIAL_PUBLISHER_DEFAULT="ZERNIO")
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")

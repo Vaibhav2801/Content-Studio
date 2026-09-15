@@ -100,3 +100,30 @@ class ContentStudioAuthenticationTests(TestCase):
             HTTP_X_CSRFTOKEN=self.client.cookies["csrftoken"].value,
         ).status_code, 404)
         self.assertEqual(self.client.get(reverse("studio-auth-session")).json()["workspace"]["id"], second_workspace_id)
+
+    def test_user_can_create_and_switch_between_private_workspaces(self):
+        session = self.signup("Alex Morgan", "alex@example.com", "Alex Studio")
+        first_workspace_id = session["workspace"]["id"]
+
+        created = self.post("studio-auth-workspace-create", {"name": "Second Brand"})
+        self.assertEqual(created.status_code, 201, created.content)
+        second_workspace_id = created.json()["workspace"]["id"]
+        self.assertNotEqual(first_workspace_id, second_workspace_id)
+        self.assertEqual(len(created.json()["workspaces"]), 2)
+        self.assertEqual(
+            WorkspaceMembership.objects.filter(user__email="alex@example.com", is_active=True).count(),
+            1,
+        )
+
+        switched = self.post("studio-auth-workspace-switch", {"workspace_id": first_workspace_id})
+        self.assertEqual(switched.status_code, 200, switched.content)
+        self.assertEqual(switched.json()["workspace"]["id"], first_workspace_id)
+        self.assertTrue(WorkspaceMembership.objects.get(workspace_id=first_workspace_id).is_active)
+
+    def test_user_cannot_switch_to_another_users_workspace(self):
+        first = self.signup("Alex Morgan", "alex@example.com", "Alex Studio")
+        self.post("studio-auth-signout", {})
+        self.signup("Sam Taylor", "sam@example.com", "Sam Studio")
+
+        denied = self.post("studio-auth-workspace-switch", {"workspace_id": first["workspace"]["id"]})
+        self.assertEqual(denied.status_code, 403)

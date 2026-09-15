@@ -74,6 +74,38 @@ def connected_networks(workspace):
     return selected
 
 
+def connection_targets(workspace, connection_ids):
+    """Resolve an explicit account per network without ever choosing silently."""
+    from integrations.social.services.publishing_routing import selected_provider
+
+    if not isinstance(connection_ids, list) or not connection_ids:
+        raise ValidationError({"connection_ids": "Choose at least one connected social account."})
+    clean_ids = list(dict.fromkeys(str(value) for value in connection_ids if str(value).strip()))
+    try:
+        accounts = {
+            str(connection.id): connection
+            for connection in SocialConnection.objects.filter(
+                workspace=workspace,
+                provider=selected_provider(workspace).value,
+                status=ConnectionState.CONNECTED,
+                pk__in=clean_ids,
+            )
+        }
+    except (ValidationError, ValueError) as exc:
+        raise ValidationError({"connection_ids": "Choose connected accounts from this workspace."}) from exc
+    if len(accounts) != len(clean_ids):
+        raise ValidationError({"connection_ids": "Choose connected accounts from this workspace."})
+    by_network = {}
+    networks = []
+    for connection_id in clean_ids:
+        connection = accounts[connection_id]
+        if connection.network in by_network:
+            raise ValidationError({"connection_ids": f"Choose only one {NETWORK_LABELS[connection.network]} account for this post."})
+        by_network[connection.network] = connection
+        networks.append(connection.network)
+    return networks, by_network
+
+
 def normalize_networks(workspace, values):
     if not isinstance(values, list) or not values:
         raise ValidationError({"networks": "Choose at least one connected social account."})
@@ -128,8 +160,8 @@ def _sync_post_sources(post, sources):
     post.save(update_fields=["source", "updated_at"])
 
 
-def create_draft(*, workspace, idea_title, idea_text="", source=None, sources=None, networks, controls=None):
-    networks, connections = normalize_networks(workspace, networks)
+def create_draft(*, workspace, idea_title, idea_text="", source=None, sources=None, networks, controls=None, connection_ids=None):
+    networks, connections = connection_targets(workspace, connection_ids) if connection_ids is not None else normalize_networks(workspace, networks)
     controls = normalize_controls(controls)
     selected_sources = _selected_sources(source, sources)
     title = str(idea_title or "").strip()
@@ -185,15 +217,15 @@ def update_post(*, post, idea_title=None, idea_text=None, source=None, sources=N
 
 
 @transaction.atomic
-def sync_draft_networks(*, post, networks):
-    networks, connections = normalize_networks(post.workspace, networks)
+def sync_draft_networks(*, post, networks, connection_ids=None):
+    networks, connections = connection_targets(post.workspace, connection_ids) if connection_ids is not None else normalize_networks(post.workspace, networks)
     omitted = post.variants.exclude(network__in=networks)
     protected = omitted.exclude(status=SocialPostState.DRAFT).exists() or omitted.filter(publish_jobs__isnull=False).exists()
     if protected:
         raise ValidationError({"networks": "A platform version already in review or publishing cannot be removed."})
     omitted.delete()
     for network in networks:
-        SocialPostVariant.objects.get_or_create(
+        variant, created = SocialPostVariant.objects.get_or_create(
             post=post,
             network=network,
             defaults={
@@ -204,6 +236,12 @@ def sync_draft_networks(*, post, networks):
                 "status": SocialPostState.DRAFT,
             },
         )
+        selected_connection = connections.get(network)
+        if not created and variant.connection_id != getattr(selected_connection, "id", None):
+            if variant.status != SocialPostState.DRAFT or variant.publish_jobs.exists():
+                raise ValidationError({"connection_ids": "An account cannot be changed after its post enters review or publishing."})
+            variant.connection = selected_connection
+            variant.save(update_fields=["connection", "updated_at"])
     return networks, connections
 
 
@@ -354,10 +392,10 @@ Return an object keyed by the uppercase network name. Each value must have:
 
 
 @transaction.atomic
-def generate_variants(*, post, networks, controls, generator=None):
+def generate_variants(*, post, networks, controls, generator=None, connection_ids=None):
     from integrations.social.services.knowledge import brand_brain_for
 
-    networks, connections = sync_draft_networks(post=post, networks=networks)
+    networks, connections = sync_draft_networks(post=post, networks=networks, connection_ids=connection_ids)
     controls = normalize_controls(controls)
     update_post(post=post, controls=controls)
     brand = brand_brain_for(post.workspace)

@@ -93,6 +93,8 @@ export const contentOnboardingMock: ContentStudioOnboarding = {
     { network: 'INSTAGRAM', label: 'Instagram', enabled: false },
   ],
   business: { name: 'LumaDesk', description: settings.company_description, audience: settings.audience, language: settings.language },
+  business_profile_configured: true,
+  business_prompt_skipped: false,
   schedule: { topics: settings.content_pillars, posting_days: settings.schedule_days, time: '10:00', timezone: settings.timezone },
   first_post_id: 'post-1',
   updated_at: new Date().toISOString(),

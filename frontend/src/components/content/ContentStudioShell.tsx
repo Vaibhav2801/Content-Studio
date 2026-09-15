@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckSquare,
+  ChevronDown,
   ChevronRight,
   CircleAlert,
   CircleCheck,
@@ -49,6 +50,10 @@ export function ContentStudioShell() {
   const [summary, setSummary] = useState<HomeSummary | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signoutError, setSignoutError] = useState('')
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
+  const [workspaceNameDraft, setWorkspaceNameDraft] = useState('')
+  const [workspaceBusy, setWorkspaceBusy] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState('')
   const feedbackTimers = useRef(new WeakMap<HTMLElement, number>())
 
   const showClickFeedback = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -74,6 +79,23 @@ export function ContentStudioShell() {
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 
   useEffect(() => setSidebarOpen(false), [location.pathname])
+
+  const activateWorkspace = async (workspaceId: string) => {
+    if (!auth || workspaceBusy || workspaceId === auth.workspace?.id) return
+    setWorkspaceBusy(true); setWorkspaceError('')
+    try {
+      await auth.switchWorkspace(workspaceId)
+      window.location.assign('/content')
+    } catch { setWorkspaceError('Could not switch workspace. Please try again.'); setWorkspaceBusy(false) }
+  }
+  const createWorkspace = async () => {
+    if (!auth || workspaceBusy || !workspaceNameDraft.trim()) return
+    setWorkspaceBusy(true); setWorkspaceError('')
+    try {
+      await auth.createWorkspace(workspaceNameDraft.trim())
+      window.location.assign('/content')
+    } catch { setWorkspaceError('Could not create workspace. Please try again.'); setWorkspaceBusy(false) }
+  }
 
   useEffect(() => {
     let active = true
@@ -104,11 +126,21 @@ export function ContentStudioShell() {
           <button className="studio-sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button>
         </div>
 
-        <Link className="studio-workspace-card" to="/content/settings">
-          <span className="studio-workspace-avatar">{workspaceName.slice(0, 1).toUpperCase()}</span>
-          <span><small>WORKSPACE</small><strong>{workspaceName}</strong></span>
-          <ChevronRight size={16} />
-        </Link>
+        <div className="studio-workspace-switcher">
+          <button className="studio-workspace-card" type="button" aria-expanded={workspaceMenuOpen} onClick={() => setWorkspaceMenuOpen((open) => !open)}>
+            <span className="studio-workspace-avatar">{workspaceName.slice(0, 1).toUpperCase()}</span>
+            <span><small>WORKSPACE</small><strong>{workspaceName}</strong></span>
+            <ChevronDown size={16} />
+          </button>
+          {workspaceMenuOpen && <div className="studio-workspace-menu">
+            <strong>Switch workspace</strong>
+            <div className="studio-workspace-list">{auth?.workspaces.map((workspace) => <button type="button" key={workspace.id} disabled={workspaceBusy} aria-current={workspace.id === auth.workspace?.id ? 'true' : undefined} onClick={() => void activateWorkspace(workspace.id)}><span>{workspace.name.slice(0, 1).toUpperCase()}</span><span><strong>{workspace.name}</strong><small>{workspace.role.toLowerCase()}</small></span>{workspace.id === auth.workspace?.id ? <CircleCheck size={15} /> : null}</button>)}</div>
+            <label><span>New workspace</span><input value={workspaceNameDraft} maxLength={255} placeholder="Business name" onChange={(event) => setWorkspaceNameDraft(event.target.value)} /></label>
+            <button className="studio-workspace-create" type="button" disabled={workspaceBusy || !workspaceNameDraft.trim()} onClick={() => void createWorkspace()}>{workspaceBusy ? 'Working…' : <><Plus size={14} /> Create workspace</>}</button>
+            {workspaceError && <small className="studio-workspace-error" role="alert">{workspaceError}</small>}
+            <Link to="/content/settings" onClick={() => setWorkspaceMenuOpen(false)}>Manage current workspace settings</Link>
+          </div>}
+        </div>
 
         <Link className="studio-sidebar-create" to="/content/create"><Plus size={17} /> Create post <span>↗</span></Link>
 
@@ -129,7 +161,6 @@ export function ContentStudioShell() {
               })}
             </div>
           ))}
-          {onboarding.status !== 'COMPLETE' && <NavLink to="/content/onboarding" className={({ isActive }) => `studio-nav-item studio-setup-link ${isActive ? 'active' : ''}`}><Sparkles size={18} /><span>Finish setup</span></NavLink>}
         </nav>
 
         <div className="studio-sidebar-bottom">

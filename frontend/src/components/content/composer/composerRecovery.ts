@@ -8,6 +8,7 @@ export interface ComposerFormSnapshot {
   ideaText: string
   sourceIds: string[]
   networks: SocialNetwork[]
+  selectedConnections?: Partial<Record<SocialNetwork, string>>
   controls: GenerationControls
   activeNetwork: SocialNetwork
 }

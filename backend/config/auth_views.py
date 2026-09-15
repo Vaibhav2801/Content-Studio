@@ -41,6 +41,11 @@ def _session_data(user):
             .filter(user=user)
             .first()
         )
+    memberships = list(
+        WorkspaceMembership.objects.select_related("workspace")
+        .filter(user=user)
+        .order_by("workspace__name", "created_at")
+    )
     return {
         "authenticated": True,
         "user": {
@@ -49,6 +54,15 @@ def _session_data(user):
             "name": user.get_full_name() or user.email,
         },
         "workspace": {"id": str(membership.workspace_id), "name": membership.workspace.name} if membership else None,
+        "workspaces": [
+            {
+                "id": str(item.workspace_id),
+                "name": item.workspace.name,
+                "role": item.role,
+                "is_active": item.is_active,
+            }
+            for item in memberships
+        ],
     }
 
 
@@ -147,4 +161,53 @@ def signin_view(request):
 @csrf_protect
 def signout_view(request):
     logout(request)
+    return JsonResponse({**_session_data(request.user), "csrf_token": get_token(request)})
+
+
+@require_POST
+@never_cache
+@csrf_protect
+def workspace_create_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Authentication is required."}, status=401)
+    data = _payload(request)
+    if data is None:
+        return JsonResponse({"detail": "Send a valid JSON request."}, status=400)
+    name = data.get("name") if isinstance(data.get("name"), str) else ""
+    name = name.strip()
+    if not name or len(name) > 255:
+        return JsonResponse({"name": ["Enter a workspace name of up to 255 characters."]}, status=400)
+    with transaction.atomic():
+        WorkspaceMembership.objects.filter(user=request.user, is_active=True).update(is_active=False)
+        workspace = Workspace.objects.create(name=name)
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=request.user,
+            role=WorkspaceMembership.OWNER,
+            is_active=True,
+        )
+    return JsonResponse({**_session_data(request.user), "csrf_token": get_token(request)}, status=201)
+
+
+@require_POST
+@never_cache
+@csrf_protect
+def workspace_switch_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Authentication is required."}, status=401)
+    data = _payload(request)
+    if data is None:
+        return JsonResponse({"detail": "Send a valid JSON request."}, status=400)
+    workspace_id = data.get("workspace_id") if isinstance(data.get("workspace_id"), str) else ""
+    try:
+        membership = WorkspaceMembership.objects.filter(user=request.user, workspace_id=workspace_id).first()
+    except (ValidationError, ValueError):
+        membership = None
+    if membership is None:
+        return JsonResponse({"workspace_id": ["Choose a workspace you can access."]}, status=403)
+    with transaction.atomic():
+        WorkspaceMembership.objects.filter(user=request.user, is_active=True).exclude(pk=membership.pk).update(is_active=False)
+        if not membership.is_active:
+            membership.is_active = True
+            membership.save(update_fields=["is_active", "updated_at"])
     return JsonResponse({**_session_data(request.user), "csrf_token": get_token(request)})

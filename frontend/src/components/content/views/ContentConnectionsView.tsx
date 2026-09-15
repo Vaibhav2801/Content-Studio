@@ -1,5 +1,7 @@
-import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, Unlink, type LucideIcon } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { contentOnboardingApi, type LinkedInAccountChoice } from '../../../api/contentOnboarding'
 import { contentStudioApi } from '../../../api/contentStudio'
 import { contentStudioMockConnections } from '../../../api/contentStudioMock'
 import type { StudioConnection } from '../../../types/contentStudio'
@@ -10,11 +12,17 @@ const networkIcons: Record<string, LucideIcon> = { LINKEDIN: Linkedin, INSTAGRAM
 type ConnectButton = 'empty-linkedin' | 'options-linkedin' | 'options-instagram'
 
 export function ContentConnectionsView() {
-  const { isDemo, onboarding, busy: studioBusy, connectLinkedIn } = useContentStudio()
+  const studio = useContentStudio()
+  const { isDemo, onboarding, busy: studioBusy, connectLinkedIn } = studio
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const handledReturn = useRef(false)
   const [connections, setConnections] = useState<StudioConnection[] | null>(null)
   const [busy, setBusy] = useState('')
   const [connectingButton, setConnectingButton] = useState<ConnectButton | null>(null)
   const [error, setError] = useState('')
+  const [pendingSelection, setPendingSelection] = useState<{ state: string; pendingDataToken: string; connectToken: string; accounts: LinkedInAccountChoice[]; loading: boolean } | null>(null)
+  const [selectionBusy, setSelectionBusy] = useState('')
 
   const load = useCallback(async () => {
     setError('')
@@ -22,6 +30,51 @@ export function ContentConnectionsView() {
     catch (loadError) { setError(customerSafeMessage(loadError instanceof Error ? loadError.message : undefined, 'Could not load social accounts.')) }
   }, [isDemo])
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    const state = searchParams.get('state') || undefined
+    const code = searchParams.get('code') || undefined
+    const pendingDataToken = searchParams.get('pendingDataToken') || undefined
+    if (!handledReturn.current && state && pendingDataToken && searchParams.get('step') === 'select_organization') {
+      handledReturn.current = true
+      const connectToken = searchParams.get('connect_token') || ''
+      navigate('/content/connections', { replace: true })
+      setPendingSelection({ state, pendingDataToken, connectToken, accounts: [], loading: true })
+      void contentOnboardingApi.connectionChoices({ state, pending_data_token: pendingDataToken })
+        .then(({ accounts }) => setPendingSelection((current) => current?.pendingDataToken === pendingDataToken ? { ...current, accounts, loading: false } : current))
+        .catch((choiceError) => {
+          setError(customerSafeMessage(choiceError instanceof Error ? choiceError.message : undefined, 'Could not load LinkedIn accounts. Start the connection again.'))
+          setPendingSelection((current) => current?.pendingDataToken === pendingDataToken ? { ...current, loading: false } : current)
+        })
+      return
+    }
+    const status = searchParams.get('connect_status')
+    const providerError = searchParams.get('error') || undefined
+    const cancelled = status === 'cancelled' || providerError === 'access_denied'
+    const returnError = providerError || (status === 'error' ? 'connection_failed' : undefined)
+    if (handledReturn.current || (!state && !returnError && !cancelled)) return
+    handledReturn.current = true
+    void studio.completeLinkedInConnection({ state, code, error: returnError, cancelled }).then(load).finally(() => navigate('/content/connections', { replace: true }))
+  }, [load, navigate, searchParams, studio])
+
+  const chooseAccount = async (account: LinkedInAccountChoice) => {
+    if (!pendingSelection || selectionBusy) return
+    setSelectionBusy(`${account.account_type}:${account.id}`); setError('')
+    try {
+      const connected = await studio.selectLinkedInConnection({
+        state: pendingSelection.state,
+        pending_data_token: pendingSelection.pendingDataToken,
+        account_type: account.account_type,
+        organization_id: account.account_type === 'ORGANIZATION' ? account.id : undefined,
+        connect_token: pendingSelection.connectToken,
+      })
+      if (connected) { setPendingSelection(null); await load() }
+    } finally { setSelectionBusy('') }
+  }
+  const cancelSelection = async () => {
+    await studio.cancelLinkedInConnection()
+    setPendingSelection(null)
+  }
 
   const act = async (connection: StudioConnection, action: 'RECONNECT' | 'DISCONNECT' | 'PREPARE_REMOVE' | 'REMOVE') => {
     const managerTab = action === 'PREPARE_REMOVE' && !isDemo ? window.open('about:blank', '_blank') : null
@@ -57,11 +110,19 @@ export function ContentConnectionsView() {
   const connect = async (button: ConnectButton, network: 'LINKEDIN' | 'INSTAGRAM') => {
     if (connectingButton) return
     setConnectingButton(button)
-    try { await connectLinkedIn(network) }
+    try { await connectLinkedIn(network, 'connections') }
     finally { setConnectingButton(null) }
   }
 
   const connectionInProgress = connectingButton !== null || studioBusy === 'connection'
+
+  if (pendingSelection) return <section className="studio-screen" aria-labelledby="connection-account-title"><div className="card onboarding-panel">
+    <div className="onboarding-panel-head"><span>CONNECT LINKEDIN</span><h2 id="connection-account-title">Choose where to publish</h2><p>Select one personal LinkedIn profile or Company Page for this connection.</p></div>
+    {pendingSelection.loading ? <div className="li-loading" role="status"><LoaderCircle className="spin" size={18} /> Loading your LinkedIn accounts…</div> : null}
+    {error ? <div className="onboarding-plain-error" role="alert"><TriangleAlert size={17} /><span>{error}</span></div> : null}
+    {!pendingSelection.loading && !error ? <div className="onboarding-networks">{pendingSelection.accounts.map((account) => { const personal = account.account_type === 'PERSON'; const pending = selectionBusy === `${account.account_type}:${account.id}`; return <article className="onboarding-network featured" key={`${account.account_type}:${account.id}`}><span className="onboarding-network-icon"><Linkedin size={20} /></span><div><h3>{account.name}</h3><p>{account.vanity_name ? `linkedin.com/${personal ? 'in' : 'company'}/${account.vanity_name}` : personal ? 'Personal LinkedIn profile' : 'LinkedIn Company Page'}</p></div><button className="button button-dark" type="button" disabled={Boolean(selectionBusy)} aria-busy={pending} onClick={() => void chooseAccount(account)}>{pending ? <LoaderCircle className="spin" size={16} /> : null} Connect {personal ? 'Profile' : 'Page'}</button></article> })}</div> : null}
+    <div className="onboarding-actions"><button className="li-quiet-button" type="button" disabled={Boolean(selectionBusy)} onClick={() => void cancelSelection()}>Cancel</button>{error ? <button className="button button-dark" type="button" onClick={() => void connect('options-linkedin', 'LINKEDIN')}>Try again</button> : null}</div>
+  </div></section>
 
   return <section className="studio-screen" aria-label="Social account connections">
     {error && <div className="li-banner error" role="alert">{error}</div>}

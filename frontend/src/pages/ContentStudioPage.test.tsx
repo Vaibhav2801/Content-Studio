@@ -121,6 +121,24 @@ describe('Content Studio', () => {
     expect(advanced).not.toHaveAttribute('open')
   })
 
+  it('asks for workspace business details on first Create and allows skipping', async () => {
+    const missingProfile = {
+      ...structuredClone(contentOnboardingMock),
+      business: { name: 'Your business', description: '', audience: '', language: 'English' },
+      business_profile_configured: false,
+      business_prompt_skipped: false,
+    }
+    vi.mocked(contentOnboardingApi.get).mockResolvedValue(missingProfile)
+    vi.spyOn(contentOnboardingApi, 'saveBusinessProfile').mockResolvedValue({ ...missingProfile, business_prompt_skipped: true })
+    renderStudio('/content/create')
+
+    expect(await screen.findByRole('heading', { name: 'Tell us about this business' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
+
+    await waitFor(() => expect(contentOnboardingApi.saveBusinessProfile).toHaveBeenCalledWith({ skip: true }))
+    expect(await screen.findByRole('heading', { name: 'Start with what you have' })).toBeInTheDocument()
+  })
+
   it('generates separate platform drafts from a fresh idea', async () => {
     const generated = makeDemoPost('Customer onboarding', 'New customer onboarding workflow', ['LINKEDIN', 'X'])
     vi.spyOn(socialComposerApi, 'generate').mockResolvedValue(generated)

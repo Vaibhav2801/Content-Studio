@@ -79,6 +79,8 @@ export function SocialComposer({ onPostChange }: Props) {
 
   const [networks, setNetworks] = useState<SocialNetwork[]>(restoredForm?.networks ?? [])
 
+  const [selectedConnections, setSelectedConnections] = useState<Partial<Record<SocialNetwork, string>>>(restoredForm?.selectedConnections ?? {})
+
   const [controls, setControls] = useState<GenerationControls>({ ...defaultControls, ...restoredForm?.controls })
 
   const [post, setPost] = useState<SocialPost | null>(null)
@@ -129,9 +131,9 @@ export function SocialComposer({ onPostChange }: Props) {
 
   useEffect(() => {
 
-    saveComposerForm(recoveryKey, { mode, ideaTitle, ideaText, sourceIds, networks, controls, activeNetwork })
+    saveComposerForm(recoveryKey, { mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, activeNetwork })
 
-  }, [recoveryKey, mode, ideaTitle, ideaText, sourceIds, networks, controls, activeNetwork])
+  }, [recoveryKey, mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, activeNetwork])
 
 
 
@@ -171,6 +173,8 @@ export function SocialComposer({ onPostChange }: Props) {
 
       setNetworks(postNetworks)
 
+      setSelectedConnections((current) => ({ ...current, ...Object.fromEntries(value.variants.filter((variant) => variant.account).map((variant) => [variant.network, variant.account!.id])) }))
+
       if (!postNetworks.includes(activeNetwork)) setActiveNetwork(postNetworks[0] ?? 'LINKEDIN')
 
     }
@@ -192,6 +196,14 @@ export function SocialComposer({ onPostChange }: Props) {
         if (!active) return
 
         setOptions(loaded)
+
+        setSelectedConnections((current) => {
+          const next = { ...current }
+          for (const connection of loaded.connections) {
+            if (!next[connection.network] || !loaded.connections.some((candidate) => candidate.id === next[connection.network])) next[connection.network] = connection.id
+          }
+          return next
+        })
 
         const first = loaded.connections[0]?.network
 
@@ -351,7 +363,10 @@ export function SocialComposer({ onPostChange }: Props) {
 
 
 
-  const payload = () => ({ idea_title: ideaTitle.trim() || 'Untitled idea', idea_text: ideaText.trim(), source_ids: sourceIds, networks, controls })
+  const payload = () => {
+    const connection_ids = networks.map((network) => selectedConnections[network]).filter((id): id is string => Boolean(id && !id.startsWith('draft-')))
+    return { idea_title: ideaTitle.trim() || 'Untitled idea', idea_text: ideaText.trim(), source_ids: sourceIds, networks, controls, ...(connection_ids.length ? { connection_ids } : {}) }
+  }
 
 
 
@@ -666,7 +681,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
         </>}
 
-        <PlatformSelector connections={options.connections} selected={networks} onChange={(next) => { setNetworks(next); markUnsaved() }} />
+        <PlatformSelector connections={options.connections} selected={networks} selectedConnections={selectedConnections} onChange={(next) => { setNetworks(next); markUnsaved() }} onConnectionChange={(network, connectionId) => { setSelectedConnections((current) => ({ ...current, [network]: connectionId })); markUnsaved() }} />
 
         <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image for other platforms</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}</fieldset>
 

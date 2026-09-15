@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .auth_views import session_view, signup_view, signin_view, signout_view
+from .auth_views import (
+    session_view,
+    signup_view,
+    signin_view,
+    signout_view,
+    workspace_create_view,
+    workspace_switch_view,
+)
 from django.urls import path, include
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -37,6 +44,8 @@ urlpatterns = [
     path('api/v3/auth/signup/', signup_view, name='studio-auth-signup'),
     path('api/v3/auth/signin/', signin_view, name='studio-auth-signin'),
     path('api/v3/auth/signout/', signout_view, name='studio-auth-signout'),
+    path('api/v3/auth/workspaces/', workspace_create_view, name='studio-auth-workspace-create'),
+    path('api/v3/auth/workspaces/switch/', workspace_switch_view, name='studio-auth-workspace-switch'),
 
     # Content Studio APIs
     path('api/v3/linkedin/', include('integrations.linkedin.urls')),

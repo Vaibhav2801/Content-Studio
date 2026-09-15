@@ -68,6 +68,7 @@ from integrations.social.services.onboarding import (
     onboarding_for,
     pending_linkedin_choices,
     select_linkedin_choice,
+    save_business_profile,
     serialize_onboarding,
     set_current_step,
     start_connection,
@@ -111,6 +112,7 @@ from integrations.social.services.lifecycle import (
 )
 from integrations.social.services.publishing_routing import (
     provider_readiness,
+    selected_provider,
     system_default_provider,
 )
 from integrations.social.services.studio import (
@@ -342,20 +344,24 @@ class StoryInterviewAPIView(SocialWorkspaceScopedAPIView):
 class SocialComposerOptionsAPIView(SocialWorkspaceScopedAPIView):
     def get(self, request):
         workspace = self.workspace(request)
-        connections = connected_networks(workspace)
+        connections = SocialConnection.objects.filter(
+            workspace=workspace,
+            provider=selected_provider(workspace).value,
+            status=ConnectionState.CONNECTED,
+        ).order_by("network", "display_name", "id")
         connection_options = []
-        for network in (SocialNetwork.LINKEDIN, SocialNetwork.X, SocialNetwork.INSTAGRAM):
-            connection = connections.get(network)
-            if connection:
-                connection_options.append({
-                    "network": network,
-                    "label": NETWORK_LABELS[network],
-                    "display_name": connection.display_name,
-                    "account_type": connection.get_account_type_display(),
-                    "health": "HEALTHY",
-                })
+        for connection in connections:
+            connection_options.append({
+                "id": str(connection.id),
+                "network": connection.network,
+                "label": NETWORK_LABELS[connection.network],
+                "display_name": connection.display_name,
+                "account_type": connection.get_account_type_display(),
+                "health": "HEALTHY",
+            })
         if not connection_options and django_settings.CONTENT_STUDIO_DRAFT_ONLY_ALLOWED:
             connection_options.append({
+                "id": "draft-linkedin",
                 "network": SocialNetwork.LINKEDIN,
                 "label": "LinkedIn",
                 "display_name": "Draft only",
@@ -410,6 +416,7 @@ class SocialPostListCreateAPIView(SocialWorkspaceScopedAPIView):
                 sources=sources,
                 networks=request.data.get("networks"),
                 controls=request.data.get("controls"),
+                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
             )
         except DjangoValidationError as error:
             return social_validation_response(error)
@@ -439,7 +446,7 @@ class SocialPostDetailAPIView(SocialWorkspaceScopedAPIView):
                 controls=request.data.get("controls") if "controls" in request.data else None,
             )
             if "networks" in request.data:
-                sync_draft_networks(post=post, networks=request.data.get("networks"))
+                sync_draft_networks(post=post, networks=request.data.get("networks"), connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None)
         except DjangoValidationError as error:
             return social_validation_response(error)
         return Response(social_post_response(post))
@@ -479,6 +486,7 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                     sources=sources,
                     networks=request.data.get("networks"),
                     controls=request.data.get("controls"),
+                    connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                 )
             except DjangoValidationError as error:
                 return social_validation_response(error)
@@ -487,6 +495,7 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                 post=post,
                 networks=request.data.get("networks"),
                 controls=request.data.get("controls"),
+                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
             )
         except DjangoValidationError as error:
             return social_validation_response(error)
@@ -542,10 +551,12 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
                         sources=sources,
                         networks=request.data.get("networks"),
                         controls=request.data.get("controls"),
+                        connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                     )
                     post = generate_variants(
                         post=post, networks=request.data.get("networks"),
                         controls=request.data.get("controls"),
+                        connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                     )
                     post.metadata = {**post.metadata, "series": {"title": title, "part": part, "total": count}}
                     post.save(update_fields=["metadata", "updated_at"])
@@ -887,7 +898,7 @@ class SocialConnectionActionAPIView(SocialWorkspaceScopedAPIView):
             try:
                 if connection.provider in {SocialProvider.MANUAL, SocialProvider.ZERNIO}:
                     onboarding, authorization_url = start_connection(
-                        connection.workspace, redirect_uri=connection_return_uri(request), network=connection.network,
+                        connection.workspace, redirect_uri=connection_return_uri(request, "/content/connections"), network=connection.network,
                     )
                     expires_at = onboarding.connection_expires_at
                 else:
@@ -946,11 +957,21 @@ class ContentStudioOnboardingStepAPIView(SocialWorkspaceScopedAPIView):
         return Response(serialize_onboarding(onboarding))
 
 
+class ContentStudioBusinessProfileAPIView(SocialWorkspaceScopedAPIView):
+    def post(self, request):
+        try:
+            onboarding = save_business_profile(self.workspace(request), request.data)
+        except DjangoValidationError as error:
+            return onboarding_validation_response(error)
+        return Response(serialize_onboarding(onboarding))
+
+
 class ContentStudioConnectionStartAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request):
         workspace = self.workspace(request)
         try:
-            onboarding, authorization_url = start_connection(workspace, redirect_uri=connection_return_uri(request), network=request.data.get("network", "LINKEDIN"))
+            return_path = "/content/connections" if request.data.get("return_to") == "connections" else "/content/onboarding"
+            onboarding, authorization_url = start_connection(workspace, redirect_uri=connection_return_uri(request, return_path), network=request.data.get("network", "LINKEDIN"))
         except DjangoValidationError as error:
             return onboarding_validation_response(error)
         record_audit_event(

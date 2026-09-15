@@ -11,9 +11,22 @@ describe('social composer components', () => {
 
   it('selects more than one connected network with accessible controls', () => {
     const change = vi.fn()
-    render(<PlatformSelector connections={socialComposerMockOptions.connections} selected={['LINKEDIN']} onChange={change} />)
+    render(<PlatformSelector connections={socialComposerMockOptions.connections} selected={['LINKEDIN']} selectedConnections={{ LINKEDIN: 'demo-linkedin' }} onChange={change} onConnectionChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('checkbox', { name: /Instagram/i }))
     expect(change).toHaveBeenCalledWith(['LINKEDIN', 'INSTAGRAM'])
+  })
+
+  it('switches between two accounts on the same network', () => {
+    const change = vi.fn()
+    const accountChange = vi.fn()
+    const connections = [
+      socialComposerMockOptions.connections[0],
+      { ...socialComposerMockOptions.connections[0], id: 'founder-linkedin', display_name: 'Founder profile', account_type: 'Personal profile' },
+    ]
+    render(<PlatformSelector connections={connections} selected={['LINKEDIN']} selectedConnections={{ LINKEDIN: 'demo-linkedin' }} onChange={change} onConnectionChange={accountChange} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Founder profile/i }))
+    expect(accountChange).toHaveBeenCalledWith('LINKEDIN', 'founder-linkedin')
+    expect(change).not.toHaveBeenCalled()
   })
 
   it('edits copy and exposes network-specific direct actions', () => {

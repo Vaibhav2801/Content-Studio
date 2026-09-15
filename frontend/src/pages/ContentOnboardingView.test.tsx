@@ -38,14 +38,12 @@ describe('Content Studio onboarding', () => {
     vi.spyOn(contentOnboardingApi, 'cancelConnection').mockResolvedValue(inProgress())
   })
 
-  it('opens the four-step wizard automatically on first use', async () => {
+  it('opens Home without forcing the four-step wizard on first use', async () => {
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({ status: 'NOT_STARTED' }))
     renderOnboarding()
-    expect(await screen.findByRole('heading', { name: 'Connect a social account' }, { timeout: 5000 })).toBeInTheDocument()
-    expect(screen.getAllByText('Step 1 of 4').length).toBeGreaterThan(0)
-    expect(contentOnboardingApi.start).toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: /Connect LinkedIn/i })).toBeInTheDocument()
-    expect(screen.getByText(/secure authorization screen/i)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Good content starts here.' }, { timeout: 5000 })).toBeInTheDocument()
+    expect(contentOnboardingApi.start).not.toHaveBeenCalled()
+    expect(screen.queryByText('Step 1 of 4')).not.toBeInTheDocument()
   })
 
   it('goes back to saved business data without losing it', async () => {
@@ -112,12 +110,11 @@ describe('Content Studio onboarding', () => {
     expect(vi.mocked(contentOnboardingApi.completeStep).mock.calls[0][1]).not.toHaveProperty('topics')
   })
 
-  it('keeps an incomplete setup checklist on Content Studio Home', async () => {
+  it('does not show an incomplete setup checklist on Content Studio Home', async () => {
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({ current_step: 3, completed_steps: [1, 2] }))
     renderOnboarding()
-    expect(await screen.findByRole('heading', { name: 'Finish setting up Content Studio' })).toBeInTheDocument()
-    expect(screen.getByText('2 of 4 steps complete')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Continue setup' })).toHaveAttribute('href', '/content/onboarding')
+    expect(await screen.findByRole('heading', { name: 'Good content starts here.' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Finish setting up Content Studio' })).not.toBeInTheDocument()
   })
 
   it('shows connected account name, type and health after success', async () => {

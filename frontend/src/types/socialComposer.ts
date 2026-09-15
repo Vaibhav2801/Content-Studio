@@ -2,6 +2,7 @@ export type SocialNetwork = 'LINKEDIN' | 'X' | 'INSTAGRAM'
 export type SocialPostState = 'DRAFT' | 'NEEDS_REVIEW' | 'APPROVED' | 'SCHEDULED' | 'PUBLISHING' | 'SUBMITTED' | 'PUBLISHED' | 'FAILED' | 'CANCELLED' | 'CONNECTION_REQUIRED'
 
 export interface ComposerConnection {
+  id: string
   network: SocialNetwork
   label: string
   display_name: string
@@ -101,5 +102,6 @@ export interface DraftPayload {
   source_id?: string
   source_ids?: string[]
   networks: SocialNetwork[]
+  connection_ids?: string[]
   controls: GenerationControls
 }

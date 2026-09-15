@@ -50,8 +50,11 @@ export const contentOnboardingApi = {
   completeStep: (step: number, payload: Record<string, unknown>) => request<ContentStudioOnboarding>(`/onboarding/steps/${step}/`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  startConnection: (network: 'LINKEDIN' | 'INSTAGRAM' = 'LINKEDIN') => request<{ authorization_url: string; expires_at: string }>('/onboarding/connection/start/', {
-    method: 'POST', body: JSON.stringify({ network }),
+  saveBusinessProfile: (payload: { name?: string; description?: string; audience?: string; language?: string; skip?: boolean }) => request<ContentStudioOnboarding>('/onboarding/business/', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  startConnection: (network: 'LINKEDIN' | 'INSTAGRAM' = 'LINKEDIN', returnTo: 'onboarding' | 'connections' = 'onboarding') => request<{ authorization_url: string; expires_at: string }>('/onboarding/connection/start/', {
+    method: 'POST', body: JSON.stringify({ network, return_to: returnTo }),
   }),
   connectionChoices: (payload: { state: string; pending_data_token: string }) => request<{ accounts: LinkedInAccountChoice[] }>('/onboarding/connection/choices/', {
     method: 'POST', body: JSON.stringify(payload),

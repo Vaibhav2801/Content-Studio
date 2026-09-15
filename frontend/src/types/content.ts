@@ -54,6 +54,8 @@ export interface ContentStudioOnboarding {
   connection: OnboardingConnection
   networks: OnboardingNetwork[]
   business: { name: string; description: string; audience: string; language: string }
+  business_profile_configured: boolean
+  business_prompt_skipped: boolean
   schedule: { topics: string[]; posting_days: number[]; time: string; timezone: string }
   first_post_id: string
   updated_at: string

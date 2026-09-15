@@ -171,6 +171,11 @@ def _network_options(workspace):
 def serialize_onboarding(onboarding):
     workspace = onboarding.workspace
     legacy = _legacy_settings(workspace)
+    business_profile_configured = bool(
+        legacy.page_name.strip() not in {"", "Your business"}
+        and legacy.company_description.strip()
+        and legacy.audience.strip()
+    )
     return {
         "status": "COMPLETE" if onboarding.completed_at else "NOT_STARTED" if onboarding.started_at is None else "IN_PROGRESS",
         "current_step": onboarding.current_step,
@@ -186,6 +191,8 @@ def serialize_onboarding(onboarding):
             "audience": legacy.audience,
             "language": legacy.language,
         },
+        "business_profile_configured": business_profile_configured,
+        "business_prompt_skipped": bool(onboarding.answers.get("business_prompt_skipped")),
         "schedule": {
             "topics": legacy.content_pillars,
             "posting_days": legacy.schedule_days,
@@ -195,6 +202,43 @@ def serialize_onboarding(onboarding):
         "first_post_id": str(onboarding.answers.get("first_post_id") or ""),
         "updated_at": onboarding.updated_at.isoformat(),
     }
+
+
+@transaction.atomic
+def save_business_profile(workspace, payload):
+    onboarding = onboarding_for(workspace)
+    if payload.get("skip") is True:
+        onboarding.answers = {**onboarding.answers, "business_prompt_skipped": True}
+        onboarding.save(update_fields=["answers", "updated_at"])
+        return onboarding
+
+    name = str(payload.get("name") or "").strip()
+    description = str(payload.get("description") or "").strip()
+    audience = str(payload.get("audience") or "").strip()
+    language = str(payload.get("language") or "English").strip()
+    errors = {}
+    if not name:
+        errors["name"] = "Enter the business name."
+    if not description:
+        errors["description"] = "Tell us what the business does."
+    if not audience:
+        errors["audience"] = "Describe the audience."
+    if errors:
+        raise ValidationError(errors)
+
+    legacy = _legacy_settings(workspace)
+    legacy.page_name = name[:255]
+    legacy.company_description = description
+    legacy.audience = audience
+    legacy.language = language[:50]
+    legacy.save(update_fields=["page_name", "company_description", "audience", "language", "updated_at"])
+    sync_settings(legacy)
+    onboarding.answers = {
+        key: value for key, value in onboarding.answers.items()
+        if key != "business_prompt_skipped"
+    }
+    onboarding.save(update_fields=["answers", "updated_at"])
+    return onboarding
 
 
 @transaction.atomic
@@ -246,25 +290,7 @@ def complete_step(workspace, step, payload):
             raise ValidationError({"connection": "Connect a social account or choose draft-only mode to continue."})
         onboarding.draft_only_mode = not connected and skip
     elif step == 2:
-        name = str(payload.get("name") or "").strip()
-        description = str(payload.get("description") or "").strip()
-        audience = str(payload.get("audience") or "").strip()
-        language = str(payload.get("language") or "English").strip()
-        errors = {}
-        if not name:
-            errors["name"] = "Enter the business name."
-        if not description:
-            errors["description"] = "Tell us what the business does."
-        if not audience:
-            errors["audience"] = "Describe the audience."
-        if errors:
-            raise ValidationError(errors)
-        legacy.page_name = name[:255]
-        legacy.company_description = description
-        legacy.audience = audience
-        legacy.language = language[:50]
-        legacy.save(update_fields=["page_name", "company_description", "audience", "language", "updated_at"])
-        sync_settings(legacy)
+        save_business_profile(workspace, payload)
     elif step == 3:
         topics_supplied = "topics" in payload
         topics = payload.get("topics")

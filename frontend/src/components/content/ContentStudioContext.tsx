@@ -4,6 +4,7 @@ import { contentOnboardingApi } from '../../api/contentOnboarding'
 import { contentOnboardingMock, linkedinMockDashboard } from '../../api/linkedinMock'
 import type { ContentDashboard, ContentPost, ContentPostStatus, ContentSettings, ContentStudioOnboarding } from '../../types/content'
 import { customerSafeMessage } from './contentUtils'
+import { useOptionalAuth } from './AuthContext'
 
 type PostAction = 'approve' | 'publish' | 'cancel'
 
@@ -37,7 +38,8 @@ interface ContentStudioState {
   startOnboarding: () => Promise<void>
   moveOnboardingStep: (step: number) => Promise<void>
   completeOnboardingStep: (step: number, payload: Record<string, unknown>) => Promise<ContentStudioOnboarding | undefined>
-  connectLinkedIn: (network?: "LINKEDIN" | "INSTAGRAM") => Promise<void>
+  saveBusinessProfile: (payload: { name?: string; description?: string; audience?: string; language?: string; skip?: boolean }) => Promise<boolean>
+  connectLinkedIn: (network?: "LINKEDIN" | "INSTAGRAM", returnTo?: 'onboarding' | 'connections') => Promise<void>
   completeLinkedInConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => Promise<void>
   selectLinkedInConnection: (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => Promise<boolean>
   cancelLinkedInConnection: () => Promise<void>
@@ -48,6 +50,7 @@ const ContentStudioContext = createContext<ContentStudioState | null>(null)
 const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 
 export function ContentStudioProvider({ children }: { children: ReactNode }) {
+  const auth = useOptionalAuth()
   const [dashboard, setDashboard] = useState<ContentDashboard | null>(null)
   const [onboarding, setOnboarding] = useState<ContentStudioOnboarding | null>(null)
   const [settingsDraft, setSettingsDraft] = useState<ContentSettings | null>(null)
@@ -91,7 +94,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [auth?.workspace?.id])
   const selected = useMemo(() => dashboard?.posts.find((post) => post.id === selectedId) ?? dashboard?.posts[0], [dashboard, selectedId])
   const replacePost = (post: ContentPost) => setDashboard((current) => current ? {
     ...current,
@@ -249,11 +252,27 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     } catch (error) { fail(error, 'Could not save this setup step.'); return undefined }
   }
 
-  const connectLinkedIn = async (network: "LINKEDIN" | "INSTAGRAM" = "LINKEDIN") => {
+  const saveBusinessProfile = async (payload: { name?: string; description?: string; audience?: string; language?: string; skip?: boolean }) => {
+    setBusy('business-profile'); setNotice(''); setNoticeError(false)
+    try {
+      if (isDemo) {
+        setOnboarding((current) => current ? { ...current, business_profile_configured: !payload.skip, business_prompt_skipped: Boolean(payload.skip) } : current)
+      } else {
+        setOnboarding(await contentOnboardingApi.saveBusinessProfile(payload))
+        const data = await linkedinApi.dashboard()
+        setDashboard(data); setSettingsDraft(data.settings)
+      }
+      setNotice(payload.skip ? 'You can add business details later in Settings.' : 'Business profile saved for this workspace.')
+      return true
+    } catch (error) { fail(error, 'Could not save the business profile.'); return false }
+    finally { setBusy('') }
+  }
+
+  const connectLinkedIn = async (network: "LINKEDIN" | "INSTAGRAM" = "LINKEDIN", returnTo: 'onboarding' | 'connections' = 'onboarding') => {
     setBusy('connection'); setNotice(''); setNoticeError(false)
     try {
       if (isDemo) { setNotice('Social account connection is unavailable in demo mode.'); return }
-      const result = await contentOnboardingApi.startConnection(network)
+      const result = await contentOnboardingApi.startConnection(network, returnTo)
       window.open(result.authorization_url, '_self')
     } catch (error) { fail(error, `Could not start the ${network === 'INSTAGRAM' ? 'Instagram' : 'LinkedIn'} connection.`) }
     finally { setBusy('') }
@@ -304,7 +323,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     setSaveContext, setSettingsDraft, dismissNotice: () => { setNotice(''); setNoticeError(false) }, generate,
     runPostAction, updatePost, regenerateImage, saveSettings, toggleAutomation,
     startOnboarding: startOnboardingFlow, moveOnboardingStep, completeOnboardingStep,
-    connectLinkedIn, completeLinkedInConnection, selectLinkedInConnection, cancelLinkedInConnection, reload: load,
+    saveBusinessProfile, connectLinkedIn, completeLinkedInConnection, selectLinkedInConnection, cancelLinkedInConnection, reload: load,
   }}>{children}</ContentStudioContext.Provider>
 }
 

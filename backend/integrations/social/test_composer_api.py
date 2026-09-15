@@ -90,6 +90,40 @@ class SocialComposerApiTests(TestCase):
         self.assertEqual(created.status_code, 201, created.data)
         variant = SocialPostVariant.objects.get(post_id=created.data["id"])
         self.assertEqual(variant.connection_id, zernio.id)
+
+    def test_composer_lists_multiple_accounts_and_uses_the_explicit_target(self):
+        second = SocialConnection.objects.create(
+            workspace=self.workspace,
+            network=SocialNetwork.LINKEDIN,
+            provider=SocialProvider.UPLOAD_POST,
+            provider_profile_id="profile-linkedin-2",
+            provider_account_id="account-linkedin-2",
+            display_name="Founder profile",
+            status=ConnectionState.CONNECTED,
+            connected_at=timezone.now(),
+        )
+        options = self.client.get(reverse("social-composer-options"))
+        linkedin_options = [item for item in options.data["connections"] if item["network"] == SocialNetwork.LINKEDIN]
+        self.assertEqual({item["id"] for item in linkedin_options}, {str(self.connections[SocialNetwork.LINKEDIN].id), str(second.id)})
+
+        created = self.client.post(
+            reverse("social-post-list"),
+            self.payload(networks=["LINKEDIN"], connection_ids=[str(second.id)]),
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual(SocialPostVariant.objects.get(post_id=created.data["id"]).connection_id, second.id)
+
+        ambiguous = self.client.post(
+            reverse("social-post-list"),
+            self.payload(
+                networks=["LINKEDIN"],
+                connection_ids=[str(self.connections[SocialNetwork.LINKEDIN].id), str(second.id)],
+            ),
+            format="json",
+        )
+        self.assertEqual(ambiguous.status_code, 400)
+        self.assertIn("only one LinkedIn account", str(ambiguous.data))
     @patch("integrations.social.services.composer.SocialContentGenerator.generate")
     def test_generate_creates_a_distinct_variant_for_each_network(self, generate):
         generate.return_value = {

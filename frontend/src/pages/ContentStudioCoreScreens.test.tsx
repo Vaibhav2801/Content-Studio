@@ -268,7 +268,7 @@ describe('Content Studio core screens', () => {
     expect(linkedIn.querySelector('.spin')).not.toBeInTheDocument()
 
     finishConnection({ authorization_url: 'https://social.example/connect', expires_at: new Date().toISOString() })
-    await waitFor(() => expect(contentOnboardingApi.startConnection).toHaveBeenCalledWith('INSTAGRAM'))
+    await waitFor(() => expect(contentOnboardingApi.startConnection).toHaveBeenCalledWith('INSTAGRAM', 'connections'))
   })
   it('summarizes setup, approvals, upcoming posts and failures on Home', async () => {
     const review = structuredClone(contentStudioMockApprovals.NEEDS_REVIEW[0])

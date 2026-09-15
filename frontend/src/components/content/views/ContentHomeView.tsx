@@ -11,12 +11,11 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { contentStudioApi } from '../../../api/contentStudio'
 import { contentStudioMockHome } from '../../../api/contentStudioMock'
 import type { HomeSummary, StudioVariantCard } from '../../../types/contentStudio'
 import { useContentStudio } from '../ContentStudioContext'
-import { OnboardingChecklist } from '../OnboardingChecklist'
 import { customerSafeMessage, formatSchedule } from '../contentUtils'
 
 const workflow = [
@@ -26,7 +25,7 @@ const workflow = [
 ]
 
 export function ContentHomeView() {
-  const { onboarding, settingsDraft, isDemo, busy, toggleAutomation } = useContentStudio()
+  const { settingsDraft, isDemo, busy, toggleAutomation } = useContentStudio()
   const [summary, setSummary] = useState<HomeSummary | null>(null)
   const [error, setError] = useState('')
   const [retryKey, setRetryKey] = useState(0)
@@ -51,7 +50,6 @@ export function ContentHomeView() {
     return () => { active = false; window.clearTimeout(timeout) }
   }, [isDemo, retryKey])
 
-  if (onboarding.status === 'NOT_STARTED') return <Navigate to="/content/onboarding" replace />
   const failures = summary?.failures ?? []
   const attentionCount = failures.length + (summary?.connections_needing_attention ?? 0)
   const hasActivity = Boolean(summary && (summary.needs_approval.length || summary.upcoming.length || summary.recent_drafts?.length || failures.length))
@@ -79,8 +77,6 @@ export function ContentHomeView() {
         </div>
       </div>
     </section>
-
-    <OnboardingChecklist onboarding={onboarding} />
 
     <div className="studio-publishing-bar card">
       <div className="studio-publishing-state">

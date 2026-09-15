@@ -1,9 +1,11 @@
 export interface AuthUser { id: string; email: string; name: string }
 export interface AuthWorkspace { id: string; name: string }
+export interface AuthWorkspaceMembership extends AuthWorkspace { role: 'OWNER' | 'ADMIN' | 'MEMBER'; is_active: boolean }
 export interface AuthSession {
   authenticated: boolean
   user: AuthUser | null
   workspace: AuthWorkspace | null
+  workspaces?: AuthWorkspaceMembership[]
   csrf_token?: string
 }
 
@@ -50,4 +52,6 @@ export const authApi = {
     await authApi.session()
     return request('/signout/', { method: 'POST', body: '{}' })
   },
+  createWorkspace: (name: string) => request('/workspaces/', { method: 'POST', body: JSON.stringify({ name }) }),
+  switchWorkspace: (workspace_id: string) => request('/workspaces/switch/', { method: 'POST', body: JSON.stringify({ workspace_id }) }),
 }
