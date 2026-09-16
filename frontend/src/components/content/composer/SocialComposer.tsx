@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
+import { CalendarClock, Check, LoaderCircle, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -28,7 +28,7 @@ import { VariantEditor } from './VariantEditor'
 
 
 
-type StartMode = 'idea' | 'source' | 'draft'
+type StartMode = 'manual' | 'idea' | 'source' | 'draft'
 
 const defaultControls: GenerationControls = { tone: 'Professional', goal: 'Awareness', length: 'Medium', include_image: false }
 
@@ -648,6 +648,20 @@ export function SocialComposer({ onPostChange }: Props) {
 
   }
 
+  const schedule = async () => {
+    if (!post) return
+    if (saveState === 'UNSAVED' && !(await persist())) return
+    setBusy('schedule'); setError(''); setNotice('')
+    try {
+      if (isDemo) { setNotice('Demo post added to the schedule.'); return }
+      const scheduled = await socialComposerApi.schedule(post.id)
+      adoptPost(scheduled); setNotice('Post scheduled for publishing.')
+    } catch (scheduleError) {
+      if (!isDemo) { try { await reload() } catch { /* Keep the useful validation response. */ } }
+      setError(customerSafeMessage(scheduleError instanceof Error ? scheduleError.message : undefined, 'Fix the highlighted fields before scheduling.'))
+    } finally { setBusy('') }
+  }
+
 
 
   const activeVariant = useMemo(() => post?.variants.find((variant) => variant.network === activeNetwork) ?? post?.variants[0], [activeNetwork, post])
@@ -666,7 +680,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
         <div className="li-section-heading"><span>CREATE</span><h2 id="composer-start-title">Start with what you have</h2><p>Content Studio will shape a different draft for every selected network.</p></div>
 
-        <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{([['idea', 'New idea'], ['source', 'Saved source'], ['draft', 'Existing draft']] as [StartMode, string][]).map(([value, label]) => <button type="button" role="tab" aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}>{label}</button>)}</div>
+        <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{([['manual', 'Write manually'], ['idea', 'Generate with AI'], ['source', 'Saved source'], ['draft', 'Existing draft']] as [StartMode, string][]).map(([value, label]) => <button type="button" role="tab" aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}>{label}</button>)}</div>
         <p className="composer-series-link">Need several posts? <Link to="/content/series">Create a series automatically from one brief</Link></p>
 
         {mode === 'draft' ? <label className="li-field"><span>Choose a draft</span><select value={draftId} onChange={(event) => void loadDraft(event.target.value)}><option value="">Select a draft</option>{options.drafts.map((draft) => <option key={draft.id} value={draft.id}>{draft.idea_title}</option>)}</select></label> : <>
@@ -677,13 +691,13 @@ export function SocialComposer({ onPostChange }: Props) {
 
           <label className="li-field"><span>Working title</span><input value={ideaTitle} placeholder="For example: A simpler onboarding process" onChange={(event) => { setIdeaTitle(event.target.value); markUnsaved() }} /></label>
 
-          <label className="li-field"><span>{mode === 'source' ? 'Extra direction' : 'What is the idea?'}</span><textarea value={ideaText} placeholder="Share the point, rough notes, or message you want the post to convey…" onChange={(event) => { setIdeaText(event.target.value); markUnsaved() }} /></label>
+          {mode !== 'manual' && <label className="li-field"><span>{mode === 'source' ? 'Extra direction' : 'What is the idea?'}</span><textarea value={ideaText} placeholder="Share the point, rough notes, or message you want the post to convey…" onChange={(event) => { setIdeaText(event.target.value); markUnsaved() }} /></label>}
 
         </>}
 
         <PlatformSelector connections={options.connections} selected={networks} selectedConnections={selectedConnections} onChange={(next) => { setNetworks(next); markUnsaved() }} onConnectionChange={(network, connectionId) => { setSelectedConnections((current) => ({ ...current, [network]: connectionId })); markUnsaved() }} />
 
-        <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image for other platforms</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}</fieldset>
+        {mode !== 'manual' && <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image for other platforms</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}</fieldset>}
 
       </section>
 
@@ -693,13 +707,13 @@ export function SocialComposer({ onPostChange }: Props) {
 
         <div className="composer-review-head"><div><span>PLATFORM DRAFTS</span><h2 id="platform-drafts-title">Review each version</h2></div><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving…' : saveState === 'UNSAVED' ? 'Unsaved' : 'Saved'}</span></div>
 
-        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action) => void rewrite(action)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty"><Sparkles size={30} /><strong>No platform drafts yet</strong><p>Choose where to post, add an idea or source, then select Generate.</p></div>}
+        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action) => void rewrite(action)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty">{mode === 'manual' ? <Save size={30} /> : <Sparkles size={30} />}<strong>No platform drafts yet</strong><p>{mode === 'manual' ? 'Choose an account, then select Start writing.' : 'Choose where to post, add an idea or source, then select Generate.'}</p></div>}
 
       </section>
 
     </div>
 
-    <div className="composer-action-bar" aria-label="Composer actions"><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : 'Ready to start'}</span><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>{saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Save draft</button><button className="button button-dark" type="button" disabled={Boolean(busy) || !networks.length || (!ideaText.trim() && !sourceIds.length)} aria-busy={busy === 'generate'} onClick={() => void generate()}>{busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{busy === 'generate' ? ' Generating…' : ' Generate'}</button><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'submit'} onClick={() => void submit()}>{busy === 'submit' ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Send for approval</button></div>
+    <div className="composer-action-bar" aria-label="Composer actions"><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : 'Ready to start'}</span><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>{saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {mode === 'manual' && !post ? 'Start writing' : 'Save draft'}</button>{mode !== 'manual' && <button className="button button-dark" type="button" disabled={Boolean(busy) || !networks.length || (!ideaText.trim() && !sourceIds.length)} aria-busy={busy === 'generate'} onClick={() => void generate()}>{busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{busy === 'generate' ? ' Generating…' : ' Generate'}</button>}<button className="button button-dark" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'schedule'} onClick={() => void schedule()}>{busy === 'schedule' ? <LoaderCircle className="spin" size={16} /> : <CalendarClock size={16} />} Schedule post</button><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'submit'} onClick={() => void submit()}>{busy === 'submit' ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Send for approval</button></div>
 
   </div>
 

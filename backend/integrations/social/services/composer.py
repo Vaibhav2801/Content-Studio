@@ -21,7 +21,7 @@ from integrations.social.models import (
     SocialPostSource,
     SocialWorkspaceSettings,
 )
-from integrations.social.services.lifecycle import create_version, edit_variant, transition_variant
+from integrations.social.services.lifecycle import approve_variant, create_version, edit_variant, transition_variant
 from llm.router import IntelligentRouter
 
 
@@ -572,6 +572,66 @@ def submit_for_review(post):
         create_version(variant)
         if variant.status == SocialPostState.DRAFT:
             transition_variant(variant, SocialPostState.NEEDS_REVIEW)
+    post.refresh_from_db()
+    return post
+
+
+@transaction.atomic
+def schedule_post(post, *, user=None):
+    """Approve the current manual drafts and create their scheduled publish jobs."""
+    from integrations.social.services.publishing_routing import create_publish_job
+
+    variants = list(
+        post.variants.select_for_update()
+        .select_related("connection", "approved_version")
+        .prefetch_related("media_assets", "publish_jobs")
+    )
+    if not variants:
+        raise ComposerValidationError({"variants": "Create at least one platform post first."})
+
+    now = timezone.now()
+    errors = {}
+    for variant in variants:
+        validation = variant_validation(variant)
+        fields = dict(validation["fields"])
+        schedule_errors = []
+        if variant.scheduled_for <= now:
+            schedule_errors.append("Choose a future date and time.")
+        elif variant.scheduled_for > now + timedelta(days=366):
+            schedule_errors.append("Choose a date within the next year.")
+        if variant.connection_id and SocialPostVariant.objects.filter(
+            post__workspace=post.workspace,
+            connection_id=variant.connection_id,
+            scheduled_for__gt=variant.scheduled_for - timedelta(minutes=5),
+            scheduled_for__lt=variant.scheduled_for + timedelta(minutes=5),
+        ).exclude(pk=variant.pk).exclude(status=SocialPostState.CANCELLED).exists():
+            schedule_errors.append("Another post for this account is scheduled within five minutes.")
+        if schedule_errors:
+            fields["scheduled_for"] = schedule_errors
+        if fields:
+            errors[str(variant.id)] = {"valid": False, "fields": fields}
+    if errors:
+        raise ComposerValidationError({"variants": errors})
+
+    for variant in variants:
+        existing = variant.publish_jobs.filter(
+            approved_version_id=variant.approved_version_id,
+            status="SCHEDULED",
+        ).first() if variant.approved_version_id else None
+        if existing is not None:
+            continue
+        version = approve_variant(variant, approved_by=user)
+        connection = variant.connection
+        route = create_publish_job(
+            variant=variant,
+            approved_version=version,
+            idempotency_key=f"manual-schedule:{variant.id}:{version.id}",
+            provider_account_id=connection.provider_account_id if connection else "",
+            provider_profile_id=connection.provider_profile_id if connection else "",
+            scheduled_for=variant.scheduled_for,
+        )
+        if not route.ready:
+            raise ValidationError({"connection": route.detail or "Reconnect the social account before scheduling."})
     post.refresh_from_db()
     return post
 

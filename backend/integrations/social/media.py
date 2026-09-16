@@ -3,6 +3,7 @@ import ipaddress
 import struct
 import uuid
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import PurePath
 from urllib.parse import urljoin, urlparse
 
@@ -19,6 +20,21 @@ from integrations.social.models import (
 )
 from integrations.social.publishing.errors import ProviderValidationError
 from integrations.social.publishing.types import PublishingMediaType, PublishingNetwork
+
+
+def normalize_generated_image(network, image_data, content_type):
+    """Return generated artwork in a format accepted by the target network."""
+    content_type = str(content_type or "image/png").split(";", 1)[0].strip().lower()
+    if network != SocialNetwork.INSTAGRAM or content_type == "image/jpeg":
+        return image_data, content_type, MIME_EXTENSIONS.get(content_type, ".png")
+
+    from PIL import Image
+
+    with Image.open(BytesIO(image_data)) as source:
+        converted = source.convert("RGB")
+        output = BytesIO()
+        converted.save(output, format="JPEG", quality=92, optimize=True)
+    return output.getvalue(), "image/jpeg", ".jpg"
 
 
 @dataclass(frozen=True)

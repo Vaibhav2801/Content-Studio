@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -15,7 +16,10 @@ from integrations.social.models import (
     SocialPostState,
     SocialPostVariant,
     SocialProvider,
+    PublishJob,
+    PublishJobState,
 )
+from integrations.social.publishing.fakes import FakeUploadPostProvider
 from prospecting.models import Workspace, WorkspaceMembership
 
 
@@ -204,6 +208,51 @@ class SocialComposerApiTests(TestCase):
         submitted = self.client.post(reverse("social-post-submit-review", args=[post_id]), {}, format="json")
         self.assertEqual(submitted.status_code, 200)
         self.assertEqual(submitted.data["state"], SocialPostState.NEEDS_REVIEW)
+
+    def test_manual_post_can_be_scheduled_without_the_review_screen(self):
+        scheduled_for = timezone.now() + timedelta(days=2)
+        created = self.client.post(
+            reverse("social-post-list"),
+            self.payload(networks=["LINKEDIN"], idea_text=""),
+            format="json",
+        )
+        variant_id = created.data["variants"][0]["id"]
+        self.client.patch(
+            reverse("social-variant-detail", args=[variant_id]),
+            {"copy": "A manually written post.", "scheduled_for": scheduled_for.isoformat()},
+            format="json",
+        )
+
+        with patch(
+            "integrations.social.services.lifecycle.publishing_provider_registry.create",
+            return_value=FakeUploadPostProvider(),
+        ):
+            response = self.client.post(
+                reverse("social-post-schedule", args=[created.data["id"]]),
+                {},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["state"], SocialPostState.SCHEDULED)
+        job = PublishJob.objects.get(variant_id=variant_id)
+        self.assertEqual(job.status, PublishJobState.SCHEDULED)
+        self.assertEqual(job.scheduled_for, scheduled_for)
+
+    def test_manual_schedule_validates_copy_before_creating_jobs(self):
+        created = self.client.post(
+            reverse("social-post-list"),
+            self.payload(networks=["LINKEDIN"], idea_text=""),
+            format="json",
+        )
+        response = self.client.post(
+            reverse("social-post-schedule", args=[created.data["id"]]),
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Write the post", str(response.data))
+        self.assertFalse(PublishJob.objects.filter(variant__post_id=created.data["id"]).exists())
 
     def test_workspace_cannot_read_modify_or_reference_another_workspace_content(self):
         read = self.client.get(reverse("social-post-detail", args=[self.other_post.id]))

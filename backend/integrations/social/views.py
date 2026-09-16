@@ -29,6 +29,7 @@ from integrations.social.publishing.types import ProviderName, WebhookRequest
 from integrations.social.media import (
     MediaValidationError,
     delete_media_asset,
+    normalize_generated_image,
     reorder_variant_images,
     store_uploaded_media,
     update_media_alt_text,
@@ -88,6 +89,7 @@ from integrations.social.services.composer import (
     normalize_controls,
     rewrite_variant,
     save_variant_draft,
+    schedule_post,
     source_for_workspace,
     sources_for_workspace,
     submit_for_review,
@@ -609,6 +611,18 @@ class SocialPostSubmitReviewAPIView(SocialWorkspaceScopedAPIView):
         post = self.post_object(request, post_id)
         try:
             submit_for_review(post)
+        except ComposerValidationError as error:
+            return Response(error.payload, status=400)
+        except DjangoValidationError as error:
+            return social_validation_response(error)
+        return Response(social_post_response(post))
+
+
+class SocialPostScheduleAPIView(SocialWorkspaceScopedAPIView):
+    def post(self, request, post_id):
+        post = self.post_object(request, post_id)
+        try:
+            schedule_post(post, user=request.user)
         except ComposerValidationError as error:
             return Response(error.payload, status=400)
         except DjangoValidationError as error:
@@ -1193,9 +1207,13 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
                 {"code": "image_generation_not_configured", "detail": "Image generation is not configured."},
                 status=503,
             )
-        content_type = str(metadata.get("content_type") or "image/png")
+        image_data, content_type, extension = normalize_generated_image(
+            variant.network,
+            image_data,
+            metadata.get("content_type"),
+        )
         uploaded_file = SimpleUploadedFile(
-            f"generated-{variant.id}.png",
+            f"generated-{variant.id}{extension}",
             image_data,
             content_type=content_type,
         )

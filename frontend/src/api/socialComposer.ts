@@ -50,6 +50,7 @@ export const socialComposerApi = {
   updateVariant: (id: string, payload: { copy?: string; hashtags?: string[]; scheduled_for?: string }) => request<SocialPost>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
   rewrite: (id: string, action: RewriteAction) => request<SocialPost>(`/variants/${id}/rewrite/`, { method: 'POST', body: JSON.stringify({ action }) }),
   submitForReview: (id: string) => request<SocialPost>(`/posts/${id}/submit-review/`, { method: 'POST', body: '{}' }),
+  schedule: (id: string) => request<SocialPost>(`/posts/${id}/schedule/`, { method: 'POST', body: '{}' }),
   uploadMedia: (variantId: string, file: File, altText = '') => {
     const data = new FormData()
     data.append('file', file)

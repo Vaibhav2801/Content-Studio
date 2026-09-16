@@ -363,15 +363,15 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_ALWAYS_EAGER = 'test' in sys.argv
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 CELERY_BEAT_SCHEDULE = {
-    'linkedin-fill-content-queues': {
-        'task': 'linkedin.fill_content_queues',
+    'social-fill-content-queues': {
+        'task': 'social.fill_content_queues',
         'schedule': 60 * 60,
     },
-    'linkedin-publish-due-posts': {
+    'social-publish-due-posts': {
         'task': 'social.publish_due_jobs',
         'schedule': 60,
     },
-    'linkedin-sync-submitted-posts': {
+    'social-sync-submitted-posts': {
         'task': 'social.reconcile_publish_jobs',
         'schedule': 5 * 60,
     },

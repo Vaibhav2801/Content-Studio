@@ -92,12 +92,18 @@ describe('Content Studio', () => {
   it('shows the generic composer controls and connected networks', async () => {
     renderStudio('/content/create')
     expect(await screen.findByText('Start with what you have')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'New idea' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Write manually' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Generate with AI' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('checkbox', { name: /LinkedIn/i })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /@lumadesk · Profile/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Create a series automatically/i })).toHaveAttribute('href', '/content/series')
     expect(screen.getByRole('button', { name: /^Generate$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Schedule post/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Send for approval/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Write manually' }))
+    expect(screen.getByRole('button', { name: /Start writing/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Generate$/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('What is the idea?')).not.toBeInTheDocument()
   })
 
   it('fills a new post from a quick-start idea', async () => {

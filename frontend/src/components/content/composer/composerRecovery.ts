@@ -1,6 +1,6 @@
 import type { GenerationControls, SocialNetwork } from '../../../types/socialComposer'
 
-export type ComposerMode = 'idea' | 'source' | 'draft'
+export type ComposerMode = 'manual' | 'idea' | 'source' | 'draft'
 
 export interface ComposerFormSnapshot {
   mode: ComposerMode

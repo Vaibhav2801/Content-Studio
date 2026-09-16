@@ -9,9 +9,24 @@ from integrations.social.services.lifecycle import (
     reconcile_pending_jobs,
 )
 from integrations.social.services.analytics import refresh_published_metrics
+from integrations.social.models import SocialWorkspaceSettings
+from integrations.social.services.automation import fill_workspace_queue
 
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task(name="social.fill_content_queues")
+def fill_content_queues():
+    counts = {"generated": 0, "workspaces": 0, "failed": 0}
+    for settings in SocialWorkspaceSettings.objects.filter(is_active=True).select_related("workspace"):
+        counts["workspaces"] += 1
+        try:
+            counts["generated"] += len(fill_workspace_queue(settings))
+        except Exception:
+            counts["failed"] += 1
+            logger.exception("Could not fill social queue for workspace settings %s", settings.id)
+    return counts
 
 
 @shared_task(name="social.publish_due_jobs")

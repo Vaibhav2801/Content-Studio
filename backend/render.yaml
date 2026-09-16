@@ -42,7 +42,7 @@ services:
       - key: LINKEDIN_PUBLISH_WEBHOOK_SECRET
         sync: false
       - key: LINKEDIN_GENERATE_IMAGES
-        value: "False"
+        value: "True"
       - key: LINKEDIN_IMAGE_PROVIDER
         value: cloudflare
       - key: CLOUDFLARE_ACCOUNT_ID
@@ -103,7 +103,7 @@ services:
       - key: LINKEDIN_PUBLISH_WEBHOOK_SECRET
         sync: false
       - key: LINKEDIN_GENERATE_IMAGES
-        value: "False"
+        value: "True"
       - key: LINKEDIN_IMAGE_PROVIDER
         value: cloudflare
       - key: CLOUDFLARE_ACCOUNT_ID
@@ -162,7 +162,7 @@ services:
       - key: LINKEDIN_PUBLISH_WEBHOOK_SECRET
         sync: false
       - key: LINKEDIN_GENERATE_IMAGES
-        value: "False"
+        value: "True"
       - key: LINKEDIN_IMAGE_PROVIDER
         value: cloudflare
       - key: CLOUDFLARE_ACCOUNT_ID
