@@ -62,7 +62,7 @@ export const contentOnboardingApi = {
   selectConnection: (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => request<ContentStudioOnboarding>('/onboarding/connection/select/', {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  completeConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => request<ContentStudioOnboarding>('/onboarding/connection/complete/', {
+  completeConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean; profile_id?: string; account_id?: string }) => request<ContentStudioOnboarding>('/onboarding/connection/complete/', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   cancelConnection: () => request<ContentStudioOnboarding>('/onboarding/connection/cancel/', {

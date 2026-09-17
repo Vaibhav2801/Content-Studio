@@ -40,7 +40,7 @@ interface ContentStudioState {
   completeOnboardingStep: (step: number, payload: Record<string, unknown>) => Promise<ContentStudioOnboarding | undefined>
   saveBusinessProfile: (payload: { name?: string; description?: string; audience?: string; language?: string; skip?: boolean }) => Promise<boolean>
   connectLinkedIn: (network?: "LINKEDIN" | "INSTAGRAM", returnTo?: 'onboarding' | 'connections') => Promise<void>
-  completeLinkedInConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => Promise<void>
+  completeLinkedInConnection: (payload: { state?: string; code?: string; error?: string; cancelled?: boolean; profile_id?: string; account_id?: string }) => Promise<void>
   selectLinkedInConnection: (payload: { state: string; pending_data_token: string; account_type: 'PERSON' | 'ORGANIZATION'; organization_id?: string; connect_token?: string }) => Promise<boolean>
   cancelLinkedInConnection: () => Promise<void>
   reload: () => Promise<void>
@@ -278,7 +278,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     finally { setBusy('') }
   }
 
-  const completeLinkedInConnection = async (payload: { state?: string; code?: string; error?: string; cancelled?: boolean }) => {
+  const completeLinkedInConnection = async (payload: { state?: string; code?: string; error?: string; cancelled?: boolean; profile_id?: string; account_id?: string }) => {
     setBusy('connection-return'); setNotice(''); setNoticeError(false)
     try {
       const saved = await contentOnboardingApi.completeConnection(payload)

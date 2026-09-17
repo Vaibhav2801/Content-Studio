@@ -1056,6 +1056,8 @@ class ContentStudioConnectionCompleteAPIView(SocialWorkspaceScopedAPIView):
                 workspace,
                 state=str(request.data.get("state") or ""),
                 authorization_code=str(request.data.get("code") or ""),
+                provider_profile_id=str(request.data.get("profile_id") or ""),
+                expected_account_id=str(request.data.get("account_id") or ""),
             )
         except DjangoValidationError as error:
             return onboarding_validation_response(error)

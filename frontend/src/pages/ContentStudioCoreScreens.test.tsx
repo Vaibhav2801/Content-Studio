@@ -270,6 +270,22 @@ describe('Content Studio core screens', () => {
     finishConnection({ authorization_url: 'https://social.example/connect', expires_at: new Date().toISOString() })
     await waitFor(() => expect(contentOnboardingApi.startConnection).toHaveBeenCalledWith('INSTAGRAM', 'connections'))
   })
+
+  it('passes Zernio callback account identifiers to connection completion', async () => {
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([])
+    vi.spyOn(contentOnboardingApi, 'completeConnection').mockResolvedValue(structuredClone(contentOnboardingMock))
+
+    renderScreen('/content/connections?state=return-state&connected=instagram&profileId=profile-123&accountId=account-456&username=kaia_blaze_')
+
+    await waitFor(() => expect(contentOnboardingApi.completeConnection).toHaveBeenCalledWith({
+      state: 'return-state',
+      code: undefined,
+      error: undefined,
+      cancelled: false,
+      profile_id: 'profile-123',
+      account_id: 'account-456',
+    }))
+  })
   it('summarizes setup, approvals, upcoming posts and failures on Home', async () => {
     const review = structuredClone(contentStudioMockApprovals.NEEDS_REVIEW[0])
     const summary: HomeSummary = { needs_approval: [review], upcoming: [{ ...review, id: 'upcoming', status: 'SCHEDULED' }], failures: [{ ...review, id: 'failed', status: 'FAILED' }], connections_needing_attention: 1 }

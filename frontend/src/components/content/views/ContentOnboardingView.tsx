@@ -42,6 +42,8 @@ export function ContentOnboardingView() {
   useEffect(() => {
     const state = searchParams.get('state') || undefined
     const code = searchParams.get('code') || undefined
+    const profileId = searchParams.get('profileId') || undefined
+    const accountId = searchParams.get('accountId') || undefined
     const pendingDataToken = searchParams.get('pendingDataToken') || undefined
     if (!handledReturn.current && state && pendingDataToken && searchParams.get('step') === 'select_organization') {
       handledReturn.current = true
@@ -62,7 +64,7 @@ export function ContentOnboardingView() {
     const error = providerError || (status === 'error' ? 'connection_failed' : undefined)
     if (handledReturn.current || (!state && !error && !cancelled)) return
     handledReturn.current = true
-    void studio.completeLinkedInConnection({ state, code, error, cancelled }).finally(() => {
+    void studio.completeLinkedInConnection({ state, code, error, cancelled, profile_id: profileId, account_id: accountId }).finally(() => {
       navigate('/content/onboarding', { replace: true })
     })
   }, [navigate, searchParams, studio])

@@ -404,10 +404,22 @@ def _pending_connection(workspace, state):
     return onboarding, provider, network
 
 @transaction.atomic
-def complete_connection(workspace, *, state, authorization_code="", selection_completed=False, expected_account_id=""):
+def complete_connection(
+    workspace,
+    *,
+    state,
+    authorization_code="",
+    selection_completed=False,
+    expected_account_id="",
+    provider_profile_id="",
+):
     onboarding, provider, network = _pending_connection(workspace, state)
     if onboarding.answers.get("pending_selection_required") and not selection_completed:
         raise ValidationError({"connection": "Choose a LinkedIn profile or Company Page to finish connecting."})
+    provider_profile_id = str(provider_profile_id or "").strip()
+    expected_account_id = str(expected_account_id or "").strip()
+    if len(provider_profile_id) > 255 or len(expected_account_id) > 255:
+        raise ValidationError({"connection": "The social account connection response is invalid. Start again."})
     adapter = publishing_provider_registry.create(provider)
     try:
         completed = adapter.complete_connection(CompleteConnectionRequest(
@@ -416,6 +428,7 @@ def complete_connection(workspace, *, state, authorization_code="", selection_co
             state=state,
             authorization_code=authorization_code,
             network=network,
+            provider_profile_id=provider_profile_id,
         ))
         accounts = adapter.list_social_accounts(ListSocialAccountsRequest(
             workspace_id=workspace.id,
@@ -553,7 +566,13 @@ def select_linkedin_choice(
     account_id = str(account.get("accountId") or account.get("_id") or "")
     if not account_id:
         raise ValidationError({"connection": "The selected LinkedIn account could not be verified. Choose Reconnect and try again."})
-    return complete_connection(workspace, state=state, selection_completed=True, expected_account_id=account_id)
+    return complete_connection(
+        workspace,
+        state=state,
+        selection_completed=True,
+        expected_account_id=account_id,
+        provider_profile_id=str(selected.get("profileId") or ""),
+    )
 
 
 @transaction.atomic

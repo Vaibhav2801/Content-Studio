@@ -183,6 +183,7 @@ class CompleteConnectionRequest:
     state: str
     authorization_code: str = field(repr=False)
     network: PublishingNetwork = PublishingNetwork.LINKEDIN
+    provider_profile_id: str = ""
 
 
 @dataclass(frozen=True)

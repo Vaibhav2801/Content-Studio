@@ -133,6 +133,47 @@ class ContentStudioOnboardingApiTests(TestCase):
 
     @override_settings(SOCIAL_PUBLISHER_DEFAULT="ZERNIO")
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
+    def test_zernio_callback_profile_and_account_are_used_for_instagram_completion(self, create_provider):
+        instagram = SocialAccount(
+            provider_profile_id="profile-instagram",
+            provider_account_id="account-instagram",
+            network=PublishingNetwork.INSTAGRAM,
+            display_name="Kaia Blaze",
+            account_type="BUSINESS",
+            capabilities=TARGET_CAPABILITIES,
+        )
+        self.fake.accounts = (instagram,)
+        self.fake.complete_connection = Mock(return_value=CompleteConnectionResult(
+            provider=ProviderName.ZERNIO,
+            provider_connection_id="profile-instagram",
+            connected=True,
+        ))
+        create_provider.return_value = self.fake
+        started = self.client.post(
+            reverse("content-studio-connection-start"),
+            {"network": "INSTAGRAM", "return_to": "connections"},
+            content_type="application/json",
+        )
+        state = self.connection_state(started)
+
+        completed = self.client.post(reverse("content-studio-connection-complete"), {
+            "state": state,
+            "profile_id": "profile-instagram",
+            "account_id": "account-instagram",
+        }, content_type="application/json")
+
+        self.assertEqual(completed.status_code, 200, completed.data)
+        request = self.fake.complete_connection.call_args.args[0]
+        self.assertEqual(request.provider_profile_id, "profile-instagram")
+        self.assertEqual(request.network, PublishingNetwork.INSTAGRAM)
+        self.assertTrue(SocialConnection.objects.filter(
+            workspace=self.workspace,
+            provider=SocialProvider.ZERNIO,
+            provider_account_id="account-instagram",
+        ).exists())
+
+    @override_settings(SOCIAL_PUBLISHER_DEFAULT="ZERNIO")
+    @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
     def test_headless_linkedin_choice_is_state_bound_and_keeps_oauth_tokens_private(self, create_provider):
         create_provider.return_value = self.fake
         self.fake.pending_linkedin_selection = Mock(return_value={

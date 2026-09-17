@@ -236,6 +236,10 @@ class ZernioProvider(PublishingProvider):
             headers={"X-Connect-Token": connect_token} if connect_token else {},
             allowed_statuses={200},
         )
+        result = dict(result)
+        # Keep the already verified profile available to the completion service.
+        # Re-creating/ensuring it after OAuth can consume another provider slot.
+        result.setdefault("profileId", str(pending["profileId"]))
         return result
 
     def select_linkedin_organization(
@@ -255,7 +259,9 @@ class ZernioProvider(PublishingProvider):
 
     def complete_connection(self, request: CompleteConnectionRequest) -> CompleteConnectionResult:
         self._require_publishing_configuration()
-        profile_id = self._ensure_workspace_profile(request.workspace_id)
+        profile_id = str(request.provider_profile_id or "")
+        if not profile_id:
+            profile_id = self._ensure_workspace_profile(request.workspace_id)
         accounts = self._list_workspace_accounts(request.workspace_id, profile_id, request.network)
         return CompleteConnectionResult(
             provider=self.provider,

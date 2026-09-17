@@ -34,6 +34,8 @@ export function ContentConnectionsView() {
   useEffect(() => {
     const state = searchParams.get('state') || undefined
     const code = searchParams.get('code') || undefined
+    const profileId = searchParams.get('profileId') || undefined
+    const accountId = searchParams.get('accountId') || undefined
     const pendingDataToken = searchParams.get('pendingDataToken') || undefined
     if (!handledReturn.current && state && pendingDataToken && searchParams.get('step') === 'select_organization') {
       handledReturn.current = true
@@ -54,7 +56,7 @@ export function ContentConnectionsView() {
     const returnError = providerError || (status === 'error' ? 'connection_failed' : undefined)
     if (handledReturn.current || (!state && !returnError && !cancelled)) return
     handledReturn.current = true
-    void studio.completeLinkedInConnection({ state, code, error: returnError, cancelled }).then(load).finally(() => navigate('/content/connections', { replace: true }))
+    void studio.completeLinkedInConnection({ state, code, error: returnError, cancelled, profile_id: profileId, account_id: accountId }).then(load).finally(() => navigate('/content/connections', { replace: true }))
   }, [load, navigate, searchParams, studio])
 
   const chooseAccount = async (account: LinkedInAccountChoice) => {

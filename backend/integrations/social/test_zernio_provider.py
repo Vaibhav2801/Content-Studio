@@ -311,6 +311,39 @@ class ZernioProviderTests(SimpleTestCase):
         self.assertEqual(result.provider_connection_id, self.profile_id)
         self.assertEqual(result.safe_metadata["account_count"], 1)
 
+    def test_complete_connection_uses_verified_callback_profile_without_creating_it_again(self):
+        instagram = {
+            **self.account_payload,
+            "platform": "instagram",
+            "displayName": "Kaia Blaze",
+            "accountType": "business",
+        }
+        self.session.request.side_effect = [
+            self.profile_response(),
+            MockResponse(200, {"accounts": [instagram]}),
+        ]
+
+        result = self.provider.complete_connection(CompleteConnectionRequest(
+            workspace_id=self.workspace_id,
+            redirect_uri="https://app.example.com/content/connections",
+            state="state",
+            authorization_code="",
+            network=PublishingNetwork.INSTAGRAM,
+            provider_profile_id=self.profile_id,
+        ))
+
+        self.assertTrue(result.connected)
+        self.assertEqual(result.provider_connection_id, self.profile_id)
+        self.assertEqual(self.session.request.call_count, 2)
+        self.assertEqual(
+            self.session.request.call_args_list[0].args[:2],
+            ("GET", f"https://api.example.invalid/v1/profiles/{self.profile_id}"),
+        )
+        self.assertEqual(
+            self.session.request.call_args_list[1].args[:2],
+            ("GET", "https://api.example.invalid/v1/accounts"),
+        )
+
     def test_profile_and_account_cannot_be_used_by_another_workspace(self):
         other_workspace = uuid4()
         self.session.request.return_value = self.profile_response()
