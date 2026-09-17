@@ -163,6 +163,23 @@ class SocialMediaApiTests(TestCase):
         self.assertNotIn("original_storage_key", response.data)
         self.assertFalse(any(field.name == "binary" for field in MediaAsset._meta.fields))
 
+    @override_settings(DEBUG=False, MEDIA_URL="/owned-media/")
+    def test_production_filesystem_media_uses_a_signed_public_endpoint(self):
+        response = self.upload(png_file(), alt_text="Accessible description")
+
+        self.assertEqual(response.status_code, 201)
+        publish_url = response.data["publish_url"]
+        self.assertIn("/api/v3/social/media/", publish_url)
+        self.assertIn("?token=", publish_url)
+
+        self.client.force_authenticate(user=None)
+        served = self.client.get(publish_url)
+        rejected = self.client.get(publish_url.split("?", 1)[0] + "?token=invalid")
+
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served["Content-Type"], "image/png")
+        self.assertEqual(rejected.status_code, 404)
+
     def test_multiple_images_can_be_reordered_and_deleted(self):
         first = self.upload(png_file("first.png")).data
         second = self.upload(png_file("second.png", width=1000)).data

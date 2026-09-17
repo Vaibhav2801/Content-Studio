@@ -60,5 +60,5 @@ export const socialComposerApi = {
   updateAltText: (variantId: string, assetId: string, alt_text: string) => request<MediaAsset>(`/variants/${variantId}/media/${assetId}/`, { method: 'PATCH', body: JSON.stringify({ alt_text }) }),
   deleteMedia: (variantId: string, assetId: string) => request<void>(`/variants/${variantId}/media/${assetId}/`, { method: 'DELETE' }),
   reorderMedia: (variantId: string, assetIds: string[]) => request<MediaAsset[]>(`/variants/${variantId}/media/reorder/`, { method: 'POST', body: JSON.stringify({ asset_ids: assetIds }) }),
-  regenerateImage: (variantId: string, prompt: string, assetId?: string) => request<MediaAsset>(`/variants/${variantId}/media/regenerate-image/`, { method: 'POST', body: JSON.stringify({ prompt, asset_id: assetId }) }),
+  regenerateImage: (variantId: string, prompt: string, assetId?: string, altText = '') => request<MediaAsset>(`/variants/${variantId}/media/regenerate-image/`, { method: 'POST', body: JSON.stringify({ prompt, asset_id: assetId, alt_text: altText }) }),
 }

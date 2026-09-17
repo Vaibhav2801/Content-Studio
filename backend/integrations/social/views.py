@@ -1,11 +1,14 @@
 import logging
 
+from django.http import FileResponse, Http404
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.conf import settings as django_settings
+from django.core.files.storage import storages
 from django.db import transaction
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
+from django.utils.crypto import constant_time_compare
 from datetime import datetime, time, timedelta
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -16,8 +19,9 @@ from rest_framework.authentication import BasicAuthentication, SessionAuthentica
 from rest_framework import serializers
 from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from integrations.social.publishing.errors import (
     ProviderAuthenticationError,
@@ -30,6 +34,7 @@ from integrations.social.media import (
     MediaValidationError,
     delete_media_asset,
     normalize_generated_image,
+    public_media_token,
     reorder_variant_images,
     store_uploaded_media,
     update_media_alt_text,
@@ -60,6 +65,7 @@ from integrations.social.services.data_management import (
     export_workspace_content,
 )
 from integrations.social.services.operations import operational_health_snapshot
+from integrations.social.services.lifecycle import submit_provider_schedules
 from integrations.social.services.analytics import analytics_dashboard, decide_analytics_suggestion, refresh_published_metrics
 from integrations.social.services.onboarding import (
     cancel_connection,
@@ -622,11 +628,19 @@ class SocialPostScheduleAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request, post_id):
         post = self.post_object(request, post_id)
         try:
-            schedule_post(post, user=request.user)
+            post = schedule_post(post, user=request.user)
+            submitted_jobs = submit_provider_schedules(post)
         except ComposerValidationError as error:
             return Response(error.payload, status=400)
         except DjangoValidationError as error:
             return social_validation_response(error)
+        post.refresh_from_db()
+        failed = next((job for job in submitted_jobs if job.status in {PublishJobState.FAILED, PublishJobState.CONNECTION_REQUIRED}), None)
+        if failed is not None:
+            return Response(
+                {"detail": failed.failure_message or "The publishing service could not schedule this post."},
+                status=409 if failed.status == PublishJobState.CONNECTION_REQUIRED else 502,
+            )
         return Response(social_post_response(post))
 
 
@@ -1115,6 +1129,31 @@ class SocialMediaAssetListCreateAPIView(SocialWorkspaceScopedAPIView):
         except DjangoValidationError as error:
             return Response({"detail": error.messages}, status=409)
         return Response(MediaAssetSerializer(asset).data, status=201)
+
+
+class SocialPublicMediaAPIView(APIView):
+    """Serve a publish derivative from local storage using a stable signed URL."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, asset_id):
+        asset = get_object_or_404(MediaAsset, pk=asset_id)
+        supplied = str(request.query_params.get("token") or "")
+        if not supplied or not constant_time_compare(supplied, public_media_token(asset)):
+            raise Http404
+        if not asset.publish_storage_key:
+            raise Http404
+        storage = storages["social_publish"]
+        try:
+            content = storage.open(asset.publish_storage_key, "rb")
+        except (FileNotFoundError, OSError):
+            raise Http404
+        response = FileResponse(content, content_type=asset.content_type or "application/octet-stream")
+        response["Content-Disposition"] = f'inline; filename="{asset.original_filename or "media"}"'
+        response["Cache-Control"] = "public, max-age=31536000, immutable"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class SocialMediaAssetDetailAPIView(SocialWorkspaceScopedAPIView):

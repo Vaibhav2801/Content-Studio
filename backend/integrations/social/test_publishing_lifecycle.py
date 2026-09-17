@@ -49,6 +49,7 @@ from integrations.social.services.lifecycle import (
     process_provider_webhook,
     publish_variant_now,
     reconcile_pending_jobs,
+    submit_provider_schedules,
     transition_variant,
 )
 from integrations.social.services.publishing_routing import (
@@ -195,6 +196,46 @@ class PublishingLifecycleTests(TestCase):
         self.assertEqual(job.status, PublishJobState.SUBMITTED)
         self.assertEqual(job.attempts.count(), 1)
         self.assertEqual(self.fake.calls.count("publish_now"), 1)
+
+    def test_future_zernio_job_is_submitted_immediately_and_remains_scheduled(self):
+        now = timezone.now()
+        self.connection.provider = SocialProvider.ZERNIO
+        self.connection.save(update_fields=["provider"])
+        self.variant.scheduled_for = now + timedelta(days=1)
+        self.variant.save(update_fields=["scheduled_for"])
+        version = approve_variant(self.variant)
+        job = PublishJob.objects.create(
+            variant=self.variant,
+            connection=self.connection,
+            approved_version=version,
+            provider=SocialProvider.ZERNIO,
+            idempotency_key="native-zernio-schedule",
+            scheduled_for=self.variant.scheduled_for,
+            status=PublishJobState.SCHEDULED,
+        )
+        self.variant.status = SocialPostState.SCHEDULED
+        self.variant.save(update_fields=["status"])
+        zernio = FakeZernioProvider()
+        scheduled_result = PublishResult(
+            provider=ProviderName.ZERNIO,
+            outcome=PublishOutcome.ACCEPTED,
+            external_id="remote-scheduled-post",
+            provider_status="scheduled",
+        )
+
+        with patch.object(zernio, "publish_now", return_value=scheduled_result), patch(
+            "integrations.social.services.lifecycle.publishing_provider_registry.create",
+            return_value=zernio,
+        ):
+            submitted = submit_provider_schedules(self.post, now=now)
+
+        job.refresh_from_db()
+        self.variant.refresh_from_db()
+        self.assertEqual([item.id for item in submitted], [job.id])
+        self.assertEqual(job.status, PublishJobState.SUBMITTED)
+        self.assertEqual(job.external_id, "remote-scheduled-post")
+        self.assertEqual(self.variant.status, SocialPostState.SCHEDULED)
+        self.assertEqual(claim_due_jobs(now=now + timedelta(days=2)), ())
 
     def test_same_approval_cannot_create_duplicate_publish_jobs(self):
         job = self.schedule()

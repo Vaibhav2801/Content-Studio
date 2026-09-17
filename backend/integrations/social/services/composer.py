@@ -40,6 +40,22 @@ HASHTAG_LIMITS = {
     SocialNetwork.X: 10,
     SocialNetwork.INSTAGRAM: 30,
 }
+PLATFORM_GENERATION_GUIDANCE = {
+    SocialNetwork.LINKEDIN: (
+        "Lead with a useful professional insight or clear point of view. Use a readable text-led structure, "
+        "short paragraphs, concrete business context, and a thoughtful question or next step. The copy must "
+        "stand on its own when no image is attached; use only a few relevant hashtags."
+    ),
+    SocialNetwork.X: (
+        "Make one sharp, conversational point with a strong opening. Stay concise enough for the complete post "
+        "and hashtags to fit the limit; avoid turning LinkedIn copy into a truncated version."
+    ),
+    SocialNetwork.INSTAGRAM: (
+        "Treat the image as the primary storytelling surface. Write a concise, scroll-stopping caption with an "
+        "emotional or curiosity-led hook, a small amount of supporting context, a simple engagement prompt, and "
+        "discoverable relevant hashtags. Supply a concrete 4:5 portrait image prompt and useful alt text."
+    ),
+}
 CONTROL_OPTIONS = {
     "tone": {"Professional", "Friendly", "Bold", "Educational"},
     "goal": {"Awareness", "Engagement", "Education", "Leads"},
@@ -286,6 +302,10 @@ class SocialContentGenerator:
     @staticmethod
     def _prompt(post, networks, controls, settings, brand, source_text):
         limits = {network: COPY_LIMITS[network] for network in networks}
+        platform_guidance = {
+            NETWORK_LABELS[network]: PLATFORM_GENERATION_GUIDANCE[network]
+            for network in networks
+        }
         return f"""
 Create platform-native social drafts for {', '.join(networks)}.
 Idea title: {post.idea_title}
@@ -307,6 +327,10 @@ Tone: {controls['tone']}
 Goal: {controls['goal']}
 Length: {controls['length']}
 Character limits: {json.dumps(limits)}
+Platform-specific requirements: {json.dumps(platform_guidance)}
+
+Do not reuse the same hook, paragraph structure, call to action, or caption length across networks. Adapt the
+message to how people consume content on each selected platform instead of merely shortening one master draft.
 
 Return an object keyed by the uppercase network name. Each value must have:
 {{"copy":"complete post without hashtags","hashtags":["#Tag"],"image_prompt":"specific visual direction","alt_text":"accessible description"}}

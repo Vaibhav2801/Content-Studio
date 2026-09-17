@@ -20,6 +20,7 @@ from integrations.social.models import (
     PublishJobState,
 )
 from integrations.social.publishing.fakes import FakeUploadPostProvider
+from integrations.social.services.composer import SocialContentGenerator
 from prospecting.models import Workspace, WorkspaceMembership
 
 
@@ -144,6 +145,25 @@ class SocialComposerApiTests(TestCase):
         self.assertTrue(all(item.versions.count() == 1 for item in generated_variants))
         self.assertTrue(all(item.versions.first().quality_check.get("schema_version") == 1 for item in generated_variants))
         self.assertNotContains(response, "UPLOAD_POST")
+
+    def test_generation_prompt_describes_native_linkedin_and_instagram_formats(self):
+        post = SocialPost.objects.create(
+            workspace=self.workspace,
+            idea_title="A visual story",
+            idea_text="Show how the work gets done.",
+        )
+        prompt = SocialContentGenerator._prompt(
+            post,
+            [SocialNetwork.LINKEDIN, SocialNetwork.INSTAGRAM],
+            self.payload()["controls"],
+            None,
+            None,
+            "",
+        )
+
+        self.assertIn("text-led structure", prompt)
+        self.assertIn("image as the primary storytelling surface", prompt)
+        self.assertIn("Do not reuse the same hook", prompt)
 
     @patch("integrations.social.services.composer.SocialContentGenerator.generate")
     def test_series_creates_distinct_scheduled_drafts_for_this_workspace(self, generate):

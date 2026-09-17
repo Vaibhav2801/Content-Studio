@@ -22,6 +22,7 @@ from integrations.social.views import (
     SocialMediaAssetListCreateAPIView,
     SocialMediaRegenerateAPIView,
     SocialMediaReorderAPIView,
+    SocialPublicMediaAPIView,
     SocialVariantApproveAPIView,
     SocialPostDetailAPIView,
     SocialPostGenerateAPIView,
@@ -47,6 +48,7 @@ from integrations.social.views import (
 
 
 urlpatterns = [
+    path("media/<uuid:asset_id>/", SocialPublicMediaAPIView.as_view(), name="social-media-public"),
     path("brand-brain/", BrandBrainAPIView.as_view(), name="social-brand-brain"),
     path("brand-brain/suggestions/<uuid:suggestion_id>/", BrandVoiceSuggestionAPIView.as_view(), name="social-brand-voice-suggestion"),
     path("sources/", ContentSourcesAPIView.as_view(), name="social-content-sources"),

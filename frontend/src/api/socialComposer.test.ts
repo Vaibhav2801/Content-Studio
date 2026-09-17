@@ -24,4 +24,17 @@ describe('social composer API', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ copy: ['Make this shorter.'] }), { status: 400, headers: { 'Content-Type': 'application/json' } })))
     await expect(socialComposerApi.submitForReview('post-1')).rejects.toMatchObject({ payload: { copy: ['Make this shorter.'] } } satisfies Partial<SocialComposerApiError>)
   })
+
+  it('sends generated image alt text with the prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'asset-1' }), { status: 201, headers: { 'Content-Type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await socialComposerApi.regenerateImage('variant-1', 'Editorial portrait', undefined, 'A model in a red jacket')
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(options.body as string)).toMatchObject({
+      prompt: 'Editorial portrait',
+      alt_text: 'A model in a red jacket',
+    })
+  })
 })

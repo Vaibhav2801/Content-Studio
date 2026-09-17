@@ -9,8 +9,10 @@ from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.files.storage import storages
+from django.core.files.storage import FileSystemStorage, storages
+from django.core.signing import salted_hmac
 from django.db import transaction
+from django.urls import reverse
 
 from integrations.social.models import (
     MediaAsset,
@@ -354,8 +356,26 @@ def _safe_filename(filename):
 
 def publish_url_for_asset(asset):
     if asset.publish_storage_key:
-        return storages["social_publish"].url(asset.publish_storage_key)
+        storage = storages["social_publish"]
+        storage_url = storage.url(asset.publish_storage_key)
+        # Django intentionally does not serve MEDIA_URL when DEBUG=False. Keep
+        # local filesystem deployments usable through an unguessable, signed
+        # endpoint; object-storage deployments continue to return their native
+        # public URL.
+        if (
+            isinstance(storage, FileSystemStorage)
+            and not settings.DEBUG
+            and str(storage_url).startswith(f"{settings.MEDIA_URL.rstrip('/')}/")
+        ):
+            token = public_media_token(asset)
+            return f"{reverse('social-media-public', args=[asset.id])}?token={token}"
+        return storage_url
     return asset.storage_url
+
+
+def public_media_token(asset):
+    value = f"{asset.id}:{asset.publish_storage_key}:{asset.checksum_sha256}"
+    return salted_hmac("social-content-publish-media", value).hexdigest()
 
 
 def _trusted_publish_hosts():
@@ -381,6 +401,7 @@ def is_allowed_publish_url(url):
         f"{settings.MEDIA_URL.rstrip('/')}/",
         publish_probe.path.rsplit("/", 1)[0] + "/",
         "/api/v3/linkedin/posts/",
+        "/api/v3/social/media/",
     }
     if not parsed.scheme and str(url).startswith("/"):
         return any(parsed.path.startswith(prefix) for prefix in allowed_paths)

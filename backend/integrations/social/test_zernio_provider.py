@@ -105,7 +105,7 @@ class ZernioProviderTests(SimpleTestCase):
         self.assertEqual(calls[1].args[:2], ("DELETE", f"https://api.example.invalid/v1/accounts/{self.account_id}"))
         self.assertEqual(calls[2].args[:2], ("DELETE", f"https://api.example.invalid/v1/accounts/{self.account_id}"))
 
-    def publish_request(self, *, media=(), idempotency_key="job-idempotency-key"):
+    def publish_request(self, *, media=(), idempotency_key="job-idempotency-key", scheduled_for=None):
         return PublishNowRequest(
             workspace_id=self.workspace_id,
             idempotency_key=idempotency_key,
@@ -115,6 +115,7 @@ class ZernioProviderTests(SimpleTestCase):
                 text="A company update",
                 hashtags=("#Update",),
                 media=media,
+                scheduled_for=scheduled_for,
             ),
         )
 
@@ -392,6 +393,23 @@ class ZernioProviderTests(SimpleTestCase):
         self.session.get.assert_not_called()
         self.assertEqual(result.outcome, PublishOutcome.PUBLISHED)
         self.assertEqual(result.external_id, "post-123")
+
+    def test_future_post_is_registered_as_a_provider_schedule(self):
+        scheduled_for = datetime(2026, 9, 7, 9, 30, tzinfo=timezone.utc)
+        self.session.request.side_effect = [
+            self.profile_response(),
+            self.accounts_response(),
+            MockResponse(201, {"post": {"_id": "post-scheduled", "status": "scheduled"}}),
+        ]
+
+        result = self.provider.publish_now(self.publish_request(scheduled_for=scheduled_for))
+
+        body = self.session.request.call_args_list[2].kwargs["json"]
+        self.assertEqual(body["scheduledFor"], "2026-09-07T09:30:00Z")
+        self.assertEqual(body["timezone"], "UTC")
+        self.assertNotIn("publishNow", body)
+        self.assertEqual(result.outcome, PublishOutcome.ACCEPTED)
+        self.assertEqual(result.provider_status, "scheduled")
 
     def test_publish_refuses_an_account_outside_the_workspace_profile(self):
         self.session.request.side_effect = [self.profile_response(), MockResponse(200, {"accounts": []})]

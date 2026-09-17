@@ -369,9 +369,14 @@ class ZernioProvider(PublishingProvider):
                 "platform": zernio_platform_slug(request.post.network),
                 "accountId": request.account.provider_account_id,
             }],
-            "publishNow": True,
             "metadata": {"nomadIdempotencyKey": request.idempotency_key},
         }
+        scheduled_for = request.post.scheduled_for
+        if scheduled_for and scheduled_for > self._now():
+            body["scheduledFor"] = scheduled_for.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+            body["timezone"] = "UTC"
+        else:
+            body["publishNow"] = True
         if media_urls:
             body["mediaItems"] = [{"type": "image", "url": url} for url in media_urls]
         response, payload = self._request(

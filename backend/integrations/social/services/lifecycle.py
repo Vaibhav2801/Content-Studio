@@ -415,17 +415,18 @@ def _error_from_result(error_info):
 
 
 @transaction.atomic
-def claim_publish_job(job_id, *, now=None):
+def claim_publish_job(job_id, *, now=None, allow_future=False):
     now = now or timezone.now()
     token = uuid.uuid4()
+    candidates = PublishJob.objects.filter(
+        pk=job_id,
+        status=PublishJobState.SCHEDULED,
+        attempt_count__lt=django_settings.SOCIAL_PUBLISH_MAX_ATTEMPTS,
+    )
+    if not allow_future:
+        candidates = candidates.filter(scheduled_for__lte=now)
     claimed = (
-        PublishJob.objects.filter(
-            pk=job_id,
-            status=PublishJobState.SCHEDULED,
-            scheduled_for__lte=now,
-            attempt_count__lt=django_settings.SOCIAL_PUBLISH_MAX_ATTEMPTS,
-        )
-        .filter(Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now))
+        candidates.filter(Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now))
         .update(
             status=PublishJobState.PUBLISHING,
             claim_token=token,
@@ -445,6 +446,24 @@ def claim_publish_job(job_id, *, now=None):
         details={"provider": job.provider, "attempt_number": job.attempt_count + 1},
     )
     return JobClaim(job_id=job_id, claim_token=token)
+
+
+def submit_provider_schedules(post, *, now=None):
+    """Submit Zernio jobs immediately so the provider owns the publish clock."""
+    now = now or timezone.now()
+    jobs = list(
+        PublishJob.objects.filter(
+            variant__post=post,
+            provider=ProviderName.ZERNIO.value,
+            status=PublishJobState.SCHEDULED,
+        ).order_by("scheduled_for", "created_at")
+    )
+    submitted = []
+    for job in jobs:
+        claim = claim_publish_job(job.id, now=now, allow_future=True)
+        if claim is not None:
+            submitted.append(execute_claimed_job(claim))
+    return tuple(job for job in submitted if job is not None)
 
 
 def claim_due_jobs(*, now=None, limit=100):
@@ -633,9 +652,18 @@ def _finish_success(job_id, claim_token, attempt_id, result, *, published):
     attempt.completed_at = now
     attempt.diagnostic_details = {"provider_status": result.provider_status}
     attempt.save()
+    provider_scheduled = (
+        not published
+        and result.provider_status == "scheduled"
+        and job.scheduled_for > now
+    )
     _set_variant_state(
         job.variant,
-        SocialPostState.PUBLISHED if published else SocialPostState.SUBMITTED,
+        SocialPostState.PUBLISHED
+        if published
+        else SocialPostState.SCHEDULED
+        if provider_scheduled
+        else SocialPostState.SUBMITTED,
     )
     record_audit_event(
         workspace=job.variant.post.workspace,
