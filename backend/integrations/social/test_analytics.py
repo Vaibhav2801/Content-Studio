@@ -146,6 +146,9 @@ class SocialAnalyticsTests(TestCase):
                 interaction_rate=2,
             )
 
+    @override_settings(CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    })
     @patch("integrations.social.views.refresh_published_metrics")
     def test_manual_refresh_is_limited_to_the_authenticated_workspace(self, refresh):
         from django.core.cache import cache

@@ -56,7 +56,7 @@ from .types import (
 
 
 ZERNIO_CAPABILITIES = ProviderCapabilities(
-    networks=frozenset({PublishingNetwork.LINKEDIN, PublishingNetwork.INSTAGRAM}),
+    networks=frozenset(PublishingNetwork),
     media_types=frozenset({PublishingMediaType.IMAGE, PublishingMediaType.MULTI_IMAGE}),
     supports_connection_completion=False,
     supports_account_listing=True,
@@ -65,6 +65,11 @@ ZERNIO_CAPABILITIES = ProviderCapabilities(
     supports_webhooks=True,
     metric_names=frozenset(PublishingMetricName),
 )
+
+
+def zernio_platform_slug(network):
+    """Translate Content Studio network names to Zernio API platform values."""
+    return "twitter" if network == PublishingNetwork.X else network.value.lower()
 
 LINKEDIN_TEXT_LIMIT = 3000
 LINKEDIN_IMAGE_LIMIT = 20
@@ -146,7 +151,7 @@ class ZernioProvider(PublishingProvider):
         profile_id = self._ensure_workspace_profile(request.workspace_id)
         _, payload = self._request(
             "GET",
-            f"/v1/connect/{requested[0].value.lower()}",
+            f"/v1/connect/{zernio_platform_slug(requested[0])}",
             params={
                 "profileId": profile_id,
                 "redirect_url": self._return_url_with_state(request.state, request.redirect_uri),
@@ -355,7 +360,7 @@ class ZernioProvider(PublishingProvider):
         body = {
             "content": normalized_post_text(request.post),
             "platforms": [{
-                "platform": request.post.network.value.lower(),
+                "platform": zernio_platform_slug(request.post.network),
                 "accountId": request.account.provider_account_id,
             }],
             "publishNow": True,
@@ -704,19 +709,20 @@ class ZernioProvider(PublishingProvider):
 
     def _list_workspace_accounts(self, workspace_id, profile_id, network=PublishingNetwork.LINKEDIN):
         self._assert_workspace_profile(workspace_id, profile_id)
+        platform = zernio_platform_slug(network)
         _, payload = self._request(
             "GET",
             "/v1/accounts",
             params={
                 "profileId": profile_id,
-                "platform": network.value.lower(),
+                "platform": platform,
                 "status": "connected",
             },
             allowed_statuses={200},
         )
         accounts = []
         for item in payload.get("accounts") or []:
-            if not isinstance(item, dict) or str(item.get("platform") or "").lower() != network.value.lower():
+            if not isinstance(item, dict) or str(item.get("platform") or "").lower() != platform:
                 continue
             if item.get("isActive") is False:
                 continue

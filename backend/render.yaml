@@ -30,12 +30,29 @@ services:
         value: "*"
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://content-studio-5m7.pages.dev
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://content-studio-5m7.pages.dev
+      - key: CONTENT_STUDIO_FRONTEND_ORIGINS
+        value: https://content-studio-5m7.pages.dev
       - key: GEMINI_API_KEY
         sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false
       - key: APOLLO_API_KEY
         sync: false
+
+      - key: SOCIAL_PUBLISHER_DEFAULT
+        value: ZERNIO
+      - key: ZERNIO_API_BASE_URL
+        value: https://zernio.com/api
+      - key: ZERNIO_API_KEY
+        sync: false
+      - key: ZERNIO_WEBHOOK_SECRET
+        sync: false
+      - key: ZERNIO_CONNECTION_RETURN_URL
+        value: https://content-studio-5m7.pages.dev/content/connections
 
       - key: LINKEDIN_PUBLISH_WEBHOOK_URL
         sync: false
@@ -98,6 +115,22 @@ services:
         sync: false
       - key: APOLLO_API_KEY
         sync: false
+      - key: SOCIAL_PUBLISHER_DEFAULT
+        value: ZERNIO
+      - key: ZERNIO_API_BASE_URL
+        value: https://zernio.com/api
+      - key: ZERNIO_API_KEY
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: ZERNIO_API_KEY
+      - key: ZERNIO_WEBHOOK_SECRET
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: ZERNIO_WEBHOOK_SECRET
+      - key: ZERNIO_CONNECTION_RETURN_URL
+        value: https://content-studio-5m7.pages.dev/content/connections
       - key: LINKEDIN_PUBLISH_WEBHOOK_URL
         sync: false
       - key: LINKEDIN_PUBLISH_WEBHOOK_SECRET
@@ -157,6 +190,22 @@ services:
         sync: false
       - key: APOLLO_API_KEY
         sync: false
+      - key: SOCIAL_PUBLISHER_DEFAULT
+        value: ZERNIO
+      - key: ZERNIO_API_BASE_URL
+        value: https://zernio.com/api
+      - key: ZERNIO_API_KEY
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: ZERNIO_API_KEY
+      - key: ZERNIO_WEBHOOK_SECRET
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: ZERNIO_WEBHOOK_SECRET
+      - key: ZERNIO_CONNECTION_RETURN_URL
+        value: https://content-studio-5m7.pages.dev/content/connections
       - key: LINKEDIN_PUBLISH_WEBHOOK_URL
         sync: false
       - key: LINKEDIN_PUBLISH_WEBHOOK_SECRET

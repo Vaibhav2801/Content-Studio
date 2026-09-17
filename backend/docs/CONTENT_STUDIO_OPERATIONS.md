@@ -4,7 +4,9 @@
 
 Set `DEBUG=False`, a secret-managed `DJANGO_SECRET_KEY`, explicit `ALLOWED_HOSTS`, and explicit `CORS_ALLOWED_ORIGINS`. Keep `CORS_ALLOW_ALL_ORIGINS=False`; enable secure session/CSRF cookies, HTTPS redirect, and HSTS only after HTTPS is confirmed end to end. `CONTENT_AUTOMATION_DEV_BOOTSTRAP` must be false.
 
-Configure PostgreSQL with encrypted transport and encrypted volumes/backups. Configure Redis for Celery. Store `UPLOAD_POST_API_KEY`, `UPLOAD_POST_WEBHOOK_SECRET`, `ZERNIO_API_KEY`, and `ZERNIO_WEBHOOK_SECRET` in the deployment secret manager. Rotate one provider at a time, verify its internal health row, then remove the old secret. Do not place credentials in Django admin, logs, source control, or workspace settings.
+Configure PostgreSQL with encrypted transport and encrypted volumes/backups. Configure Redis for Celery. Store `ZERNIO_API_KEY` and `ZERNIO_WEBHOOK_SECRET` in the deployment secret manager. Verify Zernio's internal health row before removing any legacy Upload-Post secrets. Do not place credentials in Django admin, logs, source control, or workspace settings.
+
+Migration `0012_route_all_workspaces_to_zernio` clears legacy Upload-Post workspace overrides and enables Zernio. It deliberately preserves historical Upload-Post connections, jobs, attempts, and audit records.
 
 Use private object storage for `SOCIAL_MEDIA_PRIVATE_STORAGE_*`. The publish storage may expose stable derivative URLs but must not allow directory listing or writes from the public internet. Prefer an empty `SOCIAL_MEDIA_EXTERNAL_URL_ALLOWLIST`.
 

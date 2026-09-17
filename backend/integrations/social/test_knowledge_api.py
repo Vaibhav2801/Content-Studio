@@ -33,7 +33,7 @@ class ContentKnowledgeApiTests(TestCase):
         self.connection = SocialConnection.objects.create(
             workspace=self.workspace,
             network=SocialNetwork.LINKEDIN,
-            provider=SocialProvider.UPLOAD_POST,
+            provider=SocialProvider.ZERNIO,
             provider_profile_id="profile",
             provider_account_id="account",
             display_name="Knowledge Page",

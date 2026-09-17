@@ -477,7 +477,7 @@ INSTAGRAM_MAX_RETRY_ATTEMPTS = int(os.environ.get("INSTAGRAM_MAX_RETRY_ATTEMPTS"
 # ── LinkedIn Content Automation ─────────────────────────────────────────────
 # Buffer is the preferred Company Page publisher. n8n is supported as a signed
 # workflow handoff; it still needs either Buffer or an eligible LinkedIn app.
-SOCIAL_PUBLISHER_DEFAULT = os.environ.get("SOCIAL_PUBLISHER_DEFAULT", "UPLOAD_POST").strip().upper()
+SOCIAL_PUBLISHER_DEFAULT = os.environ.get("SOCIAL_PUBLISHER_DEFAULT", "ZERNIO").strip().upper()
 if SOCIAL_PUBLISHER_DEFAULT not in {"UPLOAD_POST", "ZERNIO"}:
     raise ValueError("SOCIAL_PUBLISHER_DEFAULT must be UPLOAD_POST or ZERNIO.")
 

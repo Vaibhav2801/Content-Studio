@@ -152,6 +152,22 @@ class ZernioProviderTests(SimpleTestCase):
         self.assertNotIn("oauth", repr(result).lower())
         self.assertNotIn(self.config.api_key, repr(self.config))
 
+    def test_x_connection_uses_zernio_twitter_platform_slug(self):
+        self.session.request.side_effect = [
+            MockResponse(201, {"profile": {"_id": self.profile_id, "name": self.profile_name}}),
+            MockResponse(200, {"authUrl": "https://connect.example.invalid/x-oauth"}),
+        ]
+
+        self.provider.get_connection_url(ConnectionUrlRequest(
+            workspace_id=self.workspace_id,
+            redirect_uri="https://app.example.com/content/connections",
+            state="signed-state",
+            requested_networks=(PublishingNetwork.X,),
+        ))
+
+        connect_call = self.session.request.call_args_list[1]
+        self.assertEqual(connect_call.args[:2], ("GET", "https://api.example.invalid/v1/connect/twitter"))
+
     def test_headless_linkedin_selection_uses_only_a_listed_organization(self):
         pending = {
             "platform": "linkedin", "selectionType": "organizations", "profileId": self.profile_id,
@@ -436,8 +452,47 @@ class ZernioProviderTests(SimpleTestCase):
 
         self.assertFalse(result.valid)
         self.assertEqual({issue.code for issue in result.errors}, {
-            "NETWORK_UNSUPPORTED", "TEXT_TOO_LONG", "TOO_MANY_IMAGES",
+            "TEXT_TOO_LONG", "TOO_MANY_IMAGES",
         })
+
+    def test_x_account_discovery_and_publishing_use_twitter_platform_slug(self):
+        self.provider._profile_cache[self.workspace_id] = self.profile_id
+        x_account = SocialAccount(
+            provider_profile_id=self.profile_id,
+            provider_account_id="x-account",
+            network=PublishingNetwork.X,
+            display_name="@studio",
+            account_type="BUSINESS",
+            capabilities=self.provider.capabilities,
+        )
+        self.session.request.side_effect = [
+            MockResponse(200, {"accounts": [{
+                "_id": "x-account", "platform": "twitter", "profileId": self.profile_id,
+                "displayName": "@studio", "isActive": True,
+            }]}),
+            MockResponse(200, {"accounts": [{
+                "_id": "x-account", "platform": "twitter", "profileId": self.profile_id,
+                "displayName": "@studio", "isActive": True,
+            }]}),
+            MockResponse(201, {"post": {"_id": "x-post", "status": "published"}}),
+        ]
+
+        accounts = self.provider.list_social_accounts(ListSocialAccountsRequest(
+            workspace_id=self.workspace_id,
+            provider_connection_id=self.profile_id,
+            network=PublishingNetwork.X,
+        )).accounts
+        result = self.provider.publish_now(PublishNowRequest(
+            workspace_id=self.workspace_id,
+            idempotency_key="x-job",
+            account=x_account,
+            post=NormalizedPost(network=PublishingNetwork.X, text="A short update"),
+        ))
+
+        self.assertEqual(len(accounts), 1)
+        self.assertEqual(self.session.request.call_args_list[0].kwargs["params"]["platform"], "twitter")
+        self.assertEqual(self.session.request.call_args_list[2].kwargs["json"]["platforms"][0]["platform"], "twitter")
+        self.assertEqual(result.outcome, PublishOutcome.PUBLISHED)
 
     def test_validation_accepts_personal_linkedin_profile(self):
         result = self.provider.validate_post(ValidatePostRequest(

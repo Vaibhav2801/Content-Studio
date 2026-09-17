@@ -295,6 +295,29 @@ class ContentStudioOnboardingApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(get_url.call_args.args[0].redirect_uri, "http://localhost:5173/content/connections")
 
+    @override_settings(
+        CONTENT_STUDIO_FRONTEND_ORIGINS=["https://content-studio-5m7.pages.dev"],
+        SOCIAL_PUBLISHER_DEFAULT="ZERNIO",
+    )
+    @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
+    def test_instagram_connection_uses_zernio_and_deployed_pages_return_url(self, create_provider):
+        create_provider.return_value = self.fake
+        with patch.object(self.fake, "get_connection_url", wraps=self.fake.get_connection_url) as get_url:
+            response = self.client.post(
+                reverse("content-studio-connection-start"),
+                {"network": "INSTAGRAM", "return_to": "connections"},
+                content_type="application/json",
+                HTTP_ORIGIN="https://content-studio-5m7.pages.dev",
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        create_provider.assert_any_call(ProviderName.ZERNIO)
+        request = get_url.call_args.args[0]
+        self.assertEqual(request.requested_networks, (PublishingNetwork.INSTAGRAM,))
+        self.assertEqual(
+            request.redirect_uri,
+            "https://content-studio-5m7.pages.dev/content/connections",
+        )
+
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")
     def test_untrusted_origin_does_not_override_configured_return(self, create_provider):
         create_provider.return_value = self.fake
