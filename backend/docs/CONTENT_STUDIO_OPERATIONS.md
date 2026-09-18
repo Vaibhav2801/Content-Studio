@@ -21,6 +21,8 @@ Provider and queue bounds are documented in `env.example`. HTTP timeouts are res
 5. Confirm `/health/`, authenticated `/api/schema/`, and the staff-only `/api/internal/social/publishers/health/` response.
 6. Exercise one internal workspace: connect, draft, approve exact version, schedule, publish, reconcile, metrics, disconnect, export, and deletion in a disposable workspace.
 
+For Engagement, configure a Zernio webhook subscription to `POST /api/internal/social/engagement/zernio/webhook/` with `message.received` and `comment.received`. The endpoint requires the same `ZERNIO_WEBHOOK_SECRET` HMAC signature as publishing callbacks, deduplicates event IDs, and stores no raw webhook body. Exercise Instagram comment, story-reply, DM-keyword, click-to-DM, individual approval/send, campaign approval/start/pause, and a LinkedIn Company Page comment before launch.
+
 Celery Beat runs due publication every minute, reconciliation every five minutes, and metrics refresh hourly. Keep only one logical Beat scheduler. Multiple workers are safe because database leases and constraints protect each job; workers must share PostgreSQL.
 
 ## Monitoring and alerts
@@ -48,6 +50,6 @@ Batch tasks emit structured count objects; `social.audit` emits event/workspace/
 
 PostgreSQL stores aware UTC timestamps. Workspace IANA zones are validated. Schedule generation round-trips local wall time through UTC: nonexistent spring-forward times are skipped and the first occurrence of an ambiguous fall-back time is used. Test any newly supported timezone around both transitions.
 
-Admin/owner export returns JSON content, versions, media metadata, connection display data, and redacted audit events; it omits vendor and opaque provider identifiers. Owner deletion blocks while a job is `PUBLISHING`, `SUBMITTED`, or `UNKNOWN`, then transactionally removes Content Studio/legacy LinkedIn data and schedules owned media deletion after commit. A minimal deletion audit receipt remains. Full user/workspace erasure remains an account-level operational process and must include backups according to the retention policy.
+Admin/owner export returns JSON content, versions, media metadata, connection display data, engagement contacts/reviews/rules/campaigns, and redacted audit events; it omits vendor and opaque provider identifiers. Owner deletion blocks while a job is `PUBLISHING`, `SUBMITTED`, or `UNKNOWN`, then transactionally removes Content Studio, engagement, webhook-deduplication, and legacy LinkedIn data and schedules owned media deletion after commit. A minimal deletion audit receipt remains. Full user/workspace erasure remains an account-level operational process and must include backups according to the retention policy.
 
 Review audit events for connection, approval, schedule, publish, provider-policy, export, and deletion changes. Test restoration quarterly and document backup retention and legal-hold exceptions outside the application repository.

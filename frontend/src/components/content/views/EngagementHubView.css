@@ -61,7 +61,16 @@
 .quick-automation > div strong { color: #3b3757; font-size: .79rem; }
 .quick-automation > div small { color: #7c7799; font-size: .65rem; }
 .quick-automation label { display: grid; gap: 5px; color: #6e6a80; font-size: .65rem; font-weight: 720; }
-.quick-automation input, .quick-automation select { min-width: 0; padding: 9px 10px; border: 1px solid #d9d5e7; border-radius: 9px; outline: 0; background: #fff; font: inherit; font-size: .72rem; }
+.quick-automation input, .quick-automation select, .quick-automation textarea { min-width: 0; padding: 9px 10px; border: 1px solid #d9d5e7; border-radius: 9px; outline: 0; background: #fff; font: inherit; font-size: .72rem; }
+.quick-automation textarea { min-height: 68px; resize: vertical; }
+.campaign-audience-picker { min-width: 170px; max-height: 150px; padding: 7px 9px; overflow: auto; border: 1px solid #d9d5e7; border-radius: 9px; background: #fff; }
+.campaign-audience-picker legend { padding: 0 3px; color: #6e6a80; font-size: .65rem; font-weight: 720; }
+.campaign-audience-picker > div { display: grid; gap: 5px; }
+.campaign-audience-picker label { display: flex; grid-template-columns: none; align-items: center; gap: 7px; cursor: pointer; }
+.campaign-audience-picker input { width: 14px; height: 14px; padding: 0; }
+.campaign-audience-picker label span { display: grid; }
+.campaign-audience-picker label strong { color: #454253; font-size: .68rem; }
+.campaign-audience-picker label small, .campaign-audience-picker p { margin: 0; color: #8b8798; font-size: .61rem; }
 .automation-kind-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .automation-kind-grid > div { padding: 11px; display: flex; gap: 8px; border: 1px solid #e5e3eb; border-radius: 12px; background: #fff; }
 .automation-kind-grid svg { flex: 0 0 auto; color: #7161ce; }

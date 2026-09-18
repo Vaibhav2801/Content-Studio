@@ -109,6 +109,43 @@ class AnalyticsSuggestionState(models.TextChoices):
     DISMISSED = "DISMISSED", "Dismissed"
 
 
+class EngagementItemKind(models.TextChoices):
+    COMMENT_REPLY = "COMMENT_REPLY", "Comment reply"
+    DIRECT_MESSAGE = "DIRECT_MESSAGE", "Direct message"
+    STORY_REPLY = "STORY_REPLY", "Story reply"
+
+
+class EngagementReviewStatus(models.TextChoices):
+    PENDING = "PENDING", "Needs review"
+    SENDING = "SENDING", "Sending"
+    SENT = "SENT", "Sent"
+    DISMISSED = "DISMISSED", "Dismissed"
+    FAILED = "FAILED", "Failed"
+
+
+class EngagementAutomationKind(models.TextChoices):
+    COMMENT_TO_DM = "COMMENT_TO_DM", "Comment to DM"
+    STORY_REPLY = "STORY_REPLY", "Story reply"
+    DM_KEYWORD = "DM_KEYWORD", "DM keyword"
+    CLICK_TO_DM = "CLICK_TO_DM", "Click-to-DM"
+
+
+class EngagementAutomationStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Needs approval"
+    ACTIVE = "ACTIVE", "Active"
+    PAUSED = "PAUSED", "Paused"
+    FAILED = "FAILED", "Failed"
+
+
+class EngagementCampaignStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Needs approval"
+    APPROVED = "APPROVED", "Approved"
+    ACTIVE = "ACTIVE", "Running"
+    PAUSED = "PAUSED", "Paused"
+    COMPLETED = "COMPLETED", "Completed"
+    FAILED = "FAILED", "Failed"
+
+
 class SocialAuditEventType(models.TextChoices):
     CONNECTION_STARTED = "CONNECTION_STARTED", "Connection started"
     CONNECTION_COMPLETED = "CONNECTION_COMPLETED", "Connection completed"
@@ -795,3 +832,194 @@ class AnalyticsSuggestion(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["workspace", "fingerprint"], name="unique_workspace_analytics_suggestion"),
         ]
+
+
+class EngagementContact(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="engagement_contacts")
+    platform = models.CharField(max_length=20, choices=SocialNetwork.choices, db_index=True)
+    provider_contact_id = models.CharField(max_length=500)
+    handle = models.CharField(max_length=255, blank=True, default="")
+    display_name = models.CharField(max_length=255, blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "platform", "provider_contact_id"],
+                name="unique_workspace_engagement_contact",
+            ),
+        ]
+
+
+class EngagementReviewItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="engagement_review_items")
+    connection = models.ForeignKey(
+        SocialConnection,
+        on_delete=models.SET_NULL,
+        related_name="engagement_review_items",
+        null=True,
+        blank=True,
+    )
+    contact = models.ForeignKey(
+        EngagementContact,
+        on_delete=models.SET_NULL,
+        related_name="review_items",
+        null=True,
+        blank=True,
+    )
+    kind = models.CharField(max_length=30, choices=EngagementItemKind.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=EngagementReviewStatus.choices,
+        default=EngagementReviewStatus.PENDING,
+        db_index=True,
+    )
+    source_label = models.CharField(max_length=255, blank=True, default="")
+    incoming_text = models.TextField(blank=True, default="")
+    suggested_text = models.TextField(blank=True, default="")
+    final_text = models.TextField(blank=True, default="")
+    conversation_id = models.CharField(max_length=500, blank=True, default="")
+    provider_post_id = models.CharField(max_length=500, blank=True, default="")
+    provider_comment_id = models.CharField(max_length=500, blank=True, default="")
+    provider_event_id = models.CharField(max_length=500, blank=True, default="", db_index=True)
+    provider_message_id = models.CharField(max_length=500, blank=True, default="")
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="assigned_engagement_reviews",
+        null=True,
+        blank=True,
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="approved_engagement_reviews",
+        null=True,
+        blank=True,
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.CharField(max_length=500, blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["workspace", "status", "created_at"], name="engage_review_workspace_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider_event_id"],
+                condition=~models.Q(provider_event_id=""),
+                name="unique_engagement_provider_event",
+            ),
+        ]
+
+
+class EngagementAutomation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="engagement_automations")
+    connection = models.ForeignKey(
+        SocialConnection,
+        on_delete=models.CASCADE,
+        related_name="engagement_automations",
+    )
+    kind = models.CharField(max_length=30, choices=EngagementAutomationKind.choices)
+    name = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20,
+        choices=EngagementAutomationStatus.choices,
+        default=EngagementAutomationStatus.DRAFT,
+        db_index=True,
+    )
+    keywords = models.JSONField(default=list, blank=True)
+    match_mode = models.CharField(max_length=20, default="contains")
+    approved_dm_message = models.TextField(blank=True, default="")
+    approved_comment_reply = models.TextField(blank=True, default="")
+    configuration = models.JSONField(default=dict, blank=True)
+    provider_automation_id = models.CharField(max_length=500, blank=True, default="")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="owned_engagement_automations",
+        null=True,
+        blank=True,
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="approved_engagement_automations",
+        null=True,
+        blank=True,
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    stats = models.JSONField(default=dict, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["workspace", "status"], name="engage_auto_workspace_idx")]
+
+
+class EngagementCampaign(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="engagement_campaigns")
+    connection = models.ForeignKey(
+        SocialConnection,
+        on_delete=models.CASCADE,
+        related_name="engagement_campaigns",
+    )
+    name = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20,
+        choices=EngagementCampaignStatus.choices,
+        default=EngagementCampaignStatus.DRAFT,
+        db_index=True,
+    )
+    audience = models.JSONField(default=dict, blank=True)
+    steps = models.JSONField(default=list, blank=True)
+    provider_sequence_id = models.CharField(max_length=500, blank=True, default="")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="owned_engagement_campaigns",
+        null=True,
+        blank=True,
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="approved_engagement_campaigns",
+        null=True,
+        blank=True,
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    stats = models.JSONField(default=dict, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["workspace", "status"], name="engage_campaign_ws_idx")]
+
+
+class EngagementWebhookEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider_event_id = models.CharField(max_length=500, unique=True)
+    event_type = models.CharField(max_length=100)
+    account_id = models.CharField(max_length=500, blank=True, default="")
+    payload_fingerprint = models.CharField(max_length=64)
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-processed_at"]

@@ -45,6 +45,14 @@ from integrations.social.views import (
     SocialRescheduleAPIView,
     StoryInterviewAPIView,
 )
+from integrations.social.engagement_views import (
+    EngagementAutomationDetailAPIView,
+    EngagementAutomationsAPIView,
+    EngagementCampaignDetailAPIView,
+    EngagementCampaignsAPIView,
+    EngagementOverviewAPIView,
+    EngagementReviewDetailAPIView,
+)
 
 
 urlpatterns = [
@@ -69,6 +77,12 @@ urlpatterns = [
     path("posts/<uuid:post_id>/library-action/", SocialLibraryActionAPIView.as_view(), name="social-library-action"),
     path("connections/", SocialConnectionsAPIView.as_view(), name="social-connections"),
     path("connections/<uuid:connection_id>/action/", SocialConnectionActionAPIView.as_view(), name="social-connection-action"),
+    path("engagement/", EngagementOverviewAPIView.as_view(), name="social-engagement-overview"),
+    path("engagement/reviews/<uuid:review_id>/", EngagementReviewDetailAPIView.as_view(), name="social-engagement-review"),
+    path("engagement/automations/", EngagementAutomationsAPIView.as_view(), name="social-engagement-automations"),
+    path("engagement/automations/<uuid:automation_id>/", EngagementAutomationDetailAPIView.as_view(), name="social-engagement-automation"),
+    path("engagement/campaigns/", EngagementCampaignsAPIView.as_view(), name="social-engagement-campaigns"),
+    path("engagement/campaigns/<uuid:campaign_id>/", EngagementCampaignDetailAPIView.as_view(), name="social-engagement-campaign"),
     path("composer/options/", SocialComposerOptionsAPIView.as_view(), name="social-composer-options"),
     path("posts/", SocialPostListCreateAPIView.as_view(), name="social-post-list"),
     path("posts/generate/", SocialPostGenerateAPIView.as_view(), name="social-post-generate"),

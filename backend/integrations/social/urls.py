@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import PublishingProviderHealthAPIView, PublishingProviderWebhookAPIView
+from .engagement_views import ZernioEngagementWebhookAPIView
 
 
 urlpatterns = [
@@ -9,5 +10,10 @@ urlpatterns = [
         "publishers/<str:provider>/webhook/",
         PublishingProviderWebhookAPIView.as_view(),
         name="social-publisher-webhook",
+    ),
+    path(
+        "engagement/zernio/webhook/",
+        ZernioEngagementWebhookAPIView.as_view(),
+        name="social-engagement-webhook",
     ),
 ]

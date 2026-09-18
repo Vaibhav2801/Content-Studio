@@ -6,6 +6,11 @@ from integrations.social.models import (
     AnalyticsSuggestion,
     ContentSource,
     ContentStudioOnboarding,
+    EngagementAutomation,
+    EngagementCampaign,
+    EngagementContact,
+    EngagementReviewItem,
+    EngagementWebhookEvent,
     ProviderEvent,
     PublishJob,
     PublishJobState,
@@ -105,6 +110,67 @@ def export_workspace_content(*, workspace, actor):
             for connection in SocialConnection.objects.filter(workspace=workspace)
         ],
         "posts": [],
+        "engagement": {
+            "contacts": [
+                {
+                    "id": str(contact.id),
+                    "platform": contact.platform,
+                    "handle": contact.handle,
+                    "display_name": contact.display_name,
+                    "created_at": _iso(contact.created_at),
+                }
+                for contact in EngagementContact.objects.filter(workspace=workspace)
+            ],
+            "reviews": [
+                {
+                    "id": str(review.id),
+                    "kind": review.kind,
+                    "status": review.status,
+                    "source_label": review.source_label,
+                    "incoming_text": review.incoming_text,
+                    "suggested_text": review.suggested_text,
+                    "final_text": review.final_text,
+                    "assignee_id": str(review.assignee_id) if review.assignee_id else None,
+                    "approved_by_id": str(review.approved_by_id) if review.approved_by_id else None,
+                    "approved_at": _iso(review.approved_at),
+                    "sent_at": _iso(review.sent_at),
+                    "created_at": _iso(review.created_at),
+                }
+                for review in EngagementReviewItem.objects.filter(workspace=workspace)
+            ],
+            "automations": [
+                {
+                    "id": str(automation.id),
+                    "kind": automation.kind,
+                    "name": automation.name,
+                    "status": automation.status,
+                    "keywords": automation.keywords,
+                    "match_mode": automation.match_mode,
+                    "approved_dm_message": automation.approved_dm_message,
+                    "approved_comment_reply": automation.approved_comment_reply,
+                    "owner_id": str(automation.owner_id) if automation.owner_id else None,
+                    "approved_at": _iso(automation.approved_at),
+                    "stats": automation.stats,
+                    "created_at": _iso(automation.created_at),
+                }
+                for automation in EngagementAutomation.objects.filter(workspace=workspace)
+            ],
+            "campaigns": [
+                {
+                    "id": str(campaign.id),
+                    "name": campaign.name,
+                    "status": campaign.status,
+                    "audience_label": campaign.audience.get("label", "") if isinstance(campaign.audience, dict) else "",
+                    "audience_count": len(campaign.audience.get("contact_ids", [])) if isinstance(campaign.audience, dict) else 0,
+                    "steps": campaign.steps,
+                    "owner_id": str(campaign.owner_id) if campaign.owner_id else None,
+                    "approved_at": _iso(campaign.approved_at),
+                    "stats": campaign.stats,
+                    "created_at": _iso(campaign.created_at),
+                }
+                for campaign in EngagementCampaign.objects.filter(workspace=workspace)
+            ],
+        },
         "audit_events": [
             {
                 "event_type": event.event_type,
@@ -192,11 +258,25 @@ def delete_workspace_content(*, workspace, actor):
         "sources": ContentSource.objects.filter(workspace=workspace).count(),
         "connections": SocialConnection.objects.filter(workspace=workspace).count(),
         "metrics": SocialMetricObservation.objects.filter(workspace=workspace).count(),
+        "engagement_reviews": EngagementReviewItem.objects.filter(workspace=workspace).count(),
+        "engagement_automations": EngagementAutomation.objects.filter(workspace=workspace).count(),
+        "engagement_campaigns": EngagementCampaign.objects.filter(workspace=workspace).count(),
+        "engagement_contacts": EngagementContact.objects.filter(workspace=workspace).count(),
     }
+    provider_account_ids = list(
+        SocialConnection.objects.filter(workspace=workspace).exclude(provider_account_id="").values_list(
+            "provider_account_id", flat=True
+        )
+    )
     # Delete the generic graph before connections and settings with protected children.
     ProviderEvent.objects.filter(workspace=workspace).delete()
     SocialMetricObservation.objects.filter(workspace=workspace).delete()
     AnalyticsSuggestion.objects.filter(workspace=workspace).delete()
+    EngagementWebhookEvent.objects.filter(account_id__in=provider_account_ids).delete()
+    EngagementReviewItem.objects.filter(workspace=workspace).delete()
+    EngagementAutomation.objects.filter(workspace=workspace).delete()
+    EngagementCampaign.objects.filter(workspace=workspace).delete()
+    EngagementContact.objects.filter(workspace=workspace).delete()
     StoryInterview.objects.filter(workspace=workspace).delete()
     PublishJob.objects.filter(variant__post__workspace=workspace).delete()
     SocialPost.objects.filter(workspace=workspace).delete()
