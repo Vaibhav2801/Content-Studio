@@ -9,6 +9,7 @@ import {
   CircleCheck,
   Home,
   Link2,
+  MessageCircleMore,
   Menu,
   Plus,
   Settings2,
@@ -33,6 +34,7 @@ const icons: Record<ContentStudioSection, LucideIcon> = {
   approvals: CheckSquare,
   calendar: CalendarDays,
   library: BookOpen,
+  engage: MessageCircleMore,
   connections: Link2,
   analytics: BarChart3,
   settings: Settings2,
@@ -41,6 +43,7 @@ const icons: Record<ContentStudioSection, LucideIcon> = {
 const navigationGroups: { label: string; sections: ContentStudioSection[] }[] = [
   { label: 'Workspace', sections: ['home', 'calendar', 'library'] },
   { label: 'Publishing', sections: ['create', 'series', 'approvals'] },
+  { label: 'Engagement', sections: ['engage'] },
   { label: 'Manage', sections: ['connections', 'analytics', 'settings'] },
 ]
 

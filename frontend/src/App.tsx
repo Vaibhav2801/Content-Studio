@@ -13,6 +13,7 @@ import { ContentConnectionsView } from './components/content/views/ContentConnec
 import { ContentSettingsView } from './components/content/views/ContentSettingsView'
 import { ContentOnboardingView } from './components/content/views/ContentOnboardingView'
 import { ContentAnalyticsView } from './components/content/views/ContentAnalyticsView'
+import { EngagementHubView } from './components/content/views/EngagementHubView'
 
 function ProtectedStudio() {
   const { user, ready, error, reload } = useAuth()
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="approvals" element={<ContentApprovalsView />} />
           <Route path="calendar" element={<ContentCalendarView />} />
           <Route path="library" element={<ContentLibraryView />} />
+          <Route path="engage" element={<EngagementHubView />} />
           <Route path="connections" element={<ContentConnectionsView />} />
           <Route path="analytics" element={<ContentAnalyticsView />} />
           <Route path="settings" element={<ContentSettingsView />} />
