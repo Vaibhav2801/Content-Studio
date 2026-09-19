@@ -256,9 +256,13 @@ class EngagementAutomationsAPIView(EngagementWorkspaceAPIView):
 
 class EngagementAutomationDetailAPIView(EngagementWorkspaceAPIView):
     def item(self, request, automation_id, lock=False):
-        queryset = EngagementAutomation.objects.filter(workspace=self.workspace(request)).select_related("connection", "owner")
+        queryset = EngagementAutomation.objects.filter(workspace=self.workspace(request))
         if lock:
+            # Lock only the automation row. ``owner`` is nullable, so joining it
+            # in a FOR UPDATE query makes PostgreSQL reject the outer join.
             queryset = queryset.select_for_update()
+        else:
+            queryset = queryset.select_related("connection", "owner")
         return get_object_or_404(queryset, pk=automation_id)
 
     def patch(self, request, automation_id):
@@ -375,9 +379,13 @@ class EngagementCampaignsAPIView(EngagementWorkspaceAPIView):
 
 class EngagementCampaignDetailAPIView(EngagementWorkspaceAPIView):
     def item(self, request, campaign_id, lock=False):
-        queryset = EngagementCampaign.objects.filter(workspace=self.workspace(request)).select_related("connection", "owner")
+        queryset = EngagementCampaign.objects.filter(workspace=self.workspace(request))
         if lock:
+            # Lock only the campaign row. ``owner`` is nullable, so joining it
+            # in a FOR UPDATE query makes PostgreSQL reject the outer join.
             queryset = queryset.select_for_update()
+        else:
+            queryset = queryset.select_related("connection", "owner")
         return get_object_or_404(queryset, pk=campaign_id)
 
     def post(self, request, campaign_id):

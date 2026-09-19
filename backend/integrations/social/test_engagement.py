@@ -5,7 +5,9 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -116,13 +118,17 @@ class EngagementApiTests(TestCase):
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data["status"], EngagementAutomationStatus.DRAFT)
         automation = EngagementAutomation.objects.get(pk=created.data["id"])
-        activated = self.client.post(
-            reverse("social-engagement-automation", args=[automation.id]),
-            {"action": "APPROVE"},
-            format="json",
-        )
+        with CaptureQueriesContext(connection) as queries:
+            activated = self.client.post(
+                reverse("social-engagement-automation", args=[automation.id]),
+                {"action": "APPROVE"},
+                format="json",
+            )
         self.assertEqual(activated.status_code, 200)
         self.assertEqual(activated.data["status"], EngagementAutomationStatus.ACTIVE)
+        automation_table = connection.ops.quote_name(EngagementAutomation._meta.db_table)
+        lookup = next(query["sql"] for query in queries if f"FROM {automation_table}" in query["sql"])
+        self.assertNotIn(" JOIN ", lookup.upper())
         automation.refresh_from_db()
         self.assertEqual(automation.approved_by, self.user)
 
@@ -223,13 +229,17 @@ class EngagementApiTests(TestCase):
         self.assertNotContains(response, "contact-1", status_code=201)
         campaign = self.workspace.engagement_campaigns.get(pk=response.data["id"])
         self.assertEqual(campaign.audience["provider_contact_ids"], ["contact-1"])
-        with patch(
-            "integrations.social.engagement_views.approve_campaign",
-            side_effect=lambda item, actor: item,
-        ):
-            approved = self.client.post(
-                reverse("social-engagement-campaign", args=[campaign.id]),
-                {"action": "APPROVE"},
-                format="json",
-            )
+        with CaptureQueriesContext(connection) as queries:
+            with patch(
+                "integrations.social.engagement_views.approve_campaign",
+                side_effect=lambda item, actor: item,
+            ):
+                approved = self.client.post(
+                    reverse("social-engagement-campaign", args=[campaign.id]),
+                    {"action": "APPROVE"},
+                    format="json",
+                )
         self.assertEqual(approved.status_code, 200)
+        campaign_table = connection.ops.quote_name(type(campaign)._meta.db_table)
+        lookup = next(query["sql"] for query in queries if f"FROM {campaign_table}" in query["sql"])
+        self.assertNotIn(" JOIN ", lookup.upper())
