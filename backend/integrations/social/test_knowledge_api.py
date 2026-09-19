@@ -15,6 +15,7 @@ from integrations.social.models import (
     SocialNetwork,
     SocialPost,
     SocialProvider,
+    VoiceRuleSuggestion,
 )
 from integrations.social.services.knowledge import record_voice_edit
 from prospecting.models import Workspace, WorkspaceMembership
@@ -83,6 +84,17 @@ class ContentKnowledgeApiTests(TestCase):
         self.assertEqual(confirmed.status_code, 200)
         self.assertIn("Prefer concise posts and remove repetition.", confirmed.data["voice_rules"])
         self.assertEqual(confirmed.data["version"], profile_response.data["version"] + 1)
+
+    def test_edit_learning_deduplicates_the_same_draft_and_counts_distinct_drafts(self):
+        before = "This is a long and repetitive sentence. " * 8
+        record_voice_edit(workspace=self.workspace, before=before, after="A concise lesson.", variant_id="variant-1")
+        record_voice_edit(workspace=self.workspace, before=before, after="Another concise lesson.", variant_id="variant-1")
+        suggestion = VoiceRuleSuggestion.objects.get(signal_key="prefer_concise_copy")
+        self.assertEqual(suggestion.evidence_count, 1)
+
+        record_voice_edit(workspace=self.workspace, before=before, after="A short takeaway.", variant_id="variant-2")
+        suggestion.refresh_from_db()
+        self.assertEqual(suggestion.evidence_count, 2)
 
     def test_sources_are_owned_safe_and_traceable_across_multi_source_generation(self):
         text = self.client.post(reverse("social-content-sources"), {"source_type": "TEXT", "label": "Research note", "text_content": "Customers need clear next steps."}, format="json")

@@ -20,7 +20,7 @@ from integrations.social.models import (
     PublishJobState,
 )
 from integrations.social.publishing.fakes import FakeUploadPostProvider
-from integrations.social.services.composer import SocialContentGenerator
+from integrations.social.services.composer import SocialContentGenerator, generated_social_draft_schema
 from prospecting.models import Workspace, WorkspaceMembership
 
 
@@ -165,6 +165,45 @@ class SocialComposerApiTests(TestCase):
         self.assertIn("image as the primary storytelling surface", prompt)
         self.assertIn("Do not reuse the same hook", prompt)
 
+    def test_generation_schema_requires_exact_requested_networks(self):
+        schema = generated_social_draft_schema([SocialNetwork.LINKEDIN, SocialNetwork.INSTAGRAM])
+        valid = schema.model_validate({
+            "LINKEDIN": {"copy": "LinkedIn copy", "hashtags": [], "image_prompt": "", "alt_text": ""},
+            "INSTAGRAM": {"copy": "Instagram copy", "hashtags": [], "image_prompt": "", "alt_text": ""},
+        })
+        self.assertEqual(valid.model_dump(by_alias=True)["LINKEDIN"]["copy"], "LinkedIn copy")
+        with self.assertRaises(ValueError):
+            schema.model_validate({
+                "LINKEDIN": {"copy": "Only one draft", "hashtags": [], "image_prompt": "", "alt_text": ""},
+            })
+
+    def test_creative_brief_is_normalized_saved_and_returned(self):
+        response = self.client.post(
+            reverse("social-post-list"),
+            self.payload(
+                networks=["LINKEDIN"],
+                creative_brief={
+                    "target_audience": "Operations leaders",
+                    "key_message": "Visible handoffs reduce confusion",
+                    "call_to_action": "Book a workflow review",
+                    "must_include": ["One-day setup", "One-day setup"],
+                    "must_avoid": "guaranteed results, invented statistics",
+                    "visual_theme": "Warm editorial photography",
+                    "image_requirements": "One clear subject with natural light",
+                    "reserve_logo_space": True,
+                },
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        brief = response.data["creative_brief"]
+        self.assertEqual(brief["target_audience"], "Operations leaders")
+        self.assertEqual(brief["must_include"], ["One-day setup"])
+        self.assertEqual(brief["must_avoid"], ["guaranteed results", "invented statistics"])
+        self.assertTrue(brief["reserve_logo_space"])
+        self.assertEqual(SocialPost.objects.get(pk=response.data["id"]).metadata["creative_brief"], brief)
+
     @patch("integrations.social.services.composer.SocialContentGenerator.generate")
     def test_series_creates_distinct_scheduled_drafts_for_this_workspace(self, generate):
         from datetime import timedelta
@@ -199,10 +238,48 @@ class SocialComposerApiTests(TestCase):
         edited = self.client.patch(reverse("social-variant-detail", args=[variant_id]), {"copy": "One. Two. Three.", "hashtags": ["#One"]}, format="json")
         self.assertEqual(edited.status_code, 200)
         self.assertEqual(edited.data["variants"][0]["copy"], "One. Two. Three.")
+        self.assertEqual(edited.data["variants"][0]["quality_check"]["cost"], "NO_AI_CALL")
+        self.assertEqual(edited.data["variants"][0]["quality_check"]["suggestions"], [])
         rewritten = self.client.post(reverse("social-variant-rewrite", args=[variant_id]), {"action": "CREATE_X_THREAD"}, format="json")
         self.assertEqual(rewritten.status_code, 200)
         self.assertEqual(rewritten.data["variants"][0]["metadata"]["format"], "THREAD")
         self.assertGreaterEqual(len(rewritten.data["variants"][0]["metadata"]["thread"]), 2)
+
+    @patch("integrations.social.services.composer.SocialAlternativeGenerator.generate")
+    def test_two_alternatives_use_one_on_demand_request_and_only_replace_copy_after_selection(self, generate):
+        generate.return_value = ([
+            {"copy": "A direct alternative.", "hashtags": ["#Teams"]},
+            {"copy": "A question-led alternative?", "hashtags": ["#Work"]},
+        ], {"provider": "test", "model": "compact"})
+        created = self.client.post(reverse("social-post-list"), self.payload(networks=["LINKEDIN"]), format="json")
+        variant_id = created.data["variants"][0]["id"]
+        self.client.patch(
+            reverse("social-variant-detail", args=[variant_id]),
+            {"copy": "The original post."},
+            format="json",
+        )
+
+        generated = self.client.post(
+            reverse("social-variant-rewrite", args=[variant_id]),
+            {"action": "GENERATE_ALTERNATIVES"},
+            format="json",
+        )
+
+        self.assertEqual(generated.status_code, 200, generated.data)
+        generate.assert_called_once()
+        draft = generated.data["variants"][0]
+        self.assertEqual(draft["copy"], "The original post.")
+        self.assertEqual(len(draft["metadata"]["alternatives"]), 2)
+
+        selected = self.client.post(
+            reverse("social-variant-rewrite", args=[variant_id]),
+            {"action": "USE_ALTERNATIVE", "alternative_index": 1},
+            format="json",
+        )
+        selected_variant = selected.data["variants"][0]
+        self.assertEqual(selected_variant["copy"], "A question-led alternative?")
+        self.assertEqual(selected_variant["hashtags"], ["#Work"])
+        self.assertNotIn("alternatives", selected_variant["metadata"])
 
     def test_network_selection_adds_and_removes_draft_variants_only(self):
         created = self.client.post(reverse("social-post-list"), self.payload(networks=["LINKEDIN", "X"]), format="json")

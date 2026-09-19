@@ -7,7 +7,6 @@ import type { LibraryPost } from '../../../types/contentStudio'
 import { useContentStudio } from '../ContentStudioContext'
 import { EmptyState } from '../EmptyState'
 import { KnowledgeHubLinks } from '../KnowledgeHubLinks'
-import { BrandBrainPanel } from '../knowledge/BrandBrainPanel'
 import { ContentSourcesPanel } from '../knowledge/ContentSourcesPanel'
 import { StoryInterviewPanel } from '../knowledge/StoryInterviewPanel'
 import { customerSafeMessage } from '../contentUtils'
@@ -21,7 +20,7 @@ export function ContentLibraryView() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const requestedPanel = searchParams.get('panel')
-  const panel = requestedPanel === 'brand' || requestedPanel === 'sources' || requestedPanel === 'story' ? requestedPanel : null
+  const panel = requestedPanel === 'sources' || requestedPanel === 'story' ? requestedPanel : null
   const [filters, setFilters] = useState<LibraryFilters>(() => ({ status: searchParams.get('status') ?? '' }))
   const [posts, setPosts] = useState<LibraryPost[] | null>(null)
   const [details, setDetails] = useState('')
@@ -83,7 +82,6 @@ export function ContentLibraryView() {
   }
   return <section className="studio-screen" aria-label="Content Library">
     <KnowledgeHubLinks base="/content/library" />
-    {panel === 'brand' && <BrandBrainPanel />}
     {panel === 'sources' && <ContentSourcesPanel />}
     {panel === 'story' && <StoryInterviewPanel />}
     {!panel && error && <div className="li-banner error" role="alert">{error}</div>}

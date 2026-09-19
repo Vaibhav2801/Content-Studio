@@ -26,17 +26,22 @@ from integrations.social.publishing.types import PublishingMediaType, Publishing
 
 def normalize_generated_image(network, image_data, content_type):
     """Return generated artwork in a format accepted by the target network."""
+    from PIL import Image, ImageOps
+
+    target_sizes = {
+        SocialNetwork.LINKEDIN: (1024, 536),
+        SocialNetwork.X: (1024, 576),
+        SocialNetwork.INSTAGRAM: (1024, 1280),
+    }
     content_type = str(content_type or "image/png").split(";", 1)[0].strip().lower()
-    if network != SocialNetwork.INSTAGRAM or content_type == "image/jpeg":
-        return image_data, content_type, MIME_EXTENSIONS.get(content_type, ".png")
-
-    from PIL import Image
-
     with Image.open(BytesIO(image_data)) as source:
-        converted = source.convert("RGB")
+        fitted = ImageOps.fit(source.convert("RGB"), target_sizes[SocialNetwork(network)], Image.Resampling.LANCZOS)
         output = BytesIO()
-        converted.save(output, format="JPEG", quality=92, optimize=True)
-    return output.getvalue(), "image/jpeg", ".jpg"
+        if network == SocialNetwork.INSTAGRAM:
+            fitted.save(output, format="JPEG", quality=92, optimize=True)
+            return output.getvalue(), "image/jpeg", ".jpg"
+        fitted.save(output, format="PNG", optimize=True)
+    return output.getvalue(), "image/png", ".png"
 
 
 @dataclass(frozen=True)

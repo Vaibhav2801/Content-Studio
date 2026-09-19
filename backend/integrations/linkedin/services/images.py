@@ -7,6 +7,11 @@ from django.conf import settings
 GEMINI_ASPECT_RATIOS = {
     "4:5": "ASPECT_RATIO_FOUR_BY_FIVE",
 }
+PLATFORM_IMAGE_SPECS = {
+    "LINKEDIN": {"ratio": "1.91:1", "width": 1024, "height": 536},
+    "X": {"ratio": "16:9", "width": 1024, "height": 576},
+    "INSTAGRAM": {"ratio": "4:5", "width": 1024, "height": 1280},
+}
 GEMINI_IMAGE_SIZES = {
     "512": "IMAGE_SIZE_FIVE_TWELVE",
     "1K": "IMAGE_SIZE_ONE_K",
@@ -87,27 +92,37 @@ def image_provider_status():
             else "Automatic image provider"
         )
         missing = "CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN or OPENAI_API_KEY"
-    return {"ready": ready, "label": label, "detail": "Ready for 4:5 post images" if ready else f"Add {missing}"}
+    return {
+        "ready": ready,
+        "label": label,
+        "detail": "Ready for platform-sized post images" if ready else f"Add {missing}",
+    }
 
 
 class LinkedInImageGenerator:
-    """Generate feed-ready 4:5 artwork with Cloudflare Workers AI."""
+    """Generate artwork that is normalized for each social platform."""
 
     openai_endpoint = "https://api.openai.com/v1/images/generations"
     gemini_endpoint = "https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
     cloudflare_endpoint = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}"
 
     @staticmethod
-    def art_direct(prompt):
+    def art_direct(prompt, network="LINKEDIN"):
+        platform = {
+            "LINKEDIN": "LinkedIn",
+            "X": "X",
+            "INSTAGRAM": "Instagram",
+        }.get(str(network), "social media")
+        spec = PLATFORM_IMAGE_SPECS.get(str(network), PLATFORM_IMAGE_SPECS["LINKEDIN"])
         return f"""
-Create one premium editorial image for a LinkedIn Company Page post.
+Create one premium editorial image for a {platform} post.
 
 CORE VISUAL IDEA
 {prompt.strip()}
 
 ART DIRECTION
 - Use a single clear focal concept that communicates the idea in under two seconds.
-- Compose specifically for a 4:5 portrait feed canvas with generous breathing room and safe margins.
+- Compose specifically for a {spec['ratio']} feed canvas with generous breathing room and safe margins.
 - Make the subject concrete and relevant; avoid generic office teams, handshakes, floating UI screens, and random charts.
 - Use restrained, intentional colors, realistic materials and lighting, and a polished campaign-quality finish.
 - Keep the background simple enough that the image remains legible on a phone.
@@ -117,15 +132,16 @@ ART DIRECTION
 Return only the final image.
 """.strip()
 
-    def generate(self, post_id, prompt):
+    def generate(self, post_id, prompt, network="LINKEDIN"):
         if not settings.LINKEDIN_GENERATE_IMAGES:
             return "", {"status": "not_configured"}, b""
-        directed_prompt = self.art_direct(prompt)
+        directed_prompt = self.art_direct(prompt, network=network)
+        spec = PLATFORM_IMAGE_SPECS.get(str(network), PLATFORM_IMAGE_SPECS["LINKEDIN"])
         provider = settings.LINKEDIN_IMAGE_PROVIDER
         errors = []
         if provider in {"auto", "cloudflare"} and settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_API_TOKEN:
             try:
-                return self._generate_cloudflare(post_id, directed_prompt)
+                return self._generate_cloudflare(post_id, directed_prompt, spec=spec)
             except Exception as exc:
                 if provider == "cloudflare":
                     raise
@@ -133,14 +149,14 @@ Return only the final image.
         # Gemini remains available only for installations that explicitly select it.
         if provider == "gemini" and settings.GEMINI_API_KEY:
             try:
-                return self._generate_gemini(post_id, directed_prompt)
+                return self._generate_gemini(post_id, directed_prompt, spec=spec)
             except Exception as exc:
                 if provider == "gemini":
                     raise
                 errors.append(f"Gemini: {exc}")
         if provider in {"auto", "openai"} and settings.OPENAI_API_KEY:
             try:
-                return self._generate_openai(post_id, directed_prompt)
+                return self._generate_openai(post_id, directed_prompt, spec=spec)
             except Exception as exc:
                 if provider == "openai":
                     raise
@@ -152,7 +168,7 @@ Return only the final image.
             "detail": "Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN or OPENAI_API_KEY",
         }, b""
 
-    def _generate_cloudflare(self, post_id, prompt):
+    def _generate_cloudflare(self, post_id, prompt, *, spec):
         model = settings.CLOUDFLARE_IMAGE_MODEL
         endpoint = self.cloudflare_endpoint.format(
             account_id=settings.CLOUDFLARE_ACCOUNT_ID,
@@ -165,8 +181,8 @@ Return only the final image.
                 "files": {
                     "prompt": (None, prompt),
                     "steps": (None, str(settings.CLOUDFLARE_IMAGE_STEPS)),
-                    "width": (None, str(settings.CLOUDFLARE_IMAGE_WIDTH)),
-                    "height": (None, str(settings.CLOUDFLARE_IMAGE_HEIGHT)),
+                    "width": (None, str(spec["width"])),
+                    "height": (None, str(spec["height"])),
                 },
             }
         else:
@@ -199,7 +215,7 @@ Return only the final image.
             # Cloudflare's REST API may return the generated PNG directly instead
             # of wrapping it in JSON, depending on the model/API response mode.
             if content_type.startswith("image/") or raw_response.startswith(b"\x89PNG\r\n\x1a\n"):
-                return self._result(post_id, raw_response, "cloudflare", model, content_type or "image/png")
+                return self._result(post_id, raw_response, "cloudflare", model, content_type or "image/png", spec["ratio"])
             raise ImageGenerationError("Cloudflare AI returned an invalid image response.")
         if isinstance(payload, dict):
             result = payload.get("result") or {}
@@ -212,9 +228,9 @@ Return only the final image.
             raw_bytes = base64.b64decode(encoded_image)
         except (TypeError, ValueError) as exc:
             raise ImageGenerationError("Cloudflare AI returned invalid image data.") from exc
-        return self._result(post_id, raw_bytes, "cloudflare", model, "image/png")
+        return self._result(post_id, raw_bytes, "cloudflare", model, "image/png", spec["ratio"])
 
-    def _generate_gemini(self, post_id, prompt):
+    def _generate_gemini(self, post_id, prompt, *, spec):
         try:
             response = requests.post(
                 self.gemini_endpoint.format(model=settings.GEMINI_IMAGE_MODEL),
@@ -241,9 +257,9 @@ Return only the final image.
             raise ImageGenerationError("Gemini returned no image data.")
         raw_bytes = base64.b64decode(image_part["data"])
         content_type = image_part.get("mimeType") or image_part.get("mime_type") or "image/png"
-        return self._result(post_id, raw_bytes, "gemini", settings.GEMINI_IMAGE_MODEL, content_type)
+        return self._result(post_id, raw_bytes, "gemini", settings.GEMINI_IMAGE_MODEL, content_type, spec["ratio"])
 
-    def _generate_openai(self, post_id, prompt):
+    def _generate_openai(self, post_id, prompt, *, spec):
         try:
             response = requests.post(
                 self.openai_endpoint,
@@ -273,10 +289,10 @@ Return only the final image.
             if not raw:
                 raise ImageGenerationError("OpenAI returned no image data.")
             raw_bytes = base64.b64decode(raw)
-        return self._result(post_id, raw_bytes, "openai", settings.OPENAI_IMAGE_MODEL, "image/png")
+        return self._result(post_id, raw_bytes, "openai", settings.OPENAI_IMAGE_MODEL, "image/png", spec["ratio"])
 
     @staticmethod
-    def _result(post_id, raw_bytes, provider, model, content_type):
+    def _result(post_id, raw_bytes, provider, model, content_type, aspect_ratio):
         url = f"{settings.PUBLIC_BACKEND_URL}/api/v3/linkedin/posts/{post_id}/image/"
         metadata = {
             "status": "generated",
@@ -284,7 +300,7 @@ Return only the final image.
             "model": model,
             "content_type": content_type,
             "bytes": len(raw_bytes),
-            "aspect_ratio": "4:5",
+            "aspect_ratio": aspect_ratio,
         }
         return url, metadata, raw_bytes
 

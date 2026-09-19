@@ -66,7 +66,7 @@ def _connection_identifiers(legacy_settings):
 
 
 @transaction.atomic
-def sync_settings(legacy_settings):
+def sync_settings(legacy_settings, *, update_brand=False):
     social_settings, _ = SocialWorkspaceSettings.objects.update_or_create(
         workspace_id=legacy_settings.workspace_id,
         defaults={
@@ -82,17 +82,28 @@ def sync_settings(legacy_settings):
             "legacy_linkedin_settings_id": legacy_settings.id,
         },
     )
-    BrandProfile.objects.update_or_create(
-        settings=social_settings,
-        defaults={
-            "audience": legacy_settings.audience,
-            "voice": legacy_settings.brand_voice,
-            "content_pillars": legacy_settings.content_pillars,
-            "calls_to_action": legacy_settings.calls_to_action,
-            "visual_direction": legacy_settings.image_style,
-            "forbidden_topics": legacy_settings.forbidden_topics,
-        },
-    )
+    brand_profile, brand_created = BrandProfile.objects.get_or_create(settings=social_settings)
+    if brand_created or update_brand:
+        brand_profile.audience = legacy_settings.audience
+        brand_profile.business_description = legacy_settings.company_description
+        brand_profile.voice = legacy_settings.brand_voice
+        brand_profile.content_pillars = legacy_settings.content_pillars
+        brand_profile.calls_to_action = legacy_settings.calls_to_action
+        brand_profile.visual_direction = legacy_settings.image_style
+        brand_profile.forbidden_topics = legacy_settings.forbidden_topics
+        brand_profile.save(update_fields=[
+            "audience", "business_description", "voice", "content_pillars", "calls_to_action",
+            "visual_direction", "forbidden_topics", "updated_at",
+        ])
+    from integrations.social.services.knowledge import brand_snapshot
+
+    snapshot = brand_snapshot(brand_profile)
+    latest_version = brand_profile.versions.order_by("-version").first()
+    if latest_version is None or latest_version.snapshot != snapshot:
+        brand_profile.versions.create(
+            version=(latest_version.version + 1) if latest_version else 1,
+            snapshot=snapshot,
+        )
     provider = _legacy_provider(legacy_settings.publisher)
     provider_profile_id, provider_account_id = _connection_identifiers(legacy_settings)
     connection, _ = SocialConnection.objects.update_or_create(

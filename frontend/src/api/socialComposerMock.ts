@@ -21,11 +21,13 @@ export function makeDemoPost(ideaTitle: string, ideaText: string, networks: Soci
   return {
     id: `demo-${Date.now()}`, idea_title: ideaTitle, idea_text: ideaText, source: null, sources: [], brand_brain_version: null, state: 'DRAFT',
     controls: { tone: 'Professional', goal: 'Awareness', length: 'Medium', include_image: false }, created_at: now, updated_at: now,
+    creative_brief: { target_audience: '', key_message: '', call_to_action: '', must_include: [], must_avoid: [], visual_theme: '', image_requirements: '', reserve_logo_space: false },
     variants: networks.map((network, index) => ({
       id: `demo-variant-${index}`, network, network_label: network === 'LINKEDIN' ? 'LinkedIn' : network === 'INSTAGRAM' ? 'Instagram' : 'X',
       account: { id: `demo-account-${index}`, display_name: socialComposerMockOptions.connections.find((item) => item.network === network)?.display_name ?? '', account_type: 'Social account', health: 'HEALTHY' },
       copy: copy[network], hashtags: network === 'INSTAGRAM' ? ['#BusinessTips', '#Growth'] : ['#Business'], scheduled_for: now,
-      status: 'DRAFT', metadata: {}, media: [], validation: { valid: true, fields: {} }, updated_at: now,
+      status: 'DRAFT', metadata: {}, media: [], validation: { valid: true, fields: {} },
+      quality_check: { hard_blocked: false, review_suggested: false, summary: { passed: 8, review: 0, blocked: 0 }, deterministic: [], suggestions: [], cost: 'NO_AI_CALL' }, updated_at: now,
     })),
   }
 }

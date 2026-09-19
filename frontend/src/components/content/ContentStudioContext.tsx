@@ -33,7 +33,7 @@ interface ContentStudioState {
   runPostAction: (action: PostAction) => Promise<void>
   updatePost: (body: string, imagePrompt: string) => Promise<void>
   regenerateImage: () => Promise<void>
-  saveSettings: () => Promise<void>
+  saveSettings: () => Promise<boolean>
   toggleAutomation: () => Promise<void>
   startOnboarding: () => Promise<void>
   moveOnboardingStep: (step: number) => Promise<void>
@@ -181,14 +181,15 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   }
 
   const saveSettings = async () => {
-    if (!settingsDraft) return
+    if (!settingsDraft) return false
     setBusy('settings'); setNotice(''); setNoticeError(false)
     try {
       const saved = isDemo ? settingsDraft : await linkedinApi.saveSettings(settingsDraft)
       setDashboard((current) => current ? { ...current, settings: saved } : current)
       setSettingsDraft(saved)
       setNotice(isDemo ? 'Demo settings updated for this visit.' : 'Content Studio settings saved.')
-    } catch (error) { fail(error, 'Could not save settings.') }
+      return true
+    } catch (error) { fail(error, 'Could not save settings.'); return false }
     finally { setBusy('') }
   }
 

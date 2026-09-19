@@ -608,6 +608,7 @@ class IntelligentRouter(BaseLLMProvider):
         prompt: str = "",
         system_prompt: str = "",
         tools: list = None,
+        schema: Type[BaseModel] = None,
         prompt_key: str = None,
         system_prompt_key: str = None,
         prompt_version: int = None,
@@ -624,10 +625,11 @@ class IntelligentRouter(BaseLLMProvider):
         )
 
         req = LLMRequest(
-            operation=LLMOperation.GENERATE,
+            operation=LLMOperation.STRUCTURED_OUTPUT if schema else LLMOperation.GENERATE,
             complexity=complexity,
             prompt=prompt,
             system_prompt=system_prompt,
+            schema=schema,
             prompt_key=prompt_key,
             system_prompt_key=system_prompt_key,
             prompt_version=prompt_version,
@@ -642,6 +644,18 @@ class IntelligentRouter(BaseLLMProvider):
                 "type": "error",
                 "text": res.error_message or "Router failed to generate response.",
                 "status_code": 500
+            }
+
+        if isinstance(res.output, BaseModel):
+            return {
+                "type": "structured",
+                "data": res.output.model_dump(by_alias=True),
+                "text": res.raw_text,
+                "prompt_tokens": res.usage.get("prompt_tokens", 0),
+                "completion_tokens": res.usage.get("completion_tokens", 0),
+                "total_tokens": res.usage.get("total_tokens", 0),
+                "provider": res.provider,
+                "model": res.model,
             }
 
         if isinstance(res.output, dict) and "tool_name" in res.output:

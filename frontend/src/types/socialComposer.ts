@@ -38,6 +38,17 @@ export interface GenerationControls {
   include_image: boolean
 }
 
+export interface CreativeBrief {
+  target_audience: string
+  key_message: string
+  call_to_action: string
+  must_include: string[]
+  must_avoid: string[]
+  visual_theme: string
+  image_requirements: string
+  reserve_logo_space: boolean
+}
+
 export interface ComposerOptions {
   connections: ComposerConnection[]
   sources: ComposerSource[]
@@ -48,6 +59,23 @@ export interface ComposerOptions {
 export interface VariantValidation {
   valid: boolean
   fields: Partial<Record<'copy' | 'hashtags' | 'media' | 'connection', string[]>>
+}
+
+export interface QualityCheckItem {
+  key: string
+  label: string
+  status: 'PASS' | 'REVIEW_SUGGESTED' | 'BLOCKED'
+  message: string
+  blocking: boolean
+}
+
+export interface QualityReport {
+  hard_blocked: boolean
+  review_suggested: boolean
+  summary: { passed: number; review: number; blocked: number }
+  deterministic: QualityCheckItem[]
+  suggestions: QualityCheckItem[]
+  cost?: 'NO_AI_CALL'
 }
 
 export interface MediaAsset {
@@ -74,9 +102,10 @@ export interface SocialVariant {
   hashtags: string[]
   scheduled_for: string
   status: SocialPostState
-  metadata: { image_prompt?: string; alt_text?: string; include_image?: boolean; format?: 'THREAD' | 'CAROUSEL'; thread?: string[]; carousel_slides?: string[]; brand_brain_version?: { id: string; version: number }; source_references?: Array<{ id: string; label: string; source_type: string }> }
+  metadata: { image_prompt?: string; alt_text?: string; include_image?: boolean; generation_status?: 'AI' | 'FALLBACK'; generation_provider?: string; generation_model?: string; format?: 'THREAD' | 'CAROUSEL'; thread?: string[]; carousel_slides?: string[]; brand_brain_version?: { id: string; version: number }; source_references?: Array<{ id: string; label: string; source_type: string }>; alternatives?: Array<{ copy: string; hashtags: string[] }>; alternatives_generation?: { provider?: string; model?: string } }
   media: MediaAsset[]
   validation: VariantValidation
+  quality_check: QualityReport
   updated_at: string
 }
 
@@ -89,12 +118,13 @@ export interface SocialPost {
   brand_brain_version: { id: string; version: number } | null
   state: SocialPostState
   controls: GenerationControls
+  creative_brief: CreativeBrief
   variants: SocialVariant[]
   created_at: string
   updated_at: string
 }
 
-export type RewriteAction = 'MAKE_SHORTER' | 'MAKE_PERSONAL' | 'NEW_HOOK' | 'REDUCE_PROMOTION' | 'CREATE_X_THREAD' | 'CREATE_INSTAGRAM_CAROUSEL'
+export type RewriteAction = 'MAKE_SHORTER' | 'MAKE_PERSONAL' | 'NEW_HOOK' | 'REDUCE_PROMOTION' | 'CREATE_X_THREAD' | 'CREATE_INSTAGRAM_CAROUSEL' | 'GENERATE_ALTERNATIVES' | 'USE_ALTERNATIVE'
 
 export interface DraftPayload {
   idea_title: string
@@ -104,4 +134,5 @@ export interface DraftPayload {
   networks: SocialNetwork[]
   connection_ids?: string[]
   controls: GenerationControls
+  creative_brief?: CreativeBrief
 }

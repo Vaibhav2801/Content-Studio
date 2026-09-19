@@ -89,6 +89,7 @@ from integrations.social.serializers import (
 from integrations.social.services.composer import (
     ComposerValidationError,
     NETWORK_LABELS,
+    compose_image_generation_prompt,
     connected_networks,
     create_draft,
     generate_variants,
@@ -424,6 +425,7 @@ class SocialPostListCreateAPIView(SocialWorkspaceScopedAPIView):
                 sources=sources,
                 networks=request.data.get("networks"),
                 controls=request.data.get("controls"),
+                creative_brief=request.data.get("creative_brief"),
                 connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
             )
         except DjangoValidationError as error:
@@ -452,6 +454,7 @@ class SocialPostDetailAPIView(SocialWorkspaceScopedAPIView):
                 sources=sources,
                 source_was_supplied=source_was_supplied,
                 controls=request.data.get("controls") if "controls" in request.data else None,
+                creative_brief=request.data.get("creative_brief") if "creative_brief" in request.data else None,
             )
             if "networks" in request.data:
                 sync_draft_networks(post=post, networks=request.data.get("networks"), connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None)
@@ -479,6 +482,7 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                     idea_text=request.data.get("idea_text") if "idea_text" in request.data else None,
                     sources=sources,
                     source_was_supplied=source_was_supplied,
+                    creative_brief=request.data.get("creative_brief") if "creative_brief" in request.data else None,
                 )
             except DjangoValidationError as error:
                 return social_validation_response(error)
@@ -494,6 +498,7 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                     sources=sources,
                     networks=request.data.get("networks"),
                     controls=request.data.get("controls"),
+                    creative_brief=request.data.get("creative_brief"),
                     connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                 )
             except DjangoValidationError as error:
@@ -596,7 +601,12 @@ class SocialVariantDetailAPIView(SocialWorkspaceScopedAPIView):
                 scheduled_for=scheduled_for,
             )
             if "copy" in request.data:
-                record_voice_edit(workspace=variant.post.workspace, before=original_copy, after=variant.copy)
+                record_voice_edit(
+                    workspace=variant.post.workspace,
+                    before=original_copy,
+                    after=variant.copy,
+                    variant_id=variant.id,
+                )
         except DjangoValidationError as error:
             return social_validation_response(error)
         return Response(social_post_response(variant.post))
@@ -606,7 +616,11 @@ class SocialVariantRewriteAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request, variant_id):
         variant = self.variant(request, variant_id)
         try:
-            variant = rewrite_variant(variant=variant, action=request.data.get("action"))
+            variant = rewrite_variant(
+                variant=variant,
+                action=request.data.get("action"),
+                alternative_index=request.data.get("alternative_index"),
+            )
         except DjangoValidationError as error:
             return social_validation_response(error)
         return Response(social_post_response(variant.post))
@@ -1212,7 +1226,12 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
         if not prompt:
             return Response({"prompt": ["Describe the image to generate."]}, status=400)
         try:
-            _, metadata, image_data = LinkedInImageGenerator().generate(variant.id, prompt)
+            directed_prompt = compose_image_generation_prompt(variant, prompt)
+            _, metadata, image_data = LinkedInImageGenerator().generate(
+                variant.id,
+                directed_prompt,
+                network=variant.network,
+            )
         except ImageGenerationQuotaError:
             logger.exception("Image generation quota exhausted for social variant %s.", variant.id)
             return Response(
@@ -1248,11 +1267,18 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
                 {"code": "image_generation_not_configured", "detail": "Image generation is not configured."},
                 status=503,
             )
-        image_data, content_type, extension = normalize_generated_image(
-            variant.network,
-            image_data,
-            metadata.get("content_type"),
-        )
+        try:
+            image_data, content_type, extension = normalize_generated_image(
+                variant.network,
+                image_data,
+                metadata.get("content_type"),
+            )
+        except (OSError, ValueError):
+            logger.exception("Image provider returned invalid image bytes for social variant %s.", variant.id)
+            return Response(
+                {"code": "image_generation_failed", "detail": "The image provider returned an invalid image."},
+                status=502,
+            )
         uploaded_file = SimpleUploadedFile(
             f"generated-{variant.id}{extension}",
             image_data,

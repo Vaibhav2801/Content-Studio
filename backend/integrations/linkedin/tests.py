@@ -117,7 +117,7 @@ class LinkedInImageGeneratorTests(TestCase):
         CLOUDFLARE_IMAGE_HEIGHT=1280,
     )
     @patch("integrations.linkedin.services.images.requests.post")
-    def test_cloudflare_generates_four_by_five_feed_image(self, request_post):
+    def test_cloudflare_generates_linkedin_feed_image(self, request_post):
         response = Mock()
         response.raise_for_status.return_value = None
         response.json.return_value = {
@@ -135,11 +135,18 @@ class LinkedInImageGeneratorTests(TestCase):
         )
         self.assertEqual(request.kwargs["headers"], {"Authorization": "Bearer cloudflare-token"})
         self.assertEqual(request.kwargs["files"]["width"], (None, "1024"))
-        self.assertEqual(request.kwargs["files"]["height"], (None, "1280"))
+        self.assertEqual(request.kwargs["files"]["height"], (None, "536"))
         self.assertEqual(image_data, b"cloudflare-image")
         self.assertEqual(metadata["provider"], "cloudflare")
         self.assertEqual(metadata["model"], "@cf/black-forest-labs/flux-2-dev")
+        self.assertEqual(metadata["aspect_ratio"], "1.91:1")
         self.assertIn("post-id", url)
+
+    def test_art_direction_is_platform_specific(self):
+        prompt = LinkedInImageGenerator.art_direct("A product on a clean desk", network="INSTAGRAM")
+        self.assertIn("Instagram post", prompt)
+        self.assertIn("4:5 feed canvas", prompt)
+        self.assertNotIn("LinkedIn Company Page", prompt)
 
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,

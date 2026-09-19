@@ -48,7 +48,7 @@ export const socialComposerApi = {
   generateSeries: (payload: { title: string; prompt: string; count: number; interval_days: number; scheduled_for: string; networks: DraftPayload['networks']; connection_ids?: string[]; controls: DraftPayload['controls'] }) => request<{ posts: SocialPost[] }>('/posts/series/', { method: 'POST', body: JSON.stringify(payload) }),
   updatePost: (id: string, payload: Partial<DraftPayload>) => request<SocialPost>(`/posts/${id}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
   updateVariant: (id: string, payload: { copy?: string; hashtags?: string[]; scheduled_for?: string }) => request<SocialPost>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  rewrite: (id: string, action: RewriteAction) => request<SocialPost>(`/variants/${id}/rewrite/`, { method: 'POST', body: JSON.stringify({ action }) }),
+  rewrite: (id: string, action: RewriteAction, alternativeIndex?: number) => request<SocialPost>(`/variants/${id}/rewrite/`, { method: 'POST', body: JSON.stringify({ action, ...(alternativeIndex === undefined ? {} : { alternative_index: alternativeIndex }) }) }),
   submitForReview: (id: string) => request<SocialPost>(`/posts/${id}/submit-review/`, { method: 'POST', body: '{}' }),
   schedule: (id: string) => request<SocialPost>(`/posts/${id}/schedule/`, { method: 'POST', body: '{}' }),
   uploadMedia: (variantId: string, file: File, altText = '') => {

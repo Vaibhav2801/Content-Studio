@@ -232,7 +232,7 @@ def save_business_profile(workspace, payload):
     legacy.audience = audience
     legacy.language = language[:50]
     legacy.save(update_fields=["page_name", "company_description", "audience", "language", "updated_at"])
-    sync_settings(legacy)
+    sync_settings(legacy, update_brand=True)
     onboarding.answers = {
         key: value for key, value in onboarding.answers.items()
         if key != "business_prompt_skipped"

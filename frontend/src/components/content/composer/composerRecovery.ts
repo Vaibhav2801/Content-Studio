@@ -1,4 +1,4 @@
-import type { GenerationControls, SocialNetwork } from '../../../types/socialComposer'
+import type { CreativeBrief, GenerationControls, SocialNetwork } from '../../../types/socialComposer'
 
 export type ComposerMode = 'manual' | 'idea' | 'source' | 'draft'
 
@@ -10,6 +10,7 @@ export interface ComposerFormSnapshot {
   networks: SocialNetwork[]
   selectedConnections?: Partial<Record<SocialNetwork, string>>
   controls: GenerationControls
+  creativeBrief?: CreativeBrief
   activeNetwork: SocialNetwork
 }
 

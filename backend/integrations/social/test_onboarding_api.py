@@ -8,11 +8,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from integrations.linkedin.models import LinkedInAutomationSettings, LinkedInPost
-from integrations.social.models import ConnectionState, ContentStudioOnboarding, SocialConnection, SocialNetwork, SocialProvider
+from integrations.social.models import BrandProfile, ConnectionState, ContentStudioOnboarding, SocialConnection, SocialNetwork, SocialProvider
 from integrations.social.publishing.adapters import TARGET_CAPABILITIES
 from integrations.social.publishing.fakes import FakeUploadPostProvider
 from integrations.social.publishing.errors import ProviderPermanentFailureError, ProviderValidationError
 from integrations.social.publishing.types import CompleteConnectionResult, ProviderName, PublishingNetwork, SocialAccount
+from integrations.social.services.linkedin_compat import sync_settings
 from prospecting.models import Workspace, WorkspaceMembership
 
 
@@ -70,6 +71,26 @@ class ContentStudioOnboardingApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "COMPLETE")
         self.assertEqual(response.data["completed_steps"], [1, 2, 3, 4])
+
+    def test_ordinary_compatibility_sync_preserves_brand_edits_until_an_explicit_settings_update(self):
+        legacy = LinkedInAutomationSettings.objects.create(
+            workspace=self.workspace,
+            company_description="Initial legacy description",
+        )
+        sync_settings(legacy, update_brand=True)
+        brand = BrandProfile.objects.get(settings__workspace=self.workspace)
+        brand.business_description = "A richer Brand profile written in Settings."
+        brand.save(update_fields=["business_description", "updated_at"])
+
+        sync_settings(legacy)
+        brand.refresh_from_db()
+        self.assertEqual(brand.business_description, "A richer Brand profile written in Settings.")
+
+        legacy.company_description = "An intentional business profile update."
+        legacy.save(update_fields=["company_description"])
+        sync_settings(legacy, update_brand=True)
+        brand.refresh_from_db()
+        self.assertEqual(brand.business_description, "An intentional business profile update.")
 
     def test_back_navigation_and_refresh_recover_saved_answers(self):
         self.client.post(reverse("content-studio-onboarding"), {}, content_type="application/json")
@@ -416,6 +437,9 @@ class ContentStudioOnboardingApiTests(TestCase):
         self.assertTrue(saved.data["business_profile_configured"])
         self.assertFalse(saved.data["business_prompt_skipped"])
         self.assertEqual(saved.data["business"]["name"], "Second Brand")
+        brand = BrandProfile.objects.get(settings__workspace=self.workspace)
+        self.assertEqual(brand.business_description, "Workflow software")
+        self.assertEqual(brand.audience, "Operations teams")
 
     @override_settings(SOCIAL_PUBLISHER_DEFAULT="ZERNIO")
     @patch("integrations.social.services.onboarding.publishing_provider_registry.create")

@@ -1,6 +1,7 @@
 import shutil
 import struct
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
+from PIL import Image
 
 from integrations.linkedin.services.images import (
     ImageGenerationConfigurationError,
@@ -43,6 +45,12 @@ def png_file(name="image.png", width=1200, height=1200, content_type="image/png"
         + b"placeholder-crc"
     )
     return SimpleUploadedFile(name, body, content_type=content_type)
+
+
+def valid_png_bytes(width=1200, height=1200):
+    output = BytesIO()
+    Image.new("RGB", (width, height), (42, 73, 108)).save(output, format="PNG")
+    return output.getvalue()
 
 
 def jpeg_file(name="image.jpg", width=1200, height=1200):
@@ -353,11 +361,20 @@ class SocialMediaApiTests(TestCase):
 
     def test_ai_regeneration_replaces_an_owned_image(self):
         old_id = self.upload(png_file()).data["id"]
-        generated = png_file("generated.png", width=1080, height=1350).read()
+        generated = valid_png_bytes(width=1080, height=1350)
+        self.variant.post.metadata = {
+            "creative_brief": {
+                "target_audience": "Operations leaders",
+                "visual_theme": "Warm editorial photography",
+                "image_requirements": "Natural light and one clear subject",
+                "reserve_logo_space": True,
+            }
+        }
+        self.variant.post.save(update_fields=["metadata"])
         with patch(
             "integrations.social.views.LinkedInImageGenerator.generate",
             return_value=("", {"content_type": "image/png"}, generated),
-        ):
+        ) as image_generate:
             response = self.client.post(
                 reverse("social-media-regenerate", args=[self.variant.id]),
                 {"prompt": "A calm editorial visual", "asset_id": old_id, "alt_text": "Generated visual"},
@@ -367,8 +384,14 @@ class SocialMediaApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["source"], MediaAssetSource.AI)
         self.assertEqual(response.data["alt_text"], "Generated visual")
+        self.assertEqual(response.data["width"], 1024)
+        self.assertEqual(response.data["height"], 536)
         self.assertFalse(MediaAsset.objects.filter(pk=old_id).exists())
         self.assertEqual(self.variant.media_assets.count(), 1)
+        generated_prompt = image_generate.call_args.args[1]
+        self.assertIn("Warm editorial photography", generated_prompt)
+        self.assertIn("Reserve a clean, uncluttered safe area", generated_prompt)
+        self.assertEqual(image_generate.call_args.kwargs["network"], SocialNetwork.LINKEDIN)
 
     def test_ai_regeneration_returns_distinct_provider_errors(self):
         cases = [
@@ -405,6 +428,20 @@ class SocialMediaApiTests(TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.data["code"], "image_generation_not_configured")
+
+    def test_ai_regeneration_rejects_invalid_provider_image_bytes(self):
+        with patch(
+            "integrations.social.views.LinkedInImageGenerator.generate",
+            return_value=("", {"content_type": "image/png"}, b"not-an-image"),
+        ), self.assertLogs("integrations.social.views", level="ERROR"):
+            response = self.client.post(
+                reverse("social-media-regenerate", args=[self.variant.id]),
+                {"prompt": "A calm editorial visual"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.data["code"], "image_generation_failed")
 
 class PublishMediaHostTests(SimpleTestCase):
     @override_settings(PUBLIC_BACKEND_URL="https://backend.example.test")

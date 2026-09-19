@@ -33,24 +33,27 @@ describe('Content knowledge features', () => {
     vi.spyOn(contentKnowledgeApi, 'story').mockResolvedValue(structuredClone(story))
   })
 
-  it('makes Brand, Sources and Story Interview visible from Library and Settings', async () => {
+  it('keeps source tools in the Library and the single Brand profile in Settings', async () => {
     renderStudio('/content/library')
     await screen.findByRole('heading', { name: 'Content Library' })
-    for (const label of ['Brand', 'Sources', 'Story Interview']) expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    for (const label of ['Sources', 'Story Interview']) expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Brand/i })).not.toBeInTheDocument()
     cleanup()
     renderStudio('/content/settings')
     await screen.findByRole('heading', { name: 'Settings' })
-    for (const label of ['Brand', 'Sources', 'Story Interview']) expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Content style' })).toBeInTheDocument()
   })
 
   it('shows the Brand version and keeps edit suggestions pending until confirmation', async () => {
     vi.spyOn(contentKnowledgeApi, 'decideSuggestion').mockResolvedValue({ ...brand, version: 3, voice_rules: ['Prefer concise posts.'], suggestions: [] })
-    renderStudio('/content/settings?panel=brand')
-    expect(await screen.findByText('BRAND · VERSION 2')).toBeInTheDocument()
-    expect(screen.getByText(/Not applied · noticed in 3 edits/i)).toBeInTheDocument()
+    renderStudio('/content/settings')
+    expect(await screen.findByText('Version 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/More brand guidance/i))
+    expect(screen.getByText(/Not applied · noticed in 3 draft edits/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Add rule/i }))
     await waitFor(() => expect(contentKnowledgeApi.decideSuggestion).toHaveBeenCalledWith('suggestion-1', 'CONFIRM'))
-    expect(await screen.findByText('BRAND · VERSION 3')).toBeInTheDocument()
+    expect(await screen.findByText('Version 3')).toBeInTheDocument()
   })
 
   it('adds sources and labels processing state plainly', async () => {
@@ -88,7 +91,7 @@ describe('Content knowledge features', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
     renderStudio('/content/settings')
     await screen.findByRole('heading', { name: 'Settings' })
-    fireEvent.click(screen.getByText('Advanced'))
+    fireEvent.click(screen.getByText('Advanced workspace settings'))
     fireEvent.click(screen.getByRole('button', { name: /Download data/i }))
     await waitFor(() => expect(exportData).toHaveBeenCalled())
     expect(await screen.findByText('Your download is ready.')).toBeInTheDocument()

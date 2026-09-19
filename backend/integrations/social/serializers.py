@@ -57,6 +57,7 @@ class SocialPostVariantSerializer(serializers.ModelSerializer):
     account = serializers.SerializerMethodField()
     media = MediaAssetSerializer(source="media_assets", many=True, read_only=True)
     validation = serializers.SerializerMethodField()
+    quality_check = serializers.SerializerMethodField()
 
     class Meta:
         model = SocialPostVariant
@@ -72,6 +73,7 @@ class SocialPostVariantSerializer(serializers.ModelSerializer):
             "metadata",
             "media",
             "validation",
+            "quality_check",
             "updated_at",
         )
         read_only_fields = fields
@@ -94,12 +96,19 @@ class SocialPostVariantSerializer(serializers.ModelSerializer):
     def get_validation(obj):
         return variant_validation(obj)
 
+    @staticmethod
+    def get_quality_check(obj):
+        from integrations.social.services.quality import current_quality_report
+
+        return current_quality_report(obj)
+
 
 class SocialPostSerializer(serializers.ModelSerializer):
     source = ContentSourceSummarySerializer(read_only=True)
     sources = serializers.SerializerMethodField()
     brand_brain_version = serializers.SerializerMethodField()
     controls = serializers.SerializerMethodField()
+    creative_brief = serializers.SerializerMethodField()
     variants = SocialPostVariantSerializer(many=True, read_only=True)
 
     class Meta:
@@ -113,6 +122,7 @@ class SocialPostSerializer(serializers.ModelSerializer):
             "brand_brain_version",
             "state",
             "controls",
+            "creative_brief",
             "variants",
             "created_at",
             "updated_at",
@@ -122,6 +132,10 @@ class SocialPostSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_controls(obj):
         return obj.metadata.get("generation_controls", {})
+
+    @staticmethod
+    def get_creative_brief(obj):
+        return obj.metadata.get("creative_brief", {})
 
     @staticmethod
     def get_sources(obj):

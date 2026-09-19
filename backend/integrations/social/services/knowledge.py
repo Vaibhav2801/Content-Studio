@@ -150,27 +150,61 @@ def complete_source_processing(source, *, extracted_text="", error=""):
     return source
 
 
-def record_voice_edit(*, workspace, before, after):
-    before = str(before or "").strip()
-    after = str(after or "").strip()
-    if not before or not after or before == after:
-        return None
-    if len(after) > len(before) * 0.75:
-        return None
-    profile = brand_brain_for(workspace)
+def _record_voice_signal(profile, *, signal_key, suggested_rule, evidence_item):
     suggestion, _ = VoiceRuleSuggestion.objects.get_or_create(
         brand_profile=profile,
-        signal_key="prefer_concise_copy",
-        defaults={"suggested_rule": "Prefer concise posts and remove repetition.", "evidence": []},
+        signal_key=signal_key,
+        defaults={"suggested_rule": suggested_rule, "evidence": []},
     )
     if suggestion.status != VoiceRuleSuggestionState.PENDING:
         return suggestion
     evidence = list(suggestion.evidence)
-    evidence.append({"before_length": len(before), "after_length": len(after), "recorded_at": timezone.now().isoformat()})
+    variant_id = evidence_item.get("variant_id")
+    if variant_id and any(str(item.get("variant_id") or "") == variant_id for item in evidence if isinstance(item, dict)):
+        return suggestion
+    evidence.append(evidence_item)
     suggestion.evidence = evidence[-10:]
-    suggestion.evidence_count = len(evidence)
+    suggestion.evidence_count = len(suggestion.evidence)
     suggestion.save(update_fields=["evidence", "evidence_count", "updated_at"])
     return suggestion
+
+
+def record_voice_edit(*, workspace, before, after, variant_id=None):
+    before = str(before or "").strip()
+    after = str(after or "").strip()
+    if not before or not after or before == after:
+        return None
+    profile = brand_brain_for(workspace)
+    base_evidence = {
+        "variant_id": str(variant_id or ""),
+        "before_length": len(before),
+        "after_length": len(after),
+        "recorded_at": timezone.now().isoformat(),
+    }
+    suggestions = []
+    if len(after) <= len(before) * 0.75:
+        suggestions.append(_record_voice_signal(
+            profile,
+            signal_key="prefer_concise_copy",
+            suggested_rule="Prefer concise posts and remove repetition.",
+            evidence_item=base_evidence,
+        ))
+    emoji_pattern = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]")
+    if emoji_pattern.search(before) and not emoji_pattern.search(after):
+        suggestions.append(_record_voice_signal(
+            profile,
+            signal_key="avoid_emojis",
+            suggested_rule="Avoid emojis unless the post specifically calls for them.",
+            evidence_item=base_evidence,
+        ))
+    if before.count("!") >= 3 and after.count("!") <= 1:
+        suggestions.append(_record_voice_signal(
+            profile,
+            signal_key="restrained_punctuation",
+            suggested_rule="Use restrained punctuation and avoid repeated exclamation marks.",
+            evidence_item=base_evidence,
+        ))
+    return suggestions[-1] if suggestions else None
 
 
 @transaction.atomic

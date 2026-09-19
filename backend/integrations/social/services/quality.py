@@ -304,7 +304,7 @@ def _advisory_items(variant, copy, hashtags, metadata, snapshot, analyzer):
     return items
 
 
-def build_quality_report(*, variant, copy, hashtags, metadata, media_snapshot, analyzer=None):
+def build_quality_report(*, variant, copy, hashtags, metadata, media_snapshot, analyzer=None, include_advisory=True):
     """Build a report for exact snapshot values without changing user-authored content."""
     snapshot = _brand_snapshot(variant)
     deterministic = [
@@ -317,9 +317,9 @@ def build_quality_report(*, variant, copy, hashtags, metadata, media_snapshot, a
         _missing_alt_text_check(media_snapshot),
         _sensitive_data_check(copy),
     ]
-    if analyzer is None and getattr(settings, "SOCIAL_QUALITY_LLM_ENABLED", False):
+    if include_advisory and analyzer is None and getattr(settings, "SOCIAL_QUALITY_LLM_ENABLED", False):
         analyzer = LLMQualitySuggestionAnalyzer()
-    suggestions = _advisory_items(variant, copy, hashtags, metadata, snapshot, analyzer)
+    suggestions = _advisory_items(variant, copy, hashtags, metadata, snapshot, analyzer) if include_advisory else []
     all_items = deterministic + suggestions
     counts = {
         "passed": sum(item["status"] == "PASS" for item in all_items),
@@ -335,6 +335,32 @@ def build_quality_report(*, variant, copy, hashtags, metadata, media_snapshot, a
         "deterministic": deterministic,
         "suggestions": suggestions,
     }
+
+
+def current_quality_report(variant):
+    """Run the useful deterministic checks without spending another AI request."""
+    media_snapshot = [
+        {
+            "asset_type": asset.asset_type,
+            "byte_size": asset.byte_size,
+            "width": asset.width,
+            "height": asset.height,
+            "duration_ms": asset.duration_ms,
+            "alt_text": asset.alt_text,
+            "content_type": asset.content_type,
+        }
+        for asset in variant.media_assets.all()
+    ]
+    report = build_quality_report(
+        variant=variant,
+        copy=variant.copy,
+        hashtags=list(variant.hashtags),
+        metadata=dict(variant.metadata),
+        media_snapshot=media_snapshot,
+        include_advisory=False,
+    )
+    report["cost"] = "NO_AI_CALL"
+    return report
 
 
 def hard_block_messages(report):

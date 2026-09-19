@@ -83,7 +83,7 @@ class SettingsAPIView(WorkspaceScopedAPIView):
         serializer = LinkedInAutomationSettingsSerializer(settings, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         saved = serializer.save()
-        sync_settings(saved)
+        sync_settings(saved, update_brand=True)
         return Response(serializer.data)
 
 

@@ -8,7 +8,7 @@ import { socialComposerApi } from '../../../api/socialComposer'
 
 import { makeDemoPost, socialComposerMockOptions } from '../../../api/socialComposerMock'
 
-import type { ComposerOptions, GenerationControls, RewriteAction, SocialNetwork, SocialPost, SocialVariant } from '../../../types/socialComposer'
+import type { ComposerOptions, CreativeBrief, GenerationControls, RewriteAction, SocialNetwork, SocialPost, SocialVariant } from '../../../types/socialComposer'
 
 import { useOptionalAuth } from '../AuthContext'
 
@@ -31,6 +31,10 @@ import { VariantEditor } from './VariantEditor'
 type StartMode = 'manual' | 'idea' | 'source' | 'draft'
 
 const defaultControls: GenerationControls = { tone: 'Professional', goal: 'Awareness', length: 'Medium', include_image: false }
+
+const defaultCreativeBrief: CreativeBrief = { target_audience: '', key_message: '', call_to_action: '', must_include: [], must_avoid: [], visual_theme: '', image_requirements: '', reserve_logo_space: false }
+
+const splitRequirements = (value: string) => value.split(/\n|,/).map((item) => item.trim()).filter(Boolean)
 
 const ideaStarters = [
   { label: 'Quick tip', title: 'A helpful tip for our audience', idea: 'Share one practical tip our audience can try today. Explain why it helps and end with one clear next step.' },
@@ -83,6 +87,8 @@ export function SocialComposer({ onPostChange }: Props) {
 
   const [controls, setControls] = useState<GenerationControls>({ ...defaultControls, ...restoredForm?.controls })
 
+  const [creativeBrief, setCreativeBrief] = useState<CreativeBrief>({ ...defaultCreativeBrief, ...restoredForm?.creativeBrief })
+
   const [post, setPost] = useState<SocialPost | null>(null)
 
   const [activeNetwork, setActiveNetwork] = useState<SocialNetwork>(restoredForm?.activeNetwork ?? 'LINKEDIN')
@@ -131,9 +137,9 @@ export function SocialComposer({ onPostChange }: Props) {
 
   useEffect(() => {
 
-    saveComposerForm(recoveryKey, { mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, activeNetwork })
+    saveComposerForm(recoveryKey, { mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, creativeBrief, activeNetwork })
 
-  }, [recoveryKey, mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, activeNetwork])
+  }, [recoveryKey, mode, ideaTitle, ideaText, sourceIds, networks, selectedConnections, controls, creativeBrief, activeNetwork])
 
 
 
@@ -168,6 +174,8 @@ export function SocialComposer({ onPostChange }: Props) {
       setSourceIds(value.sources?.map((source) => source.id) ?? (value.source ? [value.source.id] : []))
 
       setControls({ ...defaultControls, ...value.controls })
+
+      setCreativeBrief({ ...defaultCreativeBrief, ...value.creative_brief })
 
       const postNetworks = value.variants.map((variant) => variant.network)
 
@@ -365,7 +373,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
   const payload = () => {
     const connection_ids = networks.map((network) => selectedConnections[network]).filter((id): id is string => Boolean(id && !id.startsWith('draft-')))
-    return { idea_title: ideaTitle.trim() || 'Untitled idea', idea_text: ideaText.trim(), source_ids: sourceIds, networks, controls, ...(connection_ids.length ? { connection_ids } : {}) }
+    return { idea_title: ideaTitle.trim() || 'Untitled idea', idea_text: ideaText.trim(), source_ids: sourceIds, networks, controls, creative_brief: creativeBrief, ...(connection_ids.length ? { connection_ids } : {}) }
   }
 
 
@@ -490,7 +498,8 @@ export function SocialComposer({ onPostChange }: Props) {
 
       adoptPost(generated); setSaveState('SAVED')
 
-      setNotice(imageWarning ? 'The drafts are ready, but one or more images need attention.' : 'Created ' + generated.variants.length + ' platform-specific ' + (generated.variants.length === 1 ? 'draft' : 'drafts') + '.')
+      const usedFallback = generated.variants.some((variant) => variant.metadata.generation_status === 'FALLBACK')
+      setNotice(imageWarning ? 'The drafts are ready, but one or more images need attention.' : usedFallback ? 'Drafts were created, but one or more used the safe fallback because AI output could not be validated.' : 'Created ' + generated.variants.length + ' platform-specific ' + (generated.variants.length === 1 ? 'draft' : 'drafts') + '.')
 
     } catch (generateError) {
 
@@ -582,7 +591,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
 
 
-  const rewrite = async (action: RewriteAction) => {
+  const rewrite = async (action: RewriteAction, alternativeIndex?: number) => {
 
     const variant = post?.variants.find((item) => item.network === activeNetwork)
 
@@ -598,7 +607,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
         updateVariant({ copy }); setSaveState('SAVED')
 
-      } else adoptPost(await socialComposerApi.rewrite(variant.id, action))
+      } else adoptPost(await socialComposerApi.rewrite(variant.id, action, alternativeIndex))
 
     } catch (rewriteError) { setError(customerSafeMessage(rewriteError instanceof Error ? rewriteError.message : undefined, 'Could not update this version.')) }
 
@@ -697,7 +706,9 @@ export function SocialComposer({ onPostChange }: Props) {
 
         <PlatformSelector connections={options.connections} selected={networks} selectedConnections={selectedConnections} onChange={(next) => { setNetworks(next); markUnsaved() }} onConnectionChange={(network, connectionId) => { setSelectedConnections((current) => ({ ...current, [network]: connectionId })); markUnsaved() }} />
 
-        {mode !== 'manual' && <fieldset className="generation-controls"><legend>Shape the drafts</legend><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Goal<select value={controls.goal} onChange={(event) => { setControls({ ...controls, goal: event.target.value as GenerationControls['goal'] }); markUnsaved() }}>{options.generation_controls.goals.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Include image for other platforms</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}</fieldset>}
+        {mode !== 'manual' && <fieldset className="generation-controls"><legend>What should this post do?</legend><label>Objective<select value={controls.goal} onChange={(event) => { const goal = event.target.value as GenerationControls['goal']; const recommended = goal === 'Education' ? { tone: 'Educational' as const, length: 'Medium' as const } : goal === 'Engagement' ? { tone: 'Friendly' as const, length: 'Short' as const } : goal === 'Leads' ? { tone: 'Bold' as const, length: 'Medium' as const } : { tone: 'Professional' as const, length: 'Short' as const }; setControls({ ...controls, goal, ...recommended }); markUnsaved() }}><option value="Awareness">Share an update</option><option value="Education">Teach something</option><option value="Engagement">Start a conversation</option><option value="Leads">Promote an offer</option></select></label><label className="include-image"><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /> Create an image too</label>{networks.includes('INSTAGRAM') && <small>Instagram posts always include an image.</small>}<details className="generation-more"><summary>More writing controls</summary><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label></details><p className="generation-cost-note">One writing request creates all selected platform drafts. Images and extra options run only when you choose them.</p></fieldset>}
+
+        {mode !== 'manual' && <details className="composer-creative-brief"><summary>Add details for better results <small>optional</small></summary><p>Your saved business profile supplies the defaults. Open this only when this post needs something specific.</p><label className="li-field"><span>Who is this post for?</span><input value={creativeBrief.target_audience} placeholder="For example: first-time customers" onChange={(event) => { setCreativeBrief({ ...creativeBrief, target_audience: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>What should people do next?</span><input value={creativeBrief.call_to_action} placeholder="For example: Book a demo" onChange={(event) => { setCreativeBrief({ ...creativeBrief, call_to_action: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>Important details <small>one per line</small></span><textarea className="short" value={creativeBrief.must_include.join('\n')} placeholder="Facts, offer details, or wording that must appear" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_include: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field"><span>Anything to avoid? <small>one per line</small></span><textarea className="short" value={creativeBrief.must_avoid.join('\n')} placeholder="Claims, phrases, subjects, or visual elements" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_avoid: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field"><span>How should the image look?</span><textarea className="short" value={creativeBrief.image_requirements} placeholder="For example: a real product photo on a clean desk, warm natural light" onChange={(event) => { setCreativeBrief({ ...creativeBrief, image_requirements: event.target.value }); markUnsaved() }} /></label><label className="creative-brief-check"><input type="checkbox" checked={creativeBrief.reserve_logo_space} onChange={(event) => { setCreativeBrief({ ...creativeBrief, reserve_logo_space: event.target.checked }); markUnsaved() }} /><span>Leave clean space where I can add my logo</span></label></details>}
 
       </section>
 
@@ -707,7 +718,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
         <div className="composer-review-head"><div><span>PLATFORM DRAFTS</span><h2 id="platform-drafts-title">Review each version</h2></div><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving…' : saveState === 'UNSAVED' ? 'Unsaved' : 'Saved'}</span></div>
 
-        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action) => void rewrite(action)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id, activeVariant.metadata.alt_text || ''))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty">{mode === 'manual' ? <Save size={30} /> : <Sparkles size={30} />}<strong>No platform drafts yet</strong><p>{mode === 'manual' ? 'Choose an account, then select Start writing.' : 'Choose where to post, add an idea or source, then select Generate.'}</p></div>}
+        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action, alternativeIndex) => void rewrite(action, alternativeIndex)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id, activeVariant.metadata.alt_text || ''))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty">{mode === 'manual' ? <Save size={30} /> : <Sparkles size={30} />}<strong>No platform drafts yet</strong><p>{mode === 'manual' ? 'Choose an account, then select Start writing.' : 'Choose where to post, add an idea or source, then select Generate.'}</p></div>}
 
       </section>
 
