@@ -82,7 +82,7 @@ export function EngagementHubView() {
     {notice && <div className="engage-toast" role="status"><CheckCircle2 size={17} />{notice}<button type="button" aria-label="Dismiss" onClick={() => setNotice('')}><X size={15} /></button></div>}
     {error && <div className="engage-toast" role="alert"><X size={17} />{error}<button type="button" onClick={() => void load()}>Try again</button></div>}
     {loading && <div className="engage-empty" aria-live="polite"><Sparkles size={30} /><h3>Loading engagement workspace…</h3></div>}
-    {!loading && data && view === 'review' && <ReviewWorkspace reviews={data.reviews} team={data.team} onReplace={replaceReview} showNotice={showNotice} />}
+    {!loading && data && view === 'review' && <ReviewWorkspace reviews={data.reviews} team={data.team} connections={data.connections} onReplace={replaceReview} showNotice={showNotice} />}
     {!loading && data && view === 'automations' && <AutomationsWorkspace automations={data.automations} team={data.team} connections={data.connections} onCreate={(item) => updateData((current) => ({ ...current, automations: [item, ...current.automations] }))} onReplace={replaceAutomation} showNotice={showNotice} />}
     {!loading && data && view === 'campaigns' && <CampaignsWorkspace campaigns={data.campaigns} team={data.team} connections={data.connections} contacts={data.contacts} onCreate={(item) => updateData((current) => ({ ...current, campaigns: [item, ...current.campaigns] }))} onReplace={replaceCampaign} showNotice={showNotice} />}
     {!loading && data && view === 'analytics' && <EngagementAnalytics analytics={data.analytics} team={data.team} reviews={data.reviews} />}
@@ -90,18 +90,21 @@ export function EngagementHubView() {
   </section>
 }
 
-function ReviewWorkspace({ reviews, team, onReplace, showNotice }: { reviews: EngagementReview[]; team: EngagementTeamMember[]; onReplace: (item: EngagementReview) => void; showNotice: (message: string) => void }) {
+function ReviewWorkspace({ reviews, team, connections, onReplace, showNotice }: { reviews: EngagementReview[]; team: EngagementTeamMember[]; connections: EngagementConnection[]; onReplace: (item: EngagementReview) => void; showNotice: (message: string) => void }) {
   const [filter, setFilter] = useState<ReviewFilter>('all')
+  const [connectionId, setConnectionId] = useState('all')
   const [query, setQuery] = useState('')
   const currentUser = team.find((member) => member.is_current_user)
+  const connectedAccounts = useMemo(() => connections.filter((item) => item.connected && item.engagement_supported), [connections])
   const filtered = useMemo(() => reviews.filter((item) => {
     if (filter === 'mine' && item.assignee_id !== currentUser?.id) return false
     if ((filter === 'instagram' || filter === 'linkedin') && item.platform !== filter) return false
-    return `${item.person} ${item.handle} ${item.incoming} ${item.draft}`.toLowerCase().includes(query.toLowerCase())
-  }), [currentUser?.id, filter, query, reviews])
+    if (connectionId !== 'all' && item.connection_id !== connectionId) return false
+    return `${item.person} ${item.handle} ${item.account_name} ${item.incoming} ${item.draft}`.toLowerCase().includes(query.toLowerCase())
+  }), [connectionId, currentUser?.id, filter, query, reviews])
   return <div className="engage-view">
     <section className="engage-intro"><div><span className="engage-eyebrow">ONE CLEAR QUEUE</span><h2>Review AI suggestions</h2><p>Edit the draft, choose an owner, and approve when it sounds right. Solo users and teams follow the same flow.</p></div><div className="engage-mini-stats"><span><strong>{reviews.length}</strong>Waiting</span><span><strong>{reviews.filter((item) => item.assignee_id === currentUser?.id).length}</strong>Assigned to you</span><span><strong>{reviews.filter((item) => item.status === 'FAILED').length}</strong>Need retry</span></div></section>
-    <div className="engage-toolbar"><div className="engage-filters" role="group" aria-label="Filter review queue">{([['all', 'All'], ['mine', 'Mine'], ['instagram', 'Instagram'], ['linkedin', 'LinkedIn']] as Array<[ReviewFilter, string]>).map(([id, label]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}{id === 'all' ? <span>{reviews.length}</span> : null}</button>)}</div><label className="engage-search"><Search size={16} /><span className="sr-only">Search reviews</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people or messages" /></label></div>
+    <div className="engage-toolbar"><div className="engage-toolbar-filters"><div className="engage-filters" role="group" aria-label="Filter review queue">{([['all', 'All'], ['mine', 'Mine'], ['instagram', 'Instagram'], ['linkedin', 'LinkedIn']] as Array<[ReviewFilter, string]>).map(([id, label]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}{id === 'all' ? <span>{reviews.length}</span> : null}</button>)}</div><label className="engage-account-filter"><span className="sr-only">Connected account</span><select aria-label="Connected account" value={connectionId} onChange={(event) => setConnectionId(event.target.value)}><option value="all">All accounts</option>{connectedAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.platform === 'instagram' ? 'Instagram' : 'LinkedIn'}</option>)}</select><ChevronDown size={14} /></label></div><label className="engage-search"><Search size={16} /><span className="sr-only">Search reviews</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people or messages" /></label></div>
     {filtered.length ? <div className="review-inbox">{filtered.map((item) => <ReviewCard key={item.id} item={item} team={team} onReplace={onReplace} showNotice={showNotice} />)}</div> : <div className="engage-empty"><CheckCircle2 size={34} /><h3>You’re all caught up</h3><p>No suggestions match this view.</p></div>}
   </div>
 }
@@ -134,7 +137,7 @@ function ReviewCard({ item, team, onReplace, showNotice }: { item: EngagementRev
     finally { setBusy(false) }
   }
   return <article className="engage-review-card">
-    <div className="review-person"><span className={`engage-platform-icon ${item.platform}`}><PlatformIcon size={18} /></span><div><strong>{item.person}</strong><small>{item.handle}</small></div><span className="review-time">{relativeTime(item.received_at)}</span></div>
+    <div className="review-person"><span className={`engage-platform-icon ${item.platform}`}><PlatformIcon size={18} /></span><div><strong>{item.person}</strong><small>{item.handle}</small></div><span className="review-account-name" title={item.account_name}>{item.account_name}</span><span className="review-time">{relativeTime(item.received_at)}</span></div>
     <div className="review-context"><span>{item.kind}</span><small>{item.source}</small><blockquote>{item.incoming}</blockquote></div>
     <label className="review-draft"><span><Sparkles size={15} /> AI suggestion <small>{item.status === 'FAILED' ? item.error : 'Not sent'}</small></span><textarea value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
     <footer>

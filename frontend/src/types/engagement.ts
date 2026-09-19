@@ -6,6 +6,9 @@ export type EngagementCampaignStatus = 'DRAFT' | 'APPROVED' | 'ACTIVE' | 'PAUSED
 
 export interface EngagementReview {
   id: string
+  connection_id: string
+  account_name: string
+  account_type: string
   platform: EngagementPlatform
   kind: 'Comment reply' | 'Direct message' | 'Story reply'
   status: EngagementReviewStatus

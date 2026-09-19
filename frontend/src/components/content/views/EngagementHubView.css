@@ -22,10 +22,15 @@
 .engage-mini-stats span:last-child { padding-right: 0; }
 .engage-mini-stats strong { color: #302e41; font-size: 1.15rem; }
 .engage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.engage-toolbar-filters { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .engage-filters { display: flex; gap: 5px; }
 .engage-filters button { padding: 7px 11px; display: flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 9px; color: #747283; background: transparent; font: inherit; font-size: .74rem; font-weight: 650; cursor: pointer; }
 .engage-filters button[aria-pressed="true"] { border-color: #dfdbea; color: #4e3fb7; background: #f2efff; }
 .engage-filters span { padding: 1px 5px; border-radius: 999px; background: #fff; font-size: .62rem; }
+.engage-account-filter { position: relative; display: flex; align-items: center; color: #777486; }
+.engage-account-filter select { min-width: 190px; max-width: 260px; padding: 8px 30px 8px 10px; overflow: hidden; border: 1px solid #dedde7; border-radius: 9px; appearance: none; color: #5e5b6d; background: #fff; font: inherit; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.engage-account-filter select:focus { border-color: #8475dc; outline: 0; box-shadow: 0 0 0 3px #7663d718; }
+.engage-account-filter svg { position: absolute; right: 9px; pointer-events: none; }
 .engage-search { width: min(280px, 100%); padding: 0 10px; display: flex; align-items: center; gap: 7px; border: 1px solid #dedde7; border-radius: 10px; background: #fff; color: #8b8998; }
 .engage-search input { width: 100%; padding: 9px 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: .76rem; }
 .review-inbox { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -37,7 +42,8 @@
 .review-person > div { min-width: 0; display: grid; gap: 2px; }
 .review-person strong { overflow: hidden; color: #302e3f; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
 .review-person small, .review-time { color: #8b8997; font-size: .67rem; }
-.review-time { margin-left: auto; white-space: nowrap; }
+.review-account-name { max-width: 150px; margin-left: auto; padding: 4px 7px; overflow: hidden; border-radius: 7px; color: #666276; background: #f4f3f8; font-size: .63rem; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.review-time { white-space: nowrap; }
 .review-context { padding: 11px 12px; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; border-radius: 11px; background: #f8f8fb; }
 .review-context > span { color: #55516f; font-size: .69rem; font-weight: 750; }
 .review-context > small { color: #9693a1; font-size: .66rem; text-align: right; }
@@ -180,6 +186,7 @@
 @media (max-width: 780px) {
   .engage-intro, .engage-toolbar { align-items: stretch; flex-direction: column; }
   .engage-mini-stats { min-width: 0; }
+  .engage-toolbar-filters { align-items: stretch; justify-content: space-between; }
   .engage-search { width: 100%; }
   .review-inbox, .campaign-grid, .engagement-analytics-grid, .copilot-layout { grid-template-columns: 1fr; }
   .automation-kind-grid, .engagement-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -200,6 +207,10 @@
   .engage-mini-stats span:last-child { padding: 0; border: 0; }
   .engage-filters { overflow-x: auto; }
   .engage-review-card > footer { align-items: stretch; flex-wrap: wrap; }
+  .engage-toolbar-filters { flex-direction: column; }
+  .engage-account-filter select { width: 100%; max-width: none; }
+  .review-person { flex-wrap: wrap; }
+  .review-account-name { max-width: 55%; }
   .review-assignee { width: 100%; }
   .review-assignee select { width: 100%; }
   .quick-automation, .automation-kind-grid, .engagement-metrics { grid-template-columns: 1fr; }

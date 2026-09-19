@@ -97,6 +97,8 @@ class EngagementApiTests(TestCase):
         response = self.client.get(reverse("social-engagement-overview"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual([item["id"] for item in response.data["reviews"]], [str(self.review.id)])
+        self.assertEqual(response.data["reviews"][0]["connection_id"], str(self.instagram.id))
+        self.assertEqual(response.data["reviews"][0]["account_name"], "@engagement")
         self.assertEqual(response.data["team"][0]["id"], str(self.user.id))
         self.assertTrue(response.data["policy"]["human_approval_required"])
         self.assertNotContains(response, "Private other workspace reply")

@@ -18,14 +18,17 @@ vi.mock('../../../api/contentStudio', () => ({
 
 const overview: EngagementOverview = {
   reviews: [
-    { id: 'review-1', platform: 'instagram', kind: 'Direct message', status: 'PENDING', person: 'Priya Mehta', handle: '@priya', source: 'DM keyword', received_at: new Date().toISOString(), incoming: 'DEMO', draft: 'Thanks! Would you like a tour?', assignee_id: 'user-1', assignee: 'You', error: '', can_send: true },
-    { id: 'review-2', platform: 'linkedin', kind: 'Comment reply', status: 'PENDING', person: 'Daniel Kim', handle: 'Growth Lead', source: 'Company Page', received_at: new Date().toISOString(), incoming: 'Does this work for teams?', draft: 'Yes, it supports team review.', assignee_id: 'user-1', assignee: 'You', error: '', can_send: true },
+    { id: 'review-1', connection_id: 'connection-1', account_name: '@company', account_type: 'BUSINESS', platform: 'instagram', kind: 'Direct message', status: 'PENDING', person: 'Priya Mehta', handle: '@priya', source: 'DM keyword', received_at: new Date().toISOString(), incoming: 'DEMO', draft: 'Thanks! Would you like a tour?', assignee_id: 'user-1', assignee: 'You', error: '', can_send: true },
+    { id: 'review-2', connection_id: 'connection-2', account_name: 'Engagement Company', account_type: 'ORGANIZATION', platform: 'linkedin', kind: 'Comment reply', status: 'PENDING', person: 'Daniel Kim', handle: 'Growth Lead', source: 'Company Page', received_at: new Date().toISOString(), incoming: 'Does this work for teams?', draft: 'Yes, it supports team review.', assignee_id: 'user-1', assignee: 'You', error: '', can_send: true },
   ],
   automations: [],
   campaigns: [],
   analytics: { conversations_started: 2, replies_approved: 0, pending_reviews: 2, reply_rate: 0, link_clicks: 0, automation_runs: 0, sources: [] },
   team: [{ id: 'user-1', name: 'Owner', role: 'OWNER', is_current_user: true }],
-  connections: [{ id: 'connection-1', platform: 'instagram', name: '@company', account_type: 'BUSINESS', connected: true, engagement_supported: true }],
+  connections: [
+    { id: 'connection-1', platform: 'instagram', name: '@company', account_type: 'BUSINESS', connected: true, engagement_supported: true },
+    { id: 'connection-2', platform: 'linkedin', name: 'Engagement Company', account_type: 'ORGANIZATION', connected: true, engagement_supported: true },
+  ],
   contacts: [{ id: 'contact-1', platform: 'instagram', name: 'Priya Mehta', handle: '@priya' }],
   policy: { human_approval_required: true, linkedin_personal_messages_manual: true },
 }
@@ -55,6 +58,17 @@ describe('EngagementHubView', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Approve & send/i })[0])
     await waitFor(() => expect(contentStudioApi.engagementReviewAction).toHaveBeenCalledWith('review-1', 'APPROVE_SEND', 'Thanks! Would you like a tour?'))
     expect(await screen.findByRole('status')).toHaveTextContent(/approved and sent/i)
+  })
+
+  it('shows the destination account and filters reviews by connected account', async () => {
+    render(<EngagementHubView />)
+    await screen.findByText('Priya Mehta')
+    expect(screen.getAllByText('@company')).not.toHaveLength(0)
+    const account = screen.getByRole('combobox', { name: 'Connected account' })
+    fireEvent.change(account, { target: { value: 'connection-2' } })
+    expect(screen.queryByText('Priya Mehta')).not.toBeInTheDocument()
+    expect(screen.getByText('Daniel Kim')).toBeInTheDocument()
+    expect(screen.getAllByText('Engagement Company')).not.toHaveLength(0)
   })
 
   it('creates new automations as persistent drafts', async () => {

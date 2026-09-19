@@ -75,6 +75,9 @@ def serialize_review(item):
     contact = item.contact
     return {
         "id": str(item.id),
+        "connection_id": str(item.connection_id) if item.connection_id else "",
+        "account_name": connection.display_name if connection else "Account unavailable",
+        "account_type": connection.account_type if connection else "",
         "platform": connection.network.lower() if connection else "instagram",
         "kind": item.get_kind_display(),
         "status": item.status,
