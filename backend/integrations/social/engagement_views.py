@@ -176,10 +176,11 @@ class EngagementReviewDetailAPIView(EngagementWorkspaceAPIView):
     def post(self, request, review_id):
         action = str(request.data.get("action") or "").upper()
         with transaction.atomic():
+            # Lock only the review row. The related fields are nullable, so
+            # selecting them here creates outer joins that PostgreSQL cannot
+            # include in a FOR UPDATE query.
             item = get_object_or_404(
-                EngagementReviewItem.objects.select_for_update().filter(workspace=self.workspace(request)).select_related(
-                    "connection", "contact", "assignee"
-                ),
+                EngagementReviewItem.objects.select_for_update().filter(workspace=self.workspace(request)),
                 pk=review_id,
             )
             if action == "DISMISS":
