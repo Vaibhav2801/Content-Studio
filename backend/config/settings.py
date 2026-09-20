@@ -304,27 +304,64 @@ SOCIAL_MEDIA_PRIVATE_ROOT = Path(
 SOCIAL_MEDIA_PUBLISH_ROOT = Path(
     os.environ.get("SOCIAL_MEDIA_PUBLISH_ROOT", MEDIA_ROOT)
 )
-SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND = os.environ.get(
-    "SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND",
-    "django.core.files.storage.FileSystemStorage",
+
+# Cloudflare R2 persistent storage configuration
+CLOUDFLARE_R2_BUCKET_NAME = os.environ.get("CLOUDFLARE_R2_BUCKET_NAME", "").strip()
+CLOUDFLARE_R2_ACCESS_KEY_ID = os.environ.get("CLOUDFLARE_R2_ACCESS_KEY_ID", "").strip()
+CLOUDFLARE_R2_SECRET_ACCESS_KEY = os.environ.get("CLOUDFLARE_R2_SECRET_ACCESS_KEY", "").strip()
+CLOUDFLARE_R2_ACCOUNT_ID = (
+    os.environ.get("CLOUDFLARE_R2_ACCOUNT_ID", "").strip()
+    or os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
 )
-SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND = os.environ.get(
-    "SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND",
-    "django.core.files.storage.FileSystemStorage",
-)
-SOCIAL_MEDIA_PRIVATE_STORAGE_OPTIONS = (
-    {"location": str(SOCIAL_MEDIA_PRIVATE_ROOT)}
-    if SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND == "django.core.files.storage.FileSystemStorage"
-    else json.loads(os.environ.get("SOCIAL_MEDIA_PRIVATE_STORAGE_OPTIONS", "{}"))
-)
-SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS = (
-    {
-        "location": str(SOCIAL_MEDIA_PUBLISH_ROOT),
-        "base_url": MEDIA_URL,
+CLOUDFLARE_R2_PUBLIC_URL = os.environ.get("CLOUDFLARE_R2_PUBLIC_URL", "").strip()
+
+if CLOUDFLARE_R2_BUCKET_NAME and CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY and CLOUDFLARE_R2_ACCOUNT_ID:
+    r2_endpoint = f"https://{CLOUDFLARE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    r2_publish_options = {
+        "access_key": CLOUDFLARE_R2_ACCESS_KEY_ID,
+        "secret_key": CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+        "bucket_name": CLOUDFLARE_R2_BUCKET_NAME,
+        "endpoint_url": r2_endpoint,
+        "region_name": "auto",
+        "signature_version": "s3v4",
+        "file_overwrite": False,
+        "default_acl": None,
+        "querystring_auth": False,
     }
-    if SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND == "django.core.files.storage.FileSystemStorage"
-    else json.loads(os.environ.get("SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS", "{}"))
-)
+    if CLOUDFLARE_R2_PUBLIC_URL:
+        clean_domain = CLOUDFLARE_R2_PUBLIC_URL.replace("https://", "").replace("http://", "").strip("/")
+        r2_publish_options["custom_domain"] = clean_domain
+
+    SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND = "storages.backends.s3.S3Storage"
+    SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS = r2_publish_options
+    SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND = "storages.backends.s3.S3Storage"
+    SOCIAL_MEDIA_PRIVATE_STORAGE_OPTIONS = {
+        **r2_publish_options,
+        "location": "private",
+    }
+else:
+    SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND = os.environ.get(
+        "SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND",
+        "django.core.files.storage.FileSystemStorage",
+    )
+    SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND = os.environ.get(
+        "SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND",
+        "django.core.files.storage.FileSystemStorage",
+    )
+    SOCIAL_MEDIA_PRIVATE_STORAGE_OPTIONS = (
+        {"location": str(SOCIAL_MEDIA_PRIVATE_ROOT)}
+        if SOCIAL_MEDIA_PRIVATE_STORAGE_BACKEND == "django.core.files.storage.FileSystemStorage"
+        else json.loads(os.environ.get("SOCIAL_MEDIA_PRIVATE_STORAGE_OPTIONS", "{}"))
+    )
+    SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS = (
+        {
+            "location": str(SOCIAL_MEDIA_PUBLISH_ROOT),
+            "base_url": MEDIA_URL,
+        }
+        if SOCIAL_MEDIA_PUBLISH_STORAGE_BACKEND == "django.core.files.storage.FileSystemStorage"
+        else json.loads(os.environ.get("SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS", "{}"))
+    )
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -341,16 +378,24 @@ STORAGES = {
         "OPTIONS": SOCIAL_MEDIA_PUBLISH_STORAGE_OPTIONS,
     },
 }
-SOCIAL_MEDIA_EXTERNAL_URL_ALLOWLIST = tuple(
+
+_external_url_allowlist = [
     hostname.strip().lower()
     for hostname in os.environ.get("SOCIAL_MEDIA_EXTERNAL_URL_ALLOWLIST", "").split(",")
     if hostname.strip()
-)
+]
+if CLOUDFLARE_R2_PUBLIC_URL:
+    from urllib.parse import urlparse
+    _r2_parsed = urlparse(CLOUDFLARE_R2_PUBLIC_URL if "://" in CLOUDFLARE_R2_PUBLIC_URL else f"https://{CLOUDFLARE_R2_PUBLIC_URL}")
+    if _r2_parsed.hostname and _r2_parsed.hostname.lower() not in _external_url_allowlist:
+        _external_url_allowlist.append(_r2_parsed.hostname.lower())
+if CLOUDFLARE_R2_ACCOUNT_ID:
+    _r2_s3_host = f"{CLOUDFLARE_R2_ACCOUNT_ID.lower()}.r2.cloudflarestorage.com"
+    if _r2_s3_host not in _external_url_allowlist:
+        _external_url_allowlist.append(_r2_s3_host)
 
-# Per-run discovery observability. Each run gets a JSON trace plus a
-# self-contained HTML viewer in this directory.
-DISCOVERY_TRACE_ENABLED = os.environ.get("DISCOVERY_TRACE_ENABLED", "True").lower() in ("true", "1", "yes")
-DISCOVERY_TRACE_DIR = Path(os.environ.get("DISCOVERY_TRACE_DIR", BASE_DIR / "discovery_traces"))
+SOCIAL_MEDIA_EXTERNAL_URL_ALLOWLIST = tuple(_external_url_allowlist)
+
 DISCOVERY_TRACE_STRING_LIMIT = int(os.environ.get("DISCOVERY_TRACE_STRING_LIMIT", "100000"))
 
 # Celery Settings
