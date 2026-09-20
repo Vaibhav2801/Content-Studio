@@ -561,6 +561,7 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
         creative_brief = request.data.get("creative_brief") if "creative_brief" in request.data else None
         controls = request.data.get("controls") if "controls" in request.data else None
         posts = []
+        posts_with_controls = []
         try:
             with transaction.atomic():
                 for index in range(count):
