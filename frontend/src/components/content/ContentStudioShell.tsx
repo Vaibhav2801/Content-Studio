@@ -26,6 +26,7 @@ import type { HomeSummary } from '../../types/contentStudio'
 import { CONTENT_STUDIO_NAV, type ContentStudioSection } from '../../types/content'
 import { useContentStudio } from './ContentStudioContext'
 import { useOptionalAuth } from './AuthContext'
+import { AskAIButton } from './ai/AskAIFloatingButton'
 
 const icons: Record<ContentStudioSection, LucideIcon> = {
   home: Home,
@@ -184,6 +185,7 @@ export function ContentStudioShell() {
           <div className="studio-breadcrumb"><span>Workspace</span><ChevronRight size={15} /><strong>{isOnboarding ? 'Setup' : current.label}</strong></div>
           <div className="studio-topbar-right">
             {isDemo && <span className="studio-demo-pill"><span /> Demo mode</span>}
+            <AskAIButton />
             <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Content Studio settings"><Settings2 size={18} /></Link>
           </div>
         </header>

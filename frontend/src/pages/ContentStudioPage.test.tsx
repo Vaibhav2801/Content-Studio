@@ -40,6 +40,7 @@ describe('Content Studio', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     sessionStorage.clear()
+    localStorage.clear()
     vi.spyOn(linkedinApi, 'dashboard').mockResolvedValue(structuredClone(linkedinMockDashboard))
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(structuredClone(contentOnboardingMock))
     vi.spyOn(contentStudioApi, 'home').mockResolvedValue(structuredClone(contentStudioMockHome))
@@ -87,6 +88,91 @@ describe('Content Studio', () => {
     })))
     expect(await screen.findByRole('heading', { name: '2 drafts are ready' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Launch guide — Part 1/i })).toHaveAttribute('href', '/content/create?draft=series-1')
+  })
+
+  it('supports per-post breakdown customization, approval, and scheduling in the series workspace', async () => {
+    const first = { ...makeDemoPost('Product Design — Part 1', 'First lesson', ['LINKEDIN']), id: 'series-1' }
+    const second = { ...makeDemoPost('Product Design — Part 2', 'Second lesson', ['LINKEDIN']), id: 'series-2' }
+    vi.spyOn(socialComposerApi, 'generateSeries').mockResolvedValue({ posts: [first, second] })
+    vi.spyOn(socialComposerApi, 'approveVariant').mockResolvedValue({ variant_id: 'v-1', approved_version_id: 'av-1', version: 1, status: 'APPROVED' })
+    vi.spyOn(socialComposerApi, 'schedule').mockResolvedValue({ ...first, state: 'SCHEDULED' })
+
+    renderStudio('/content/series')
+    expect(await screen.findByRole('heading', { name: 'Plan a content series' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Series title'), { target: { value: 'Product Design 101' } })
+    fireEvent.change(screen.getByLabelText('Series brief'), { target: { value: 'A sequence on modern design principles.' } })
+    fireEvent.change(screen.getByLabelText('Number of posts'), { target: { value: '2' } })
+
+    // Save draft on Step 1
+    fireEvent.click(screen.getByRole('button', { name: /Save Draft/i }))
+
+    // Move to Step 3: Post Breakdown
+    fireEvent.click(screen.getByRole('button', { name: /Post Breakdown/i }))
+    expect(await screen.findByRole('heading', { name: /Post-by-Post Breakdown & Angles/i })).toBeInTheDocument()
+
+    // Test auto-fill starter breakdown
+    fireEvent.click(screen.getByRole('button', { name: /Auto-fill starter breakdown/i }))
+    expect(screen.getByDisplayValue(/Part 1: The Core Challenge/i)).toBeInTheDocument()
+
+    // Test customizing a specific post's angle and takeaway
+    fireEvent.change(screen.getByDisplayValue(/Part 1: The Core Challenge/i), {
+      target: { value: 'Part 1: Discovering User Needs' },
+    })
+    const textareas = screen.getAllByPlaceholderText(/What key point, lesson, or story/i)
+    fireEvent.change(textareas[0], {
+      target: { value: 'Deep user interviews before wireframing' },
+    })
+
+    // Generate series from Step 3
+    fireEvent.click(screen.getByRole('button', { name: 'Create 2 drafts' }))
+    await waitFor(() => expect(socialComposerApi.generateSeries).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Product Design 101',
+      count: 2,
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          idea_title: 'Part 1: Discovering User Needs',
+          idea_text: 'Deep user interviews before wireframing',
+        }),
+      ]),
+    })))
+
+    expect(await screen.findByRole('heading', { name: '2 drafts are ready' })).toBeInTheDocument()
+
+    // Test approving post
+    fireEvent.click(screen.getByRole('button', { name: /Approve Part/i }))
+    await waitFor(() => expect(socialComposerApi.approveVariant).toHaveBeenCalled())
+
+    // Test scheduling post
+    fireEvent.click(screen.getByRole('button', { name: /Schedule Part/i }))
+    await waitFor(() => expect(socialComposerApi.schedule).toHaveBeenCalledWith('series-1'))
+  })
+
+  it('allows saving draft campaigns and opening saved drafts to resume progress', async () => {
+    renderStudio('/content/series')
+    expect(await screen.findByRole('heading', { name: 'Plan a content series' })).toBeInTheDocument()
+
+    // Fill in Step 1
+    fireEvent.change(screen.getByLabelText('Series title'), { target: { value: 'SaaS Marketing Secrets' } })
+    fireEvent.change(screen.getByLabelText('Series brief'), { target: { value: 'Growth strategies for early-stage B2B.' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save Draft/i }))
+
+    // Open Saved Drafts modal
+    fireEvent.click(screen.getByRole('button', { name: /^Saved Drafts/i }))
+    expect(await screen.findByRole('heading', { name: 'Saved Series Drafts' })).toBeInTheDocument()
+    expect(screen.getByText('SaaS Marketing Secrets')).toBeInTheDocument()
+
+    // Close modal
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+
+    // Start fresh
+    fireEvent.click(screen.getByRole('button', { name: 'Start New' }))
+    expect(screen.getByLabelText('Series title')).toHaveValue('')
+
+    // Reopen modal and resume
+    fireEvent.click(screen.getByRole('button', { name: /^Saved Drafts/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume' }))
+    expect(screen.getByLabelText('Series title')).toHaveValue('SaaS Marketing Secrets')
   })
 
   it('shows the generic composer controls and connected networks', async () => {

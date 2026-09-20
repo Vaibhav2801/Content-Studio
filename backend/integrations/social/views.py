@@ -59,6 +59,7 @@ from integrations.social.models import (
     VoiceRuleSuggestion,
     VoiceRuleSuggestionState,
 )
+from integrations.social.services.assistant import ContentStudioAssistantService
 from integrations.social.services.audit import record_audit_event
 from integrations.social.services.data_management import (
     delete_workspace_content,
@@ -550,31 +551,69 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
         sources, source_field = sources_from_request(workspace, request.data)
         if sources is None:
             return Response({source_field: ["Choose sources from this workspace."]}, status=400)
+        items = request.data.get("items") or request.data.get("posts")
+        creative_brief = request.data.get("creative_brief") if "creative_brief" in request.data else None
+        controls = request.data.get("controls") if "controls" in request.data else None
         posts = []
         try:
             with transaction.atomic():
                 for index in range(count):
                     part = index + 1
+                    item = items[index] if isinstance(items, list) and index < len(items) and isinstance(items[index], dict) else {}
+                    part_title = str(item.get("idea_title") or f"{title} — Part {part}").strip()[:180]
+                    part_idea = str(item.get("idea_text") or item.get("prompt") or "").strip()
+                    if part_idea:
+                        idea_text = (
+                            f"Series brief: {prompt}\n\n"
+                            f"Part {part} of {count} focus: {part_idea}\n\n"
+                            f"Write part {part} focusing on this topic with a distinct angle and a clear takeaway. "
+                            "Do not repeat the other parts."
+                        )
+                    else:
+                        idea_text = (
+                            f"Series brief: {prompt}\n\n"
+                            f"Write part {part} of {count}. "
+                            "Give this part one distinct angle and a clear takeaway. "
+                            "Do not repeat the other parts."
+                        )
+
+                    part_scheduled_for = series_dates[index]
+                    if item.get("scheduled_for"):
+                        custom_date = parse_datetime(str(item.get("scheduled_for")))
+                        if custom_date is not None:
+                            if timezone.is_naive(custom_date):
+                                custom_date = timezone.make_aware(custom_date)
+                            if custom_date > timezone.now() and custom_date <= timezone.now() + timedelta(days=366):
+                                part_scheduled_for = custom_date
+
                     post = create_draft(
                         workspace=workspace,
-                        idea_title=f"{title} — Part {part}",
-                        idea_text=(f"Series brief: {prompt}\n\nWrite part {part} of {count}. "
-                                   "Give this part one distinct angle and a clear takeaway. "
-                                   "Do not repeat the other parts."),
+                        idea_title=part_title,
+                        idea_text=idea_text,
                         sources=sources,
                         networks=request.data.get("networks"),
-                        controls=request.data.get("controls"),
+                        controls=controls,
+                        creative_brief=creative_brief,
                         connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                     )
                     post = generate_variants(
-                        post=post, networks=request.data.get("networks"),
-                        controls=request.data.get("controls"),
+                        post=post,
+                        networks=request.data.get("networks"),
+                        controls=controls,
                         connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                     )
-                    post.metadata = {**post.metadata, "series": {"title": title, "part": part, "total": count}}
+                    post.metadata = {
+                        **post.metadata,
+                        "series": {
+                            "title": title,
+                            "part": part,
+                            "total": count,
+                            "post_idea": part_idea,
+                        },
+                    }
                     post.save(update_fields=["metadata", "updated_at"])
                     for variant in post.variants.all():
-                        reschedule_variant(variant, series_dates[index])
+                        reschedule_variant(variant, part_scheduled_for)
                     posts.append(post)
         except DjangoValidationError as error:
             return social_validation_response(error)
@@ -1426,3 +1465,17 @@ class ContentStudioDataDeletionAPIView(SocialWorkspaceScopedAPIView):
         except DjangoValidationError as error:
             return Response({"detail": error.messages}, status=409)
         return Response({"deleted": counts})
+
+
+class ContentStudioAssistantAPIView(SocialWorkspaceScopedAPIView):
+    """Answers user queries regarding any feature or workflow of the Content Studio platform."""
+
+    def post(self, request):
+        messages = request.data.get("messages", [])
+        current_path = request.data.get("current_path", "")
+        if not isinstance(messages, list):
+            messages = []
+        assistant = ContentStudioAssistantService()
+        response_data = assistant.respond(messages=messages, current_path=current_path)
+        return Response(response_data)
+

@@ -331,7 +331,8 @@
 .composer-idea-starters button { padding: 7px 10px; border: 1px solid #d9d1ef; border-radius: 7px; color: #5745a8; background: #fff; font-size: .74rem; font-weight: 650; cursor: pointer; }
 .composer-idea-starters button:hover, .composer-idea-starters button:focus-visible { border-color: #8b79db; background: #f0ebff; }
 
-.composer-platforms, .generation-controls { margin: 18px 0 0; padding: 0; border: 0; }
+.composer-platforms { margin: 18px 0 12px; padding: 0; border: 0; }
+.generation-controls { margin: 16px 0 0; padding: 0; border: 0; }
 .composer-platforms legend, .generation-controls legend { margin-bottom: 8px; color: #39483f; font-size: .875rem; font-weight: 650; }
 .composer-platforms > label { margin-top: 7px; padding: 10px; display: grid; grid-template-columns: auto auto 1fr; gap: 9px; align-items: center; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
 .composer-platforms > label:has(input:checked) { border-color: #9cbd61; background: #f6faef; }
@@ -463,37 +464,7 @@
 .review-change-field > span { display: flex; justify-content: flex-end; gap: 7px; }
 .approval-card > footer { margin-top: auto; display: flex; flex-wrap: wrap; gap: 7px; }
 .approval-empty { padding: 18px; border: 1px dashed var(--line); border-radius: 9px; text-align: center; }
-.calendar-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.calendar-timezone { margin-right: auto; color: var(--muted); font-size: .72rem; }
-.view-switch, .calendar-period { display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
-.view-switch button, .calendar-period button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: pointer; }
-.view-switch button.active { color: #fff; background: var(--ink); }
-.calendar-period input { min-height: 34px; border: 0; background: transparent; font: inherit; }
-.studio-calendar-grid { display: grid; gap: 7px; }
-.studio-calendar-grid.week { grid-template-columns: repeat(7, minmax(120px, 1fr)); overflow-x: auto; }
-.studio-calendar-grid.month { grid-template-columns: repeat(7, minmax(105px, 1fr)); }
-.calendar-drop-day { min-height: 132px; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #f8faf8; }
-.calendar-drop-day > header { padding: 9px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
-.calendar-drop-day > header strong { font-size: .72rem; }
-.calendar-drop-day > header small { color: var(--muted); }
-.calendar-post-card { margin: 6px; padding: 8px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px; border: 1px solid #d8dfd9; border-radius: 7px; color: inherit; background: #fff; text-decoration: none; cursor: grab; }
-.calendar-post-card img, .calendar-network { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
-.calendar-network { display: grid; place-items: center; color: #fff; background: #34483e; font-size: .7rem; font-weight: 760; }
-.calendar-post-card div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.calendar-post-card strong, .calendar-post-card small, .calendar-post-card span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.calendar-post-card strong { font-size: .72rem; }
-.calendar-post-card small, .calendar-post-card div > span { color: var(--muted); font-size: .64rem; }
-.calendar-list-fallback { overflow: hidden; }
-.calendar-list-fallback > header { padding: 14px 16px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
-.calendar-list-fallback h3 { margin: 0 0 2px; font-size: .9rem; }
-.calendar-list-fallback p { margin: 0; color: var(--muted); font-size: .72rem; }
-.schedule-row { padding: 11px 16px; display: grid; grid-template-columns: auto minmax(150px, 1fr) auto auto auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
-.schedule-row:last-child { border-bottom: 0; }
-.schedule-row > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.schedule-row strong, .schedule-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.schedule-row strong { font-size: .82rem; }
-.schedule-row small { color: var(--muted); font-size: .7rem; }
-.schedule-row input { padding: 8px; border: 1px solid var(--line); border-radius: 7px; }
+/* Calendar styles are in ContentCalendarView.css */
 .library-filters { padding: 12px; display: grid; grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(125px, .65fr)) repeat(2, minmax(140px, .7fr)); gap: 9px; align-items: end; }
 .library-filters label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: .7rem; font-weight: 650; }
 .library-filters input, .library-filters select { min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; font: inherit; }

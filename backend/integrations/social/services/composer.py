@@ -868,8 +868,10 @@ def schedule_post(post, *, user=None):
     """Approve the current manual drafts and create their scheduled publish jobs."""
     from integrations.social.services.publishing_routing import create_publish_job
 
+    # Lock variant rows first without nullable joins for PostgreSQL compatibility.
+    variant_ids = list(post.variants.select_for_update().values_list("id", flat=True))
     variants = list(
-        post.variants.select_for_update()
+        post.variants.filter(id__in=variant_ids)
         .select_related("connection", "approved_version")
         .prefetch_related("media_assets", "publish_jobs")
     )

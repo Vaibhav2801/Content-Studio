@@ -40,14 +40,35 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
+export interface SeriesItemPayload {
+  idea_title?: string
+  idea_text?: string
+  scheduled_for?: string
+}
+
+export interface GenerateSeriesPayload {
+  title: string
+  prompt: string
+  count: number
+  interval_days: number
+  scheduled_for: string
+  networks: DraftPayload['networks']
+  connection_ids?: string[]
+  controls?: DraftPayload['controls']
+  creative_brief?: DraftPayload['creative_brief']
+  source_ids?: string[]
+  items?: SeriesItemPayload[]
+}
+
 export const socialComposerApi = {
   options: () => request<ComposerOptions>('/composer/options/'),
   getPost: (id: string) => request<SocialPost>(`/posts/${id}/`),
   createDraft: (payload: DraftPayload) => request<SocialPost>('/posts/', { method: 'POST', body: JSON.stringify(payload) }),
   generate: (payload: DraftPayload & { post_id?: string }) => request<SocialPost>('/posts/generate/', { method: 'POST', body: JSON.stringify(payload) }),
-  generateSeries: (payload: { title: string; prompt: string; count: number; interval_days: number; scheduled_for: string; networks: DraftPayload['networks']; connection_ids?: string[]; controls: DraftPayload['controls'] }) => request<{ posts: SocialPost[] }>('/posts/series/', { method: 'POST', body: JSON.stringify(payload) }),
+  generateSeries: (payload: GenerateSeriesPayload) => request<{ posts: SocialPost[] }>('/posts/series/', { method: 'POST', body: JSON.stringify(payload) }),
   updatePost: (id: string, payload: Partial<DraftPayload>) => request<SocialPost>(`/posts/${id}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
   updateVariant: (id: string, payload: { copy?: string; hashtags?: string[]; scheduled_for?: string }) => request<SocialPost>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  approveVariant: (variantId: string) => request<{ variant_id: string; approved_version_id: string; version: number; status: string }>(`/variants/${variantId}/approve/`, { method: 'POST', body: '{}' }),
   rewrite: (id: string, action: RewriteAction, alternativeIndex?: number) => request<SocialPost>(`/variants/${id}/rewrite/`, { method: 'POST', body: JSON.stringify({ action, ...(alternativeIndex === undefined ? {} : { alternative_index: alternativeIndex }) }) }),
   submitForReview: (id: string) => request<SocialPost>(`/posts/${id}/submit-review/`, { method: 'POST', body: '{}' }),
   schedule: (id: string) => request<SocialPost>(`/posts/${id}/schedule/`, { method: 'POST', body: '{}' }),

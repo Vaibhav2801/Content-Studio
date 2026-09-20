@@ -206,6 +206,7 @@ class SocialComposerApiTests(TestCase):
 
     @patch("integrations.social.services.composer.SocialContentGenerator.generate")
     def test_series_creates_distinct_scheduled_drafts_for_this_workspace(self, generate):
+
         from datetime import timedelta
 
         generate.return_value = {"LINKEDIN": {"copy": "A useful insight", "hashtags": [], "metadata": {}}}
@@ -224,6 +225,44 @@ class SocialComposerApiTests(TestCase):
         self.assertEqual((times[1] - times[0]).days, 7)
         self.assertEqual((times[2] - times[1]).days, 7)
         self.assertEqual(SocialPost.objects.filter(workspace=self.other_workspace).count(), 1)
+
+    @patch("integrations.social.services.composer.SocialContentGenerator.generate")
+    def test_series_creates_drafts_with_per_post_details_and_creative_brief(self, generate):
+        from datetime import timedelta
+
+        generate.return_value = {"LINKEDIN": {"copy": "A useful insight", "hashtags": [], "metadata": {}}}
+        first = timezone.now() + timedelta(days=2)
+        second = timezone.now() + timedelta(days=5)
+        response = self.client.post(reverse("social-post-series"), {
+            "title": "Scaling engineering",
+            "prompt": "Lessons on engineering leadership",
+            "count": 2,
+            "interval_days": 3,
+            "scheduled_for": first.isoformat(),
+            "networks": ["LINKEDIN"],
+            "controls": self.payload()["controls"],
+            "creative_brief": {
+                "target_audience": "Tech leads",
+                "key_message": "Build trust early",
+                "call_to_action": "Share your thoughts",
+                "must_include": ["mentorship"],
+                "must_avoid": ["micromanagement"],
+            },
+            "items": [
+                {"idea_title": "Part 1: The First 90 Days", "idea_text": "Listen before changing architecture", "scheduled_for": first.isoformat()},
+                {"idea_title": "Part 2: Team Autonomy", "idea_text": "Setting clear ownership boundaries", "scheduled_for": second.isoformat()},
+            ],
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(response.data["posts"]), 2)
+        first_post = SocialPost.objects.get(pk=response.data["posts"][0]["id"])
+        second_post = SocialPost.objects.get(pk=response.data["posts"][1]["id"])
+        self.assertEqual(first_post.idea_title, "Part 1: The First 90 Days")
+        self.assertIn("Listen before changing architecture", first_post.idea_text)
+        self.assertEqual(first_post.metadata["creative_brief"]["target_audience"], "Tech leads")
+        self.assertEqual(first_post.metadata["series"]["post_idea"], "Listen before changing architecture")
+        self.assertEqual(second_post.idea_title, "Part 2: Team Autonomy")
+        self.assertIn("Setting clear ownership boundaries", second_post.idea_text)
 
     def test_saved_source_and_existing_draft_are_supported(self):
         created = self.client.post(reverse("social-post-list"), self.payload(source_id=str(self.source.id), idea_text=""), format="json")

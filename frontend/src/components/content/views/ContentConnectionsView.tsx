@@ -1,4 +1,4 @@
-import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { contentOnboardingApi, type LinkedInAccountChoice } from '../../../api/contentOnboarding'
@@ -130,11 +130,25 @@ export function ContentConnectionsView() {
     {error && <div className="li-banner error" role="alert">{error}</div>}
     {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || connectionInProgress} aria-busy={connectingButton === 'empty-linkedin'} onClick={() => void connect('empty-linkedin', 'LINKEDIN')}>{connectingButton === 'empty-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
     <div className="card content-connect-options">
-      <h2>Connect another account</h2>
-      <p>Choose a personal LinkedIn profile or Company Page, or connect an Instagram Business or Creator account.</p>
-      <button className="button button-dark" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={connectingButton === 'options-linkedin'} onClick={() => void connect('options-linkedin', 'LINKEDIN')}>{connectingButton === 'options-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Linkedin size={16} />} Connect LinkedIn</button>
-      <button className="button button-dark" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={connectingButton === 'options-instagram'} onClick={() => void connect('options-instagram', 'INSTAGRAM')}>{connectingButton === 'options-instagram' ? <LoaderCircle className="spin" size={16} /> : <Instagram size={16} />} Connect Instagram</button>
-      {!onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled) && <small>Instagram connection is unavailable until the selected publishing provider is configured and healthy.</small>}
+      <div className="connect-options-header">
+        <h2>Connect another account</h2>
+        <p>Choose a personal LinkedIn profile or Company Page, or connect an Instagram Business or Creator account.</p>
+      </div>
+      <div className="connect-options-button-group">
+        <button className="button button-dark connect-platform-btn linkedin" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={connectingButton === 'options-linkedin'} onClick={() => void connect('options-linkedin', 'LINKEDIN')}>
+          {connectingButton === 'options-linkedin' ? <LoaderCircle className="spin" size={18} /> : <Linkedin size={18} />} Connect LinkedIn
+        </button>
+        <button className="button button-dark connect-platform-btn instagram" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={connectingButton === 'options-instagram'} onClick={() => void connect('options-instagram', 'INSTAGRAM')}>
+          {connectingButton === 'options-instagram' ? <LoaderCircle className="spin" size={18} /> : <Instagram size={18} />} Connect Instagram
+        </button>
+      </div>
+      {!onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled) && (
+        <small className="connect-options-disabled-hint">Instagram connection is unavailable until the selected publishing provider is configured and healthy.</small>
+      )}
+      <div className="connect-security-badge">
+        <ShieldAlert size={14} />
+        <span>Enterprise 256-bit OAuth authentication. Content Studio never sees or stores your password.</span>
+      </div>
     </div>
   </section>
 }
@@ -153,8 +167,23 @@ function ConnectionCard({ connection, busy, onAction }: { connection: StudioConn
   }
 
   return <article className={`card studio-connection-card ${disconnected ? 'disconnected' : healthy ? 'healthy' : 'attention'}`}>
-    <header><span className="connection-network-icon"><Icon size={21} /></span><div><span>{connection.network_label}</span><h3>{connection.display_name || 'Account name unavailable'}</h3><p>{connection.account_type || 'Social account'}{connection.provider_label ? ` · via ${connection.provider_label}` : ''}</p></div><span className={`connection-health ${disconnected ? 'disconnected' : healthy ? 'ready' : 'attention'}`}>{disconnected ? <Unlink size={15} /> : healthy ? <CheckCircle2 size={15} /> : <RefreshCw size={15} />} {disconnected ? 'Disconnected' : healthy ? 'Ready' : 'Needs attention'}</span></header>
-    <div className="connection-detail"><strong>{connection.message}</strong><small>{connection.status === 'DISCONNECTED' && connection.disconnected_at ? `Disconnected ${new Date(connection.disconnected_at).toLocaleDateString()}` : connection.connected_at ? `Connected ${new Date(connection.connected_at).toLocaleDateString()}` : 'Not currently connected'} · Checked {new Date(connection.last_checked_at).toLocaleString()}</small></div>
+    <header className="connection-card-header">
+      <span className={`connection-network-icon ${connection.network.toLowerCase()}`}>
+        <Icon size={22} />
+      </span>
+      <div className="connection-card-header-info">
+        <span className="connection-network-badge">{connection.network_label}</span>
+        <h3 className="connection-display-name">{connection.display_name || 'Account name unavailable'}</h3>
+        <p className="connection-account-type">{connection.account_type || 'Social account'}{connection.provider_label ? ` · via ${connection.provider_label}` : ''}</p>
+      </div>
+      <span className={`connection-health ${disconnected ? 'disconnected' : healthy ? 'ready' : 'attention'}`}>
+        {disconnected ? <Unlink size={14} /> : healthy ? <CheckCircle2 size={14} /> : <RefreshCw size={14} />} {disconnected ? 'Disconnected' : healthy ? 'Ready' : 'Needs attention'}
+      </span>
+    </header>
+    <div className="connection-detail">
+      <strong>{connection.message}</strong>
+      <small>{connection.status === 'DISCONNECTED' && connection.disconnected_at ? `Disconnected ${new Date(connection.disconnected_at).toLocaleDateString()}` : connection.connected_at ? `Connected ${new Date(connection.connected_at).toLocaleDateString()}` : 'Not currently connected'} · Checked {new Date(connection.last_checked_at).toLocaleString()}</small>
+    </div>
     <footer>{confirming ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`connection-${connection.id}-title`} aria-describedby={`connection-${connection.id}-description`}>
       <strong id={`connection-${connection.id}-title`}>{confirming === 'REMOVE' ? 'Remove' : 'Disconnect'} {connection.display_name || connection.network_label}?</strong>
       <p id={`connection-${connection.id}-description`}>{confirming === 'REMOVE' ? providerManaged ? 'Open Upload Post in a new tab and disconnect this account there. Return to this page and verify removal; Content Studio will remove the card only after Upload Post confirms the account is gone. Drafts and published posts stay.' : 'This account will be removed from Content Studio and Zernio, freeing its connected-account slot. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
