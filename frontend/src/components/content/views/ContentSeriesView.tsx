@@ -128,19 +128,29 @@ export function ContentSeriesView() {
   const [actionBusy, setActionBusy] = useState('')
   const [error, setError] = useState('')
 
-  // Listen for background Celery generation updates
+  // Listen for background Celery generation updates from global context
   useEffect(() => {
     const handleCompleted = (e: Event) => {
-      const customEvent = e as CustomEvent<{ postId: string; post: SocialPost }>
-      const updatedPost = customEvent.detail?.post
-      if (!updatedPost) return
+      const customEvent = e as CustomEvent<SocialPost>
+      const updatedPost = customEvent.detail
+      if (!updatedPost?.id) return
       setPosts((prev) =>
         prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
       )
     }
-    window.addEventListener('post-generation-completed', handleCompleted)
+    const handleFailed = (e: Event) => {
+      const customEvent = e as CustomEvent<SocialPost>
+      const updatedPost = customEvent.detail
+      if (!updatedPost?.id) return
+      setPosts((prev) =>
+        prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+      )
+    }
+    window.addEventListener('content-studio-generation-complete', handleCompleted)
+    window.addEventListener('content-studio-generation-failed', handleFailed)
     return () => {
-      window.removeEventListener('post-generation-completed', handleCompleted)
+      window.removeEventListener('content-studio-generation-complete', handleCompleted)
+      window.removeEventListener('content-studio-generation-failed', handleFailed)
     }
   }, [])
 
@@ -203,6 +213,54 @@ export function ContentSeriesView() {
     setDraftToast(`Progress saved for Step ${targetStep}`)
     setTimeout(() => setDraftToast(''), 3000)
   }
+
+  // Real-time active polling while on Step 4 if any posts are in GENERATING state
+  useEffect(() => {
+    if (isDemo || currentStep !== 4) return
+    const generatingPosts = posts.filter((p) => p.generation_status === 'GENERATING')
+    if (generatingPosts.length === 0) return
+
+    let cancelled = false
+    const pollInterval = window.setInterval(async () => {
+      try {
+        const updates = await Promise.all(
+          generatingPosts.map((p) =>
+            socialComposerApi.getPost(p.id).catch(() => null)
+          )
+        )
+        if (cancelled) return
+
+        let anyChanged = false
+        setPosts((currentPosts) => {
+          const next = currentPosts.map((p) => {
+            const updated = updates.find((u) => u && u.id === p.id)
+            if (!updated) return p
+            const hasChanged =
+              updated.generation_status !== p.generation_status ||
+              (updated.variants?.length || 0) !== (p.variants?.length || 0) ||
+              updated.variants?.some((uv, idx) => uv.copy !== p.variants?.[idx]?.copy) ||
+              updated.variants?.some((uv, idx) => uv.media?.length !== p.variants?.[idx]?.media?.length)
+            if (hasChanged) {
+              anyChanged = true
+              return updated
+            }
+            return p
+          })
+          if (anyChanged) {
+            persistCurrentProgress(4, next)
+          }
+          return anyChanged ? next : currentPosts
+        })
+      } catch {
+        // Polling retry on next tick
+      }
+    }, 2500)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(pollInterval)
+    }
+  }, [isDemo, currentStep, posts])
 
   // Restore a saved draft campaign
   const handleResumeDraft = (draft: SeriesCampaignDraft) => {
@@ -1434,6 +1492,8 @@ export function ContentSeriesView() {
                           className={`series-status-tag ${
                             post.generation_status === 'GENERATING'
                               ? 'generating'
+                              : post.generation_status === 'FAILED'
+                              ? 'failed'
                               : isScheduled
                               ? 'scheduled'
                               : isApproved
@@ -1443,6 +1503,8 @@ export function ContentSeriesView() {
                         >
                           {post.generation_status === 'GENERATING'
                             ? 'Generating...'
+                            : post.generation_status === 'FAILED'
+                            ? 'Failed'
                             : isScheduled
                             ? 'Scheduled'
                             : isApproved
@@ -1553,6 +1615,13 @@ export function ContentSeriesView() {
                   <div className="li-banner warning" role="status" style={{ marginBottom: 12 }}>
                     <LoaderCircle className="spin" size={15} />
                     <span>AI is generating tailored copy for this part in the background. It will automatically populate once complete.</span>
+                  </div>
+                )}
+
+                {currentPost.generation_status === 'FAILED' && (
+                  <div className="li-banner error" role="status" style={{ marginBottom: 12 }}>
+                    <AlertCircle size={15} />
+                    <span>Generation failed: {currentPost.generation_error || 'An error occurred during generation.'}</span>
                   </div>
                 )}
 

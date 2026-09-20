@@ -405,12 +405,14 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_ALWAYS_EAGER = 'test' in sys.argv
+CELERY_TASK_ALWAYS_EAGER = (
+    os.environ.get("CELERY_TASK_ALWAYS_EAGER", "False").lower() in ("true", "1", "yes")
+    or ("test" in sys.argv)
+)
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 CELERY_BEAT_SCHEDULE = {
     'social-fill-content-queues': {
         'task': 'social.fill_content_queues',
-        'schedule': 60 * 60,
     },
     'social-publish-due-posts': {
         'task': 'social.publish_due_jobs',

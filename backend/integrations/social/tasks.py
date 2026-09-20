@@ -106,8 +106,17 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
         )
         post.refresh_from_db()
 
-        # Generate images if requested or required for the platform
+        # Mark post ready immediately so users see generated copy without waiting for AI images
+        metadata = dict(post.metadata or {})
+        metadata["generation_status"] = "READY"
+        metadata["generation_error"] = ""
         should_gen_image = bool(controls.get("include_image")) if controls else False
+        if should_gen_image:
+            metadata["image_status"] = "GENERATING"
+        post.metadata = metadata
+        post.save(update_fields=["metadata", "updated_at"])
+
+        # Generate images if requested or required for the platform
         image_gen = None
         for variant in post.variants.all():
             if (should_gen_image or variant.network == "INSTAGRAM") and not variant.media_assets.exists():
@@ -153,6 +162,8 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "READY"
         metadata["generation_error"] = ""
+        if should_gen_image:
+            metadata["image_status"] = "READY"
         post.metadata = metadata
         post.save(update_fields=["metadata", "updated_at"])
         logger.info("Successfully generated post variants for post %s", post_id)

@@ -511,12 +511,24 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
         post.save(update_fields=["metadata", "updated_at"])
 
         from integrations.social.tasks import generate_post_variants
-        generate_post_variants.delay(
-            post_id=str(post.id),
-            networks=request.data.get("networks"),
-            controls=request.data.get("controls"),
-            connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-        )
+        try:
+            generate_post_variants.delay(
+                post_id=str(post.id),
+                networks=request.data.get("networks"),
+                controls=request.data.get("controls"),
+                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+            )
+        except Exception as task_exc:
+            logger.warning("Could not dispatch Celery task for draft %s, executing inline: %s", post.id, task_exc)
+            try:
+                generate_post_variants(
+                    post_id=str(post.id),
+                    networks=request.data.get("networks"),
+                    controls=request.data.get("controls"),
+                    connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+                )
+            except Exception as inline_exc:
+                logger.exception("Inline generation failed for draft %s: %s", post.id, inline_exc)
         post.refresh_from_db()
         return Response(social_post_response(post), status=status.HTTP_202_ACCEPTED)
 
@@ -633,12 +645,24 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
 
         from integrations.social.tasks import generate_post_variants
         for post, part_controls in posts_with_controls:
-            generate_post_variants.delay(
-                post_id=str(post.id),
-                networks=request.data.get("networks"),
-                controls=part_controls,
-                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-            )
+            try:
+                generate_post_variants.delay(
+                    post_id=str(post.id),
+                    networks=request.data.get("networks"),
+                    controls=part_controls,
+                    connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+                )
+            except Exception as task_exc:
+                logger.warning("Could not dispatch Celery task for series post %s, executing inline: %s", post.id, task_exc)
+                try:
+                    generate_post_variants(
+                        post_id=str(post.id),
+                        networks=request.data.get("networks"),
+                        controls=part_controls,
+                        connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+                    )
+                except Exception as inline_exc:
+                    logger.exception("Inline generation failed for series post %s: %s", post.id, inline_exc)
         return Response({"posts": [social_post_response(post) for post in posts]}, status=201)
 
 
