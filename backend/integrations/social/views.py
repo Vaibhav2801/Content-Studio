@@ -502,6 +502,8 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                     creative_brief=request.data.get("creative_brief"),
                     connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                 )
+            except DjangoValidationError as error:
+                return social_validation_response(error)
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "GENERATING"
         metadata["generation_error"] = ""
