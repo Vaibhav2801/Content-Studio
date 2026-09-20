@@ -551,7 +551,13 @@ def process_engagement_webhook(headers, body):
             created.append(private_item)
         return created
 
-    metadata = _nested(message, "metadata")
+    # Zernio sends Instagram story/referral context at the top level of
+    # message.received payloads. Keep accepting message-level metadata for
+    # compatibility with older payloads.
+    metadata = {
+        **_nested(message, "metadata"),
+        **_nested(payload, "metadata"),
+    }
     text = _provider_id(message, "message", "text", "content")
     conversation_id = _provider_object_id(conversation) or _provider_id(message, "conversationId") or _provider_id(payload, "conversationId")
     is_story = bool(

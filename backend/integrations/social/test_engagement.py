@@ -217,6 +217,46 @@ class EngagementApiTests(TestCase):
         automation.refresh_from_db()
         self.assertEqual(automation.stats["runs"], 1)
 
+    def test_story_reply_uses_top_level_webhook_metadata(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="STORY_REPLY",
+            name="Story greeting",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["HI"],
+            match_mode="contains",
+            approved_dm_message="Story reply suggestion",
+            owner=self.user,
+        )
+        payload = {
+            "id": "webhook-story-reply-1",
+            "event": "message.received",
+            "account": {"id": "account-instagram"},
+            "conversation": {"id": "conversation-story"},
+            "message": {"id": "provider-story-message", "text": "HI", "senderId": "contact-story"},
+            "metadata": {"storyReply": {"storyId": "story-1", "storyUrl": "https://example.com/story"}},
+            "contact": {"id": "contact-story", "name": "Story Contact", "username": "story"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        response = self.client.post(
+            reverse("social-engagement-webhook"),
+            data=body,
+            content_type="application/json",
+            HTTP_X_ZERNIO_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["accepted"], 1)
+        created = EngagementReviewItem.objects.get(provider_event_id="webhook-story-reply-1")
+        self.assertEqual(created.kind, EngagementItemKind.STORY_REPLY)
+        self.assertEqual(created.suggested_text, "Story reply suggestion")
+        self.assertEqual(created.metadata["automation_id"], str(automation.id))
+        automation.refresh_from_db()
+        self.assertEqual(automation.stats["runs"], 1)
+
     def test_campaign_uses_workspace_contact_picker_and_hides_provider_ids(self):
         response = self.client.post(reverse("social-engagement-campaigns"), {
             "connection_id": str(self.instagram.id),

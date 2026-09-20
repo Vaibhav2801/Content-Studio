@@ -217,6 +217,23 @@ def approve_exact_version(variant, version_id, *, user):
     _recalculate_post_state(variant.post)
     version.approved_at = now
     version.approved_by = approved_by
+
+    from integrations.social.services.publishing_routing import create_publish_job
+    from integrations.social.services.lifecycle import submit_provider_schedules
+
+    connection = variant.connection
+    route = create_publish_job(
+        variant=variant,
+        approved_version=version,
+        idempotency_key=f"review-approve:{variant.id}:{version.id}",
+        provider_account_id=connection.provider_account_id if connection else "",
+        provider_profile_id=connection.provider_profile_id if connection else "",
+        scheduled_for=variant.scheduled_for,
+    )
+    if not route.ready:
+        raise ValidationError({"connection": route.detail or "Reconnect the social account before approving."})
+    submit_provider_schedules(variant.post)
+    variant.refresh_from_db()
     return variant
 
 
