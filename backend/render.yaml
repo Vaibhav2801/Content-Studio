@@ -157,6 +157,31 @@ services:
         sync: false
       - key: PUBLIC_BACKEND_URL
         sync: false
+      - key: CLOUDFLARE_R2_BUCKET_NAME
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_BUCKET_NAME
+      - key: CLOUDFLARE_R2_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_ACCESS_KEY_ID
+      - key: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+      - key: CLOUDFLARE_R2_ACCOUNT_ID
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_ACCOUNT_ID
+      - key: CLOUDFLARE_R2_PUBLIC_URL
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_PUBLIC_URL
 
   # ---------------------------------------------------------------------------
   # 3. Remote Celery Worker Service #2 (Dual-Process: Worker + Health Server)
@@ -232,6 +257,31 @@ services:
         sync: false
       - key: PUBLIC_BACKEND_URL
         sync: false
+      - key: CLOUDFLARE_R2_BUCKET_NAME
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_BUCKET_NAME
+      - key: CLOUDFLARE_R2_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_ACCESS_KEY_ID
+      - key: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+      - key: CLOUDFLARE_R2_ACCOUNT_ID
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_ACCOUNT_ID
+      - key: CLOUDFLARE_R2_PUBLIC_URL
+        fromService:
+          type: web
+          name: nomad-bot-web
+          envVarKey: CLOUDFLARE_R2_PUBLIC_URL
 
   # ---------------------------------------------------------------------------
   # 4. Redis / Key Value Message Broker
