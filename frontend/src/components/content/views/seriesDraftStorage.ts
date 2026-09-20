@@ -1,4 +1,4 @@
-import type { SocialNetwork } from '../../../types/socialComposer'
+import type { SocialNetwork, SocialPost } from '../../../types/socialComposer'
 import type { SeriesPostItem } from './ContentSeriesView'
 
 export interface SeriesCampaignDraft {
@@ -21,6 +21,8 @@ export interface SeriesCampaignDraft {
   mustInclude: string
   mustAvoid: string
   postItems: SeriesPostItem[]
+  posts?: SocialPost[]
+  postIds?: string[]
   currentStep: number
   updatedAt: string
 }

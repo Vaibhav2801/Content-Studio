@@ -592,37 +592,52 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
                             if custom_date > timezone.now() and custom_date <= timezone.now() + timedelta(days=366):
                                 part_scheduled_for = custom_date
 
+                    part_include_image = item.get("include_image")
+                    if part_include_image is None:
+                        part_include_image = controls.get("include_image", False) if controls else False
+                    part_image_prompt = str(item.get("image_prompt") or "").strip()
+
+                    part_controls = dict(controls or {})
+                    part_controls["include_image"] = bool(part_include_image)
+
                     post = create_draft(
                         workspace=workspace,
                         idea_title=part_title,
                         idea_text=idea_text,
                         sources=sources,
                         networks=request.data.get("networks"),
-                        controls=controls,
+                        controls=part_controls,
                         creative_brief=creative_brief,
                         connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                     )
-                    post = generate_variants(
-                        post=post,
-                        networks=request.data.get("networks"),
-                        controls=controls,
-                        connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-                    )
-                    post.metadata = {
-                        **post.metadata,
-                        "series": {
-                            "title": title,
-                            "part": part,
-                            "total": count,
-                            "post_idea": part_idea,
-                        },
-                    }
-                    post.save(update_fields=["metadata", "updated_at"])
                     for variant in post.variants.all():
                         reschedule_variant(variant, part_scheduled_for)
+                    metadata = dict(post.metadata or {})
+                    metadata["series"] = {
+                        "title": title,
+                        "part": part,
+                        "total": count,
+                        "post_idea": part_idea,
+                    }
+                    metadata["generation_status"] = "GENERATING"
+                    metadata["generation_error"] = ""
+                    if part_image_prompt:
+                        metadata["image_prompt"] = part_image_prompt
+                    post.metadata = metadata
+                    post.save(update_fields=["metadata", "updated_at"])
                     posts.append(post)
+                    posts_with_controls.append((post, part_controls))
         except DjangoValidationError as error:
             return social_validation_response(error)
+
+        from integrations.social.tasks import generate_post_variants
+        for post, part_controls in posts_with_controls:
+            generate_post_variants.delay(
+                post_id=str(post.id),
+                networks=request.data.get("networks"),
+                controls=part_controls,
+                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+            )
         return Response({"posts": [social_post_response(post) for post in posts]}, status=201)
 
 

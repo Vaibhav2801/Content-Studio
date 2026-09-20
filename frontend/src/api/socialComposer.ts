@@ -44,6 +44,8 @@ export interface SeriesItemPayload {
   idea_title?: string
   idea_text?: string
   scheduled_for?: string
+  include_image?: boolean
+  image_prompt?: string
 }
 
 export interface GenerateSeriesPayload {

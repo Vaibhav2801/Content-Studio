@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ExternalLink,
   FolderOpen,
+  Image as ImageIcon,
   Layers,
   LoaderCircle,
   PenSquare,
@@ -26,7 +27,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { socialComposerApi } from '../../../api/socialComposer'
 import { makeDemoPost, socialComposerMockOptions } from '../../../api/socialComposerMock'
-import type { ComposerOptions, SocialNetwork, SocialPost } from '../../../types/socialComposer'
+import type { ComposerOptions, SocialNetwork, SocialPost, SocialVariant } from '../../../types/socialComposer'
 import { useOptionalAuth } from '../AuthContext'
 import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
@@ -41,6 +42,8 @@ export interface SeriesPostItem {
   idea_title: string
   idea_text: string
   scheduled_for: string
+  include_image?: boolean
+  image_prompt?: string
 }
 
 const firstDate = () => {
@@ -66,7 +69,7 @@ const starterPartThemes = [
 ]
 
 export function ContentSeriesView() {
-  const { isDemo } = useContentStudio()
+  const { isDemo, startTrackingGeneration } = useContentStudio()
   const auth = useOptionalAuth()
   const workspaceId = auth?.workspace?.id ?? (isDemo ? 'demo' : 'default')
 
@@ -125,6 +128,22 @@ export function ContentSeriesView() {
   const [actionBusy, setActionBusy] = useState('')
   const [error, setError] = useState('')
 
+  // Listen for background Celery generation updates
+  useEffect(() => {
+    const handleCompleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ postId: string; post: SocialPost }>
+      const updatedPost = customEvent.detail?.post
+      if (!updatedPost) return
+      setPosts((prev) =>
+        prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+      )
+    }
+    window.addEventListener('post-generation-completed', handleCompleted)
+    return () => {
+      window.removeEventListener('post-generation-completed', handleCompleted)
+    }
+  }, [])
+
   // Load connected options and refresh saved drafts
   useEffect(() => {
     setSavedDraftsList(getSavedSeriesDrafts(workspaceId))
@@ -153,7 +172,7 @@ export function ContentSeriesView() {
   }, [isDemo, workspaceId])
 
   // Save current series campaign progress to persistent storage
-  const persistCurrentProgress = (targetStep = currentStep) => {
+  const persistCurrentProgress = (targetStep = currentStep, customPosts = posts) => {
     const draft: SeriesCampaignDraft = {
       id: campaignId,
       title,
@@ -174,6 +193,8 @@ export function ContentSeriesView() {
       mustInclude,
       mustAvoid,
       postItems,
+      posts: customPosts,
+      postIds: customPosts.map((p) => p.id),
       currentStep: targetStep,
       updatedAt: new Date().toISOString(),
     }
@@ -204,7 +225,29 @@ export function ContentSeriesView() {
     setMustInclude(draft.mustInclude)
     setMustAvoid(draft.mustAvoid)
     setPostItems(draft.postItems)
-    setCurrentStep((draft.currentStep as 1 | 2 | 3 | 4) || 1)
+
+    if (draft.posts && draft.posts.length > 0) {
+      setPosts(draft.posts)
+      setCurrentStep((draft.currentStep as 1 | 2 | 3 | 4) || 1)
+      if (!isDemo && draft.postIds?.length) {
+        Promise.allSettled(draft.postIds.map((id) => socialComposerApi.getPost(id))).then((results) => {
+          const fresh = results
+            .filter((r): r is PromiseFulfilledResult<SocialPost> => r.status === 'fulfilled')
+            .map((r) => r.value)
+          if (fresh.length > 0) {
+            setPosts(fresh)
+          }
+        })
+      }
+    } else {
+      setPosts([])
+      if (draft.currentStep === 4) {
+        setCurrentStep(3)
+      } else {
+        setCurrentStep((draft.currentStep as 1 | 2 | 3 | 4) || 1)
+      }
+    }
+
     setSavedDraftsModalOpen(false)
     setDraftToast(`Resumed "${draft.title || 'Untitled series'}"`)
     setTimeout(() => setDraftToast(''), 3500)
@@ -286,7 +329,7 @@ export function ContentSeriesView() {
     )
   }
 
-  const handleItemChange = (index: number, field: keyof SeriesPostItem, value: string) => {
+  const handleItemChange = (index: number, field: keyof SeriesPostItem, value: any) => {
     setPostItems((current) => {
       const copy = [...current]
       if (copy[index]) {
@@ -389,9 +432,18 @@ export function ContentSeriesView() {
             idea_title: item.idea_title.trim() || `${title.trim() || 'Content series'} — Part ${idx + 1}`,
             idea_text: item.idea_text.trim(),
             scheduled_for: item.scheduled_for ? new Date(item.scheduled_for).toISOString() : undefined,
+            include_image: item.include_image ?? includeImage,
+            image_prompt: item.image_prompt?.trim() || undefined,
           })),
         })
         resultPosts = res.posts
+        if (!isDemo && res?.posts) {
+          res.posts.forEach((p) => {
+            if (p.generation_status === 'GENERATING') {
+              startTrackingGeneration(p.id, p.idea_title)
+            }
+          })
+        }
       }
 
       setPosts(resultPosts)
@@ -400,7 +452,7 @@ export function ContentSeriesView() {
         setActiveNetwork(networks[0])
       }
       setCurrentStep(4)
-      persistCurrentProgress(4)
+      persistCurrentProgress(4, resultPosts)
     } catch (cause) {
       setError(customerSafeMessage(cause instanceof Error ? cause.message : undefined, 'Could not create the series.'))
     } finally {
@@ -455,6 +507,35 @@ export function ContentSeriesView() {
       setTimeout(() => setSaveStatus(''), 3000)
     } catch (cause) {
       setError(customerSafeMessage(cause instanceof Error ? cause.message : undefined, 'Could not save variant edits.'))
+    } finally {
+      setActionBusy('')
+    }
+  }
+
+  // Generate or regenerate image for a variant
+  const handleGenerateVariantImage = async (variant: SocialVariant) => {
+    if (!currentPost) return
+    setActionBusy(`img-${variant.id}`)
+    setError('')
+    try {
+      if (isDemo) {
+        setSaveStatus('Demo image preview generated.')
+        setTimeout(() => setSaveStatus(''), 2500)
+        return
+      }
+      const prompt = variant.metadata?.image_prompt || currentPost.idea_title
+      await socialComposerApi.regenerateImage(
+        variant.id,
+        prompt,
+        undefined,
+        variant.metadata?.alt_text || ''
+      )
+      const refreshed = await socialComposerApi.getPost(currentPost.id)
+      setPosts((prev) => prev.map((p) => (p.id === refreshed.id ? refreshed : p)))
+      setSaveStatus('Image generated successfully.')
+      setTimeout(() => setSaveStatus(''), 3000)
+    } catch (cause) {
+      setError(customerSafeMessage(cause instanceof Error ? cause.message : undefined, 'Could not generate the image.'))
     } finally {
       setActionBusy('')
     }
@@ -1166,6 +1247,31 @@ export function ContentSeriesView() {
                           placeholder={`What key point, lesson, or story should Part ${index + 1} focus on?`}
                         />
                       </label>
+
+                      <div className="series-part-image-toggle-row" style={{ marginTop: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                        <label className="series-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={item.include_image ?? includeImage}
+                            onChange={(e) => handleItemChange(index, 'include_image', e.target.checked)}
+                          />
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>
+                            Generate AI image for this post
+                          </span>
+                        </label>
+                        {(item.include_image ?? includeImage) && (
+                          <div style={{ marginTop: 8 }}>
+                            <label className="li-field" style={{ marginBottom: 0 }}>
+                              <span style={{ fontSize: 12 }}>Custom image prompt (optional)</span>
+                              <input
+                                value={item.image_prompt ?? ''}
+                                onChange={(e) => handleItemChange(index, 'image_prompt', e.target.value)}
+                                placeholder={`Specific visual prompt for Part ${index + 1} (leave blank to auto-direct)`}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1227,8 +1333,9 @@ export function ContentSeriesView() {
       )}
 
       {/* STEP 4: REVIEW, APPROVE & SCHEDULE */}
-      {currentStep === 4 && posts.length > 0 && (
-        <section className="card series-results" aria-label="Review series drafts">
+      {currentStep === 4 && (
+        posts.length > 0 ? (
+          <section className="card series-results" aria-label="Review series drafts">
           <div className="series-results-header">
             <div>
               <h2>{isDemo ? `${posts.length} series previews` : `${posts.length} drafts are ready`}</h2>
@@ -1287,6 +1394,13 @@ export function ContentSeriesView() {
             </div>
           )}
 
+          {posts.some((p) => p.generation_status === 'GENERATING') && (
+            <div className="li-banner warning" role="status">
+              <LoaderCircle className="spin" size={16} />
+              <span>AI is generating series drafts in the background with Celery. Platform copies will populate automatically as each part completes.</span>
+            </div>
+          )}
+
           {/* Review Workspace: Left Navigation Rail & Right Post Content */}
           <div className="series-review-workspace">
             {/* Left Rail: Post Parts */}
@@ -1318,10 +1432,22 @@ export function ContentSeriesView() {
                         <span className="series-rail-part">Part {idx + 1}</span>
                         <span
                           className={`series-status-tag ${
-                            isScheduled ? 'scheduled' : isApproved ? 'approved' : 'draft'
+                            post.generation_status === 'GENERATING'
+                              ? 'generating'
+                              : isScheduled
+                              ? 'scheduled'
+                              : isApproved
+                              ? 'approved'
+                              : 'draft'
                           }`}
                         >
-                          {isScheduled ? 'Scheduled' : isApproved ? 'Approved' : 'Draft'}
+                          {post.generation_status === 'GENERATING'
+                            ? 'Generating...'
+                            : isScheduled
+                            ? 'Scheduled'
+                            : isApproved
+                            ? 'Approved'
+                            : 'Draft'}
                         </span>
                       </div>
                       <Link
@@ -1376,6 +1502,7 @@ export function ContentSeriesView() {
                       className="button button-subtle"
                       disabled={
                         actionBusy === `approve-${currentPost.id}` ||
+                        currentPost.generation_status === 'GENERATING' ||
                         currentPost.state === 'APPROVED' ||
                         currentPost.state === 'SCHEDULED'
                       }
@@ -1398,6 +1525,7 @@ export function ContentSeriesView() {
                       className="button button-dark"
                       disabled={
                         actionBusy === `schedule-${currentPost.id}` ||
+                        currentPost.generation_status === 'GENERATING' ||
                         currentPost.state === 'SCHEDULED'
                       }
                       onClick={() => void handleSchedulePost(selectedPostIndex)}
@@ -1418,6 +1546,13 @@ export function ContentSeriesView() {
                   <div className="li-banner success" role="status">
                     <Check size={16} />
                     <span>{saveStatus}</span>
+                  </div>
+                )}
+
+                {currentPost.generation_status === 'GENERATING' && (
+                  <div className="li-banner warning" role="status" style={{ marginBottom: 12 }}>
+                    <LoaderCircle className="spin" size={15} />
+                    <span>AI is generating tailored copy for this part in the background. It will automatically populate once complete.</span>
                   </div>
                 )}
 
@@ -1471,6 +1606,64 @@ export function ContentSeriesView() {
                       />
                     </div>
 
+                    <div className="series-editor-field series-media-field">
+                      <div className="series-field-header">
+                        <span>Media & Visual ({currentVariant.network_label})</span>
+                      </div>
+                      {currentVariant.media && currentVariant.media.length > 0 ? (
+                        <div className="series-media-preview-box" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                          {currentVariant.media.map((asset) => (
+                            <div key={asset.id} style={{ maxWidth: 200, position: 'relative' }}>
+                              <img
+                                src={asset.publish_url}
+                                alt={asset.alt_text || currentPost.idea_title}
+                                style={{ width: '100%', height: 'auto', borderRadius: 6, display: 'block', objectFit: 'cover' }}
+                              />
+                              {asset.alt_text && (
+                                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4, lineHeight: 1.3 }}>
+                                  {asset.alt_text}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            className="button button-subtle"
+                            style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                            disabled={actionBusy === `img-${currentVariant.id}`}
+                            onClick={() => void handleGenerateVariantImage(currentVariant)}
+                          >
+                            {actionBusy === `img-${currentVariant.id}` ? (
+                              <LoaderCircle className="spin" size={14} />
+                            ) : (
+                              <Sparkles size={14} />
+                            )}
+                            <span>Regenerate Image</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13 }}>
+                            <ImageIcon size={16} />
+                            <span>No image attached yet for this platform draft.</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="button button-subtle"
+                            disabled={actionBusy === `img-${currentVariant.id}`}
+                            onClick={() => void handleGenerateVariantImage(currentVariant)}
+                          >
+                            {actionBusy === `img-${currentVariant.id}` ? (
+                              <LoaderCircle className="spin" size={14} />
+                            ) : (
+                              <Sparkles size={14} />
+                            )}
+                            <span>Generate AI Image</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="series-editor-save-row">
                       <button
                         type="button"
@@ -1499,6 +1692,27 @@ export function ContentSeriesView() {
             )}
           </div>
         </section>
+        ) : (
+          <section className="card series-results empty-series-results" aria-label="No series drafts">
+            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <Sparkles size={40} style={{ color: '#6366f1', margin: '0 auto 16px', display: 'block' }} />
+              <h3 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+                No Drafts Generated For This Campaign Yet
+              </h3>
+              <p style={{ color: '#64748b', maxWidth: 480, margin: '0 auto 24px', fontSize: 14, lineHeight: 1.5 }}>
+                You have reached Step 4, but drafts for this series haven&apos;t been created yet. Return to Post Breakdown to review your parts and generate your sequence with AI.
+              </p>
+              <button
+                type="button"
+                className="button button-dark"
+                onClick={() => setCurrentStep(3)}
+              >
+                <ArrowLeft size={16} />
+                <span>Go to Post Breakdown & Generate</span>
+              </button>
+            </div>
+          </section>
+        )
       )}
     </section>
   )

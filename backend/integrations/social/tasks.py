@@ -105,6 +105,51 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
             connection_ids=connection_ids,
         )
         post.refresh_from_db()
+
+        # Generate images if requested or required for the platform
+        should_gen_image = bool(controls.get("include_image")) if controls else False
+        image_gen = None
+        for variant in post.variants.all():
+            if (should_gen_image or variant.network == "INSTAGRAM") and not variant.media_assets.exists():
+                try:
+                    if image_gen is None:
+                        from integrations.linkedin.services.images import LinkedInImageGenerator
+                        image_gen = LinkedInImageGenerator()
+                    from integrations.social.services.composer import compose_image_generation_prompt
+                    from integrations.social.media import normalize_generated_image
+                    from integrations.social.services.media import store_uploaded_media
+                    from integrations.social.models import MediaAssetSource
+                    from django.core.files.uploadedfile import SimpleUploadedFile
+
+                    prompt = str(
+                        variant.metadata.get("image_prompt")
+                        or post.metadata.get("image_prompt")
+                        or post.idea_title
+                    ).strip()
+                    directed_prompt = compose_image_generation_prompt(variant, prompt)
+                    _, img_meta, image_data = image_gen.generate(
+                        variant.id, directed_prompt, network=variant.network
+                    )
+                    if image_data:
+                        image_data, content_type, extension = normalize_generated_image(
+                            variant.network, image_data, img_meta.get("content_type")
+                        )
+                        uploaded = SimpleUploadedFile(
+                            f"generated-{variant.id}{extension}",
+                            image_data,
+                            content_type=content_type,
+                        )
+                        store_uploaded_media(
+                            variant,
+                            uploaded,
+                            alt_text=str(variant.metadata.get("alt_text") or post.idea_title)[:500],
+                            source=MediaAssetSource.AI,
+                        )
+                        logger.info("Successfully generated image for variant %s", variant.id)
+                except Exception as img_exc:
+                    logger.warning("Could not generate image for variant %s: %s", variant.id, img_exc)
+
+        post.refresh_from_db()
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "READY"
         metadata["generation_error"] = ""
