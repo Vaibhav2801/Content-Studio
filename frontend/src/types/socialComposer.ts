@@ -109,6 +109,8 @@ export interface SocialVariant {
   updated_at: string
 }
 
+export type PostGenerationStatus = 'IDLE' | 'GENERATING' | 'READY' | 'FAILED'
+
 export interface SocialPost {
   id: string
   idea_title: string
@@ -117,6 +119,8 @@ export interface SocialPost {
   sources: ComposerSource[]
   brand_brain_version: { id: string; version: number } | null
   state: SocialPostState
+  generation_status?: PostGenerationStatus
+  generation_error?: string
   controls: GenerationControls
   creative_brief: CreativeBrief
   variants: SocialVariant[]

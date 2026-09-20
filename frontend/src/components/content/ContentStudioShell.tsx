@@ -15,6 +15,7 @@ import {
   Settings2,
   LogOut,
   Sparkles,
+  LoaderCircle,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -49,7 +50,18 @@ const navigationGroups: { label: string; sections: ContentStudioSection[] }[] = 
 ]
 
 export function ContentStudioShell() {
-  const { dashboard, onboarding, settingsDraft, notice, noticeError, dismissNotice, isDemo } = useContentStudio()
+  const {
+    dashboard,
+    onboarding,
+    settingsDraft,
+    notice,
+    noticeError,
+    dismissNotice,
+    isDemo,
+    activeGenerations,
+    generationNotice,
+    dismissGenerationNotice,
+  } = useContentStudio()
   const auth = useOptionalAuth()
   const [summary, setSummary] = useState<HomeSummary | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -197,6 +209,41 @@ export function ContentStudioShell() {
           {isDemo && <div className="li-banner neutral"><Sparkles size={17} /><span>Demo data is on. Changes stay in this preview.</span></div>}
           {signoutError && <div className="li-banner error" role="alert">{signoutError}<button type="button" onClick={() => setSignoutError('')} aria-label="Dismiss sign-out error"><X size={16} /></button></div>}
           {notice && <div className={`li-banner ${noticeError ? 'error' : 'success'}`} role={noticeError ? 'alert' : 'status'}><span>{notice}</span><button onClick={dismissNotice} aria-label="Dismiss message"><X size={16} /></button></div>}
+          {generationNotice && (
+            <div className={`li-banner ${generationNotice.isError ? 'error' : 'success'}`} role={generationNotice.isError ? 'alert' : 'status'}>
+              <Sparkles size={17} />
+              <span>{generationNotice.message}</span>
+              {generationNotice.postId && (
+                <Link
+                  className="button button-dark"
+                  style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: '0.85rem' }}
+                  to={`/content/create?draft=${generationNotice.postId}`}
+                  onClick={dismissGenerationNotice}
+                >
+                  {generationNotice.isError ? 'View Draft & Retry' : 'Review in Composer'}
+                </Link>
+              )}
+              <button onClick={dismissGenerationNotice} aria-label="Dismiss notification"><X size={16} /></button>
+            </div>
+          )}
+          {location.pathname !== '/content/create' &&
+            Object.values(activeGenerations)
+              .filter((item) => item.status === 'GENERATING')
+              .map((item) => (
+                <div key={item.postId} className="li-banner neutral" role="status">
+                  <LoaderCircle className="spin" size={16} />
+                  <span>
+                    Generating post: <strong>{item.title}</strong> in the background…
+                  </span>
+                  <Link
+                    className="button button-dark"
+                    style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: '0.8rem' }}
+                    to={`/content/create?draft=${item.postId}`}
+                  >
+                    View Progress
+                  </Link>
+                </div>
+              ))}
           <Outlet />
         </main>
       </div>

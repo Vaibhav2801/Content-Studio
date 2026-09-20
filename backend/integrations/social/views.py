@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser
@@ -502,18 +502,22 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                     creative_brief=request.data.get("creative_brief"),
                     connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
                 )
-            except DjangoValidationError as error:
-                return social_validation_response(error)
-        try:
-            post = generate_variants(
-                post=post,
-                networks=request.data.get("networks"),
-                controls=request.data.get("controls"),
-                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-            )
-        except DjangoValidationError as error:
-            return social_validation_response(error)
-        return Response(social_post_response(post))
+        metadata = dict(post.metadata or {})
+        metadata["generation_status"] = "GENERATING"
+        metadata["generation_error"] = ""
+        post.metadata = metadata
+        post.save(update_fields=["metadata", "updated_at"])
+
+        from integrations.social.tasks import generate_post_variants
+        generate_post_variants.delay(
+            post_id=str(post.id),
+            networks=request.data.get("networks"),
+            controls=request.data.get("controls"),
+            connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+        )
+        post.refresh_from_db()
+        return Response(social_post_response(post), status=status.HTTP_202_ACCEPTED)
+
 
 
 class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):

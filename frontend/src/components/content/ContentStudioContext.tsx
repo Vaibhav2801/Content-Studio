@@ -1,12 +1,27 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { LinkedInApiError, linkedinApi } from '../../api/linkedin'
 import { contentOnboardingApi } from '../../api/contentOnboarding'
+import { socialComposerApi } from '../../api/socialComposer'
 import { contentOnboardingMock, linkedinMockDashboard } from '../../api/linkedinMock'
 import type { ContentDashboard, ContentPost, ContentPostStatus, ContentSettings, ContentStudioOnboarding } from '../../types/content'
 import { customerSafeMessage } from './contentUtils'
 import { useOptionalAuth } from './AuthContext'
 
 type PostAction = 'approve' | 'publish' | 'cancel'
+
+export interface ActiveGenerationItem {
+  postId: string
+  title: string
+  startedAt: number
+  status: 'GENERATING' | 'READY' | 'FAILED'
+  error?: string
+}
+
+export interface GenerationNotice {
+  message: string
+  postId?: string
+  isError?: boolean
+}
 
 interface ContentStudioState {
   dashboard: ContentDashboard
@@ -22,6 +37,11 @@ interface ContentStudioState {
   notice: string
   noticeError: boolean
   isDemo: boolean
+  activeGenerations: Record<string, ActiveGenerationItem>
+  generationNotice: GenerationNotice | null
+  startTrackingGeneration: (postId: string, title?: string) => void
+  stopTrackingGeneration: (postId: string) => void
+  dismissGenerationNotice: () => void
   setSelectedId: (id: string) => void
   setSelectedBriefId: (id: string) => void
   setContext: (value: string) => void
@@ -64,6 +84,114 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
+  const [activeGenerations, setActiveGenerations] = useState<Record<string, ActiveGenerationItem>>(() => {
+    try {
+      const saved = localStorage.getItem('content-studio-active-generations')
+      return saved ? JSON.parse(saved) as Record<string, ActiveGenerationItem> : {}
+    } catch {
+      return {}
+    }
+  })
+  const [generationNotice, setGenerationNotice] = useState<GenerationNotice | null>(null)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('content-studio-active-generations', JSON.stringify(activeGenerations))
+    } catch { /* storage may be unavailable */ }
+  }, [activeGenerations])
+
+  const startTrackingGeneration = (postId: string, title = 'New post') => {
+    setActiveGenerations((current) => ({
+      ...current,
+      [postId]: {
+        postId,
+        title: title || 'New post',
+        startedAt: Date.now(),
+        status: 'GENERATING',
+      },
+    }))
+  }
+
+  const stopTrackingGeneration = (postId: string) => {
+    setActiveGenerations((current) => {
+      const next = { ...current }
+      delete next[postId]
+      return next
+    })
+  }
+
+  const dismissGenerationNotice = () => setGenerationNotice(null)
+
+  useEffect(() => {
+    const generatingIds = Object.keys(activeGenerations).filter(
+      (id) => activeGenerations[id]?.status === 'GENERATING'
+    )
+    if (!generatingIds.length || isDemo) return
+
+    let cancelled = false
+    const pollTimer = window.setInterval(async () => {
+      for (const id of generatingIds) {
+        if (cancelled) break
+        const item = activeGenerations[id]
+        if (!item) continue
+
+        if (Date.now() - item.startedAt > 10 * 60 * 1000) {
+          setActiveGenerations((current) => {
+            const next = { ...current }
+            delete next[id]
+            return next
+          })
+          setGenerationNotice({
+            message: `Generation for "${item.title}" timed out. Click to review draft and retry.`,
+            postId: id,
+            isError: true,
+          })
+          continue
+        }
+
+        try {
+          const post = await socialComposerApi.getPost(id)
+          if (cancelled) break
+
+          const isFailed = post.generation_status === 'FAILED'
+          const isReady = post.generation_status === 'READY' || post.variants.some((v) => Boolean(v.copy && v.copy.trim()))
+
+          if (isFailed) {
+            setActiveGenerations((current) => {
+              const next = { ...current }
+              delete next[id]
+              return next
+            })
+            setGenerationNotice({
+              message: `Post generation failed for "${post.idea_title || item.title}": ${post.generation_error || 'An error occurred.'}`,
+              postId: id,
+              isError: true,
+            })
+            window.dispatchEvent(new CustomEvent('content-studio-generation-failed', { detail: post }))
+          } else if (isReady) {
+            setActiveGenerations((current) => {
+              const next = { ...current }
+              delete next[id]
+              return next
+            })
+            setGenerationNotice({
+              message: `Post "${post.idea_title || item.title}" has been generated and is ready to review!`,
+              postId: id,
+              isError: false,
+            })
+            window.dispatchEvent(new CustomEvent('content-studio-generation-complete', { detail: post }))
+          }
+        } catch {
+          // ignore network glitch and retry on next interval
+        }
+      }
+    }, 2500)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(pollTimer)
+    }
+  }, [activeGenerations, isDemo])
 
   const load = async () => {
     setLoadError('')
@@ -320,7 +448,9 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
 
   return <ContentStudioContext.Provider value={{
     dashboard, onboarding, settingsDraft, selected, selectedId, selectedBriefId, context, contextLabel, saveContext,
-    busy, notice, noticeError, isDemo, setSelectedId, setSelectedBriefId, setContext, setContextLabel,
+    busy, notice, noticeError, isDemo, activeGenerations, generationNotice,
+    startTrackingGeneration, stopTrackingGeneration, dismissGenerationNotice,
+    setSelectedId, setSelectedBriefId, setContext, setContextLabel,
     setSaveContext, setSettingsDraft, dismissNotice: () => { setNotice(''); setNoticeError(false) }, generate,
     runPostAction, updatePost, regenerateImage, saveSettings, toggleAutomation,
     startOnboarding: startOnboardingFlow, moveOnboardingStep, completeOnboardingStep,

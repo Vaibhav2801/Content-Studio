@@ -51,7 +51,7 @@ interface Props { onPostChange?: (post: SocialPost | null) => void }
 
 export function SocialComposer({ onPostChange }: Props) {
 
-  const { isDemo } = useContentStudio()
+  const { isDemo, startTrackingGeneration } = useContentStudio()
 
   const auth = useOptionalAuth()
 
@@ -123,6 +123,32 @@ export function SocialComposer({ onPostChange }: Props) {
 
     return () => window.removeEventListener(composerRecoveryEvent, update)
 
+  }, [])
+
+
+
+  useEffect(() => {
+    const onComplete = (event: Event) => {
+      const custom = event as CustomEvent<SocialPost>
+      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
+        adoptPost(custom.detail)
+        setBusy('')
+        setNotice('Your generated post is ready to review.')
+      }
+    }
+    const onFailed = (event: Event) => {
+      const custom = event as CustomEvent<SocialPost>
+      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
+        setBusy('')
+        setError(custom.detail.generation_error || 'Post generation failed.')
+      }
+    }
+    window.addEventListener('content-studio-generation-complete', onComplete)
+    window.addEventListener('content-studio-generation-failed', onFailed)
+    return () => {
+      window.removeEventListener('content-studio-generation-complete', onComplete)
+      window.removeEventListener('content-studio-generation-failed', onFailed)
+    }
   }, [])
 
 
@@ -277,34 +303,32 @@ export function SocialComposer({ onPostChange }: Props) {
 
       if (!active) return
 
-      if (recovery.generating && recovery.startedAt && Date.now() - recovery.startedAt > 10 * 60 * 1000 && !current.variants.some((variant) => variant.copy.trim())) {
-
-        const message = 'Generation did not finish. Your idea is saved; select Generate to try again.'
-
+      if (current.generation_status === 'FAILED') {
+        const message = current.generation_error || 'Generation did not finish. Your idea is saved; select Generate to try again.'
         finishComposerGeneration(recoveryKey, id, message)
-
         setBusy('')
-
         setError(message)
-
         adoptPost(current)
-
         return
+      }
 
+      if (recovery.generating && recovery.startedAt && Date.now() - recovery.startedAt > 10 * 60 * 1000 && !current.variants.some((variant) => variant.copy.trim())) {
+        const message = 'Generation did not finish. Your idea is saved; select Generate to try again.'
+        finishComposerGeneration(recoveryKey, id, message)
+        setBusy('')
+        setError(message)
+        adoptPost(current)
+        return
       }
 
       adoptPost(current)
 
-      if (!recovery.generating || current.variants.some((variant) => variant.copy.trim())) {
-
+      const isReady = current.generation_status === 'READY' || current.variants.some((variant) => variant.copy.trim())
+      if (isReady && current.variants.some((variant) => variant.copy.trim())) {
         if (recovery.generating) finishComposerGeneration(recoveryKey, id)
-
         setBusy('')
-
         setNotice(recovery.generating ? 'Your generated post is ready to review.' : '')
-
         return
-
       }
 
       setBusy('generate')
@@ -467,39 +491,38 @@ export function SocialComposer({ onPostChange }: Props) {
       }
 
       if (!isDemo && current) {
-
         generatingId = current.id
-
         openedDraft.current = current.id
-
         rememberComposerDraft(recoveryKey, current.id, true)
-
+        startTrackingGeneration?.(current.id, ideaTitle || 'New post')
         setNotice('Generating your post… You can leave this page and return to it.')
-
       }
 
       let generated = isDemo ? makeDemoPost(ideaTitle || 'New post', ideaText || options?.sources.filter((item) => sourceIds.includes(item.id)).map((item) => item.text_content).join(' ') || '', networks) : await socialComposerApi.generate({ ...payload(), post_id: generatingId })
 
+      const isStillGenerating = !isDemo && (generated.generation_status === 'GENERATING' || !generated.variants.some((v) => v.copy.trim()))
+
+      if (isStillGenerating) {
+        adoptPost(generated)
+        setSaveState('SAVED')
+        setBusy('generate')
+        setNotice('Generating your post… You can freely browse other sections or reload; it will continue in the background.')
+        return
+      }
+
       let imageWarning = false
-
       const imageTargets = generated.variants.filter((variant) => !variant.media.length && (variant.network === 'INSTAGRAM' || controls.include_image))
-
       if (imageTargets.length && !isDemo) {
-
         const imageResults = await Promise.allSettled(imageTargets.map((variant) => socialComposerApi.regenerateImage(variant.id, variant.metadata.image_prompt || ideaTitle, undefined, variant.metadata.alt_text || '')))
-
         imageWarning = imageResults.some((result) => result.status === 'rejected')
-
         generated = await socialComposerApi.getPost(generated.id)
-
       }
 
       if (generatingId) finishComposerGeneration(recoveryKey, generatingId)
-
       adoptPost(generated); setSaveState('SAVED')
-
       const usedFallback = generated.variants.some((variant) => variant.metadata.generation_status === 'FALLBACK')
       setNotice(imageWarning ? 'The drafts are ready, but one or more images need attention.' : usedFallback ? 'Drafts were created, but one or more used the safe fallback because AI output could not be validated.' : 'Created ' + generated.variants.length + ' platform-specific ' + (generated.variants.length === 1 ? 'draft' : 'drafts') + '.')
+
 
     } catch (generateError) {
 

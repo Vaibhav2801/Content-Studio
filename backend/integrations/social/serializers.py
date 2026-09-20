@@ -103,12 +103,16 @@ class SocialPostVariantSerializer(serializers.ModelSerializer):
         return current_quality_report(obj)
 
 
+
+
 class SocialPostSerializer(serializers.ModelSerializer):
     source = ContentSourceSummarySerializer(read_only=True)
     sources = serializers.SerializerMethodField()
     brand_brain_version = serializers.SerializerMethodField()
     controls = serializers.SerializerMethodField()
     creative_brief = serializers.SerializerMethodField()
+    generation_status = serializers.SerializerMethodField()
+    generation_error = serializers.SerializerMethodField()
     variants = SocialPostVariantSerializer(many=True, read_only=True)
 
     class Meta:
@@ -121,6 +125,8 @@ class SocialPostSerializer(serializers.ModelSerializer):
             "sources",
             "brand_brain_version",
             "state",
+            "generation_status",
+            "generation_error",
             "controls",
             "creative_brief",
             "variants",
@@ -128,6 +134,18 @@ class SocialPostSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+
+    @staticmethod
+    def get_generation_status(obj):
+        status = obj.metadata.get("generation_status")
+        if status:
+            return status
+        has_copy = any(bool(v.copy and v.copy.strip()) for v in obj.variants.all())
+        return "READY" if has_copy else "IDLE"
+
+    @staticmethod
+    def get_generation_error(obj):
+        return obj.metadata.get("generation_error", "")
 
     @staticmethod
     def get_controls(obj):
