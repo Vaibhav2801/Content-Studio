@@ -456,3 +456,42 @@ class EngagementApiTests(TestCase):
         kinds = [r["kind"] for r in response.data["reviews"]]
         self.assertIn("Comment reply", kinds)
         self.assertIn("Direct message", kinds)
+
+    def test_active_automation_auto_dispatches_reply_without_manual_approval(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="STORY_REPLY",
+            name="Instant Story Responder",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["HI"],
+            approved_dm_message="Instant auto-reply without manual approval!",
+            owner=self.user,
+        )
+        payload = {
+            "id": "webhook-instant-auto-send-1",
+            "event": "message.received",
+            "account": {"id": "account-instagram"},
+            "conversation": {"id": "conversation-instant"},
+            "message": {"id": "msg-instant", "text": "HI", "senderId": "contact-instant"},
+            "metadata": {"storyReply": {"storyId": "story-instant"}},
+            "contact": {"id": "contact-instant", "name": "Instant Contact", "username": "instant"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        with patch("integrations.social.services.engagement.EngagementProvider.send_review", return_value="provider-msg-999") as send:
+            response = self.client.post(
+                reverse("social-engagement-webhook"),
+                data=body,
+                content_type="application/json",
+                HTTP_X_ZERNIO_SIGNATURE=signature,
+            )
+            self.assertEqual(response.status_code, 202)
+            send.assert_called_once()
+            created = EngagementReviewItem.objects.get(provider_event_id="webhook-instant-auto-send-1")
+            self.assertEqual(created.status, EngagementReviewStatus.SENT)
+            self.assertEqual(created.final_text, "Instant auto-reply without manual approval!")
+            self.assertEqual(created.provider_message_id, "provider-msg-999")
+            self.assertIsNotNone(created.sent_at)
+

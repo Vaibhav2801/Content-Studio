@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import re
 from urllib.parse import quote
 
@@ -8,6 +9,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 from integrations.social.models import (
     ConnectionState,
@@ -460,8 +463,26 @@ def _network_for(connection):
     return connection.network
 
 
+def _resolve_automation_actor(automation, connection):
+    actor = automation.owner or automation.approved_by
+    if not actor:
+        membership = connection.workspace.memberships.filter(is_active=True).first()
+        if membership:
+            actor = membership.user
+    return actor
+
+
+def _dispatch_automation_reply(item, actor, provider=None):
+    if item is None:
+        return
+    try:
+        approve_and_send(item, actor, provider=provider)
+    except Exception as exc:
+        logger.warning("Auto-send failed for review item %s: %s", getattr(item, "id", None), exc)
+
+
 @transaction.atomic
-def process_engagement_webhook(headers, body):
+def process_engagement_webhook(headers, body, provider=None):
     secret = settings.ZERNIO_WEBHOOK_SECRET
     if not secret:
         raise ProviderConfigurationError("Webhook verification is not configured.")
@@ -605,6 +626,16 @@ def process_engagement_webhook(headers, body):
             automation.stats = {**automation.stats, "runs": int(automation.stats.get("runs", 0)) + 1}
             automation.save(update_fields=["stats", "updated_at"])
             created.append(private_item)
+
+            actor = _resolve_automation_actor(automation, connection)
+            if automation.approved_comment_reply.strip():
+                public_item.final_text = automation.approved_comment_reply.strip()
+                public_item.save(update_fields=["final_text", "updated_at"])
+                _dispatch_automation_reply(public_item, actor, provider=provider)
+            if automation.approved_dm_message.strip():
+                private_item.final_text = automation.approved_dm_message.strip()
+                private_item.save(update_fields=["final_text", "updated_at"])
+                _dispatch_automation_reply(private_item, actor, provider=provider)
         return created
 
     # Zernio and Meta send Instagram story/referral context in various locations:
@@ -711,4 +742,9 @@ def process_engagement_webhook(headers, body):
     if automation:
         automation.stats = {**automation.stats, "runs": int(automation.stats.get("runs", 0)) + 1}
         automation.save(update_fields=["stats", "updated_at"])
+        actor = _resolve_automation_actor(automation, connection)
+        if automation.approved_dm_message.strip():
+            item.final_text = automation.approved_dm_message.strip()
+            item.save(update_fields=["final_text", "updated_at"])
+            _dispatch_automation_reply(item, actor, provider=provider)
     return [item]
