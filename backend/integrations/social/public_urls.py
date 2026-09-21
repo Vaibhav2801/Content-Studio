@@ -53,6 +53,7 @@ from integrations.social.engagement_views import (
     EngagementCampaignsAPIView,
     EngagementOverviewAPIView,
     EngagementReviewDetailAPIView,
+    EngagementTestTriggerAPIView,
 )
 
 
@@ -83,6 +84,7 @@ urlpatterns = [
     path("engagement/reviews/<uuid:review_id>/", EngagementReviewDetailAPIView.as_view(), name="social-engagement-review"),
     path("engagement/automations/", EngagementAutomationsAPIView.as_view(), name="social-engagement-automations"),
     path("engagement/automations/<uuid:automation_id>/", EngagementAutomationDetailAPIView.as_view(), name="social-engagement-automation"),
+    path("engagement/test-trigger/", EngagementTestTriggerAPIView.as_view(), name="social-engagement-test-trigger"),
     path("engagement/campaigns/", EngagementCampaignsAPIView.as_view(), name="social-engagement-campaigns"),
     path("engagement/campaigns/<uuid:campaign_id>/", EngagementCampaignDetailAPIView.as_view(), name="social-engagement-campaign"),
     path("composer/options/", SocialComposerOptionsAPIView.as_view(), name="social-composer-options"),

@@ -71,6 +71,7 @@ export const contentStudioApi = {
   engagementReviewAction: (reviewId: string, action: 'GENERATE' | 'APPROVE_SEND' | 'RETRY' | 'DISMISS', draft?: string) => request<EngagementReview>(`/engagement/reviews/${reviewId}/`, { method: 'POST', body: JSON.stringify({ action, ...(draft === undefined ? {} : { draft }) }) }),
   createEngagementAutomation: (payload: CreateEngagementAutomation) => request<EngagementAutomation>('/engagement/automations/', { method: 'POST', body: JSON.stringify(payload) }),
   engagementAutomationAction: (automationId: string, action: 'APPROVE' | 'ACTIVATE' | 'PAUSE') => request<EngagementAutomation>(`/engagement/automations/${automationId}/`, { method: 'POST', body: JSON.stringify({ action }) }),
+  testEngagementAutomation: (payload: { automation_id?: string; connection_id?: string; kind?: string; text?: string; handle?: string }) => request<{ message: string; reviews: EngagementReview[] }>('/engagement/test-trigger/', { method: 'POST', body: JSON.stringify(payload) }),
   createEngagementCampaign: (payload: CreateEngagementCampaign) => request<EngagementCampaign>('/engagement/campaigns/', { method: 'POST', body: JSON.stringify(payload) }),
   engagementCampaignAction: (campaignId: string, action: 'APPROVE' | 'START' | 'PAUSE') => request<EngagementCampaign>(`/engagement/campaigns/${campaignId}/`, { method: 'POST', body: JSON.stringify({ action }) }),
   exportData: () => request<ContentStudioExport>('/studio/data-export/'),

@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 from integrations.social.models import (
@@ -333,7 +333,6 @@ def approve_automation(automation, actor):
         raise ValidationError("Add the exact approved DM before activating this automation.")
     if automation.kind in {
         EngagementAutomationKind.COMMENT_TO_DM,
-        EngagementAutomationKind.STORY_REPLY,
         EngagementAutomationKind.DM_KEYWORD,
     } and not automation.keywords:
         raise ValidationError("Add at least one trigger keyword.")
@@ -362,11 +361,16 @@ def approve_campaign(campaign, actor, provider=None):
 
 
 def _keyword_matches(automation, text):
-    candidate = text.casefold().strip()
+    candidate = (text or "").casefold().strip()
+    if not automation.keywords:
+        # If no keywords are configured, match any response for STORY_REPLY
+        return automation.kind == EngagementAutomationKind.STORY_REPLY
     for keyword in automation.keywords:
         keyword = str(keyword).casefold().strip()
         if not keyword:
             continue
+        if keyword in {"*", "all", "any"}:
+            return True
         if automation.match_mode == "exact" and candidate == keyword:
             return True
         if automation.match_mode == "word" and re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", candidate):
@@ -382,7 +386,30 @@ def _automation_for(connection, kind, text):
         kind=kind,
         status=EngagementAutomationStatus.ACTIVE,
     ).order_by("created_at")
-    return next((row for row in candidates if _keyword_matches(row, text)), None)
+    matched = next((row for row in candidates if _keyword_matches(row, text)), None)
+    if matched:
+        return matched
+    # Fallback 1: If searching for STORY_REPLY and none matched, check DM_KEYWORD on the same account
+    if kind == EngagementAutomationKind.STORY_REPLY:
+        dm_candidates = EngagementAutomation.objects.filter(
+            connection=connection,
+            kind=EngagementAutomationKind.DM_KEYWORD,
+            status=EngagementAutomationStatus.ACTIVE,
+        ).order_by("created_at")
+        matched = next((row for row in dm_candidates if _keyword_matches(row, text)), None)
+        if matched:
+            return matched
+    # Fallback 2: If searching for DM_KEYWORD and none matched, check STORY_REPLY with matching keyword
+    elif kind == EngagementAutomationKind.DM_KEYWORD:
+        story_candidates = EngagementAutomation.objects.filter(
+            connection=connection,
+            kind=EngagementAutomationKind.STORY_REPLY,
+            status=EngagementAutomationStatus.ACTIVE,
+        ).order_by("created_at")
+        matched = next((row for row in story_candidates if _keyword_matches(row, text)), None)
+        if matched:
+            return matched
+    return None
 
 
 def _generic_suggestion(kind, name):
@@ -450,10 +477,22 @@ def process_engagement_webhook(headers, body):
     if not isinstance(payload, dict):
         raise ProviderValidationError("The webhook body is invalid.")
 
-    event_type = str(payload.get("event") or normalized_headers.get("x-zernio-event") or "")
+    raw_event_type = str(payload.get("event") or normalized_headers.get("x-zernio-event") or "")
     event_id = str(payload.get("id") or normalized_headers.get("x-zernio-event-id") or "")
-    if event_type not in {"message.received", "comment.received"}:
+    normalized_event = raw_event_type.lower().strip()
+    is_explicit_story_event = False
+    if normalized_event in {"comment.received", "comment_received", "comments", "comment"}:
+        event_type = "comment.received"
+    elif normalized_event in {
+        "message.received", "message_received", "messages", "message",
+        "story_reply.received", "story.reply", "story_reply", "story"
+    }:
+        if normalized_event in {"story_reply.received", "story.reply", "story_reply", "story"}:
+            is_explicit_story_event = True
+        event_type = "message.received"
+    else:
         return []
+
     if not event_id:
         raise ProviderValidationError("The webhook event identifier is missing.")
 
@@ -461,16 +500,18 @@ def process_engagement_webhook(headers, body):
     message = _nested(payload, "message")
     comment = _nested(payload, "comment")
     conversation = _nested(payload, "conversation")
-    account_id = _provider_id(
-        account,
-        "accountId",
-        "id",
-        "_id",
-    ) or _provider_id(message, "accountId") or _provider_id(comment, "accountId") or _provider_id(payload, "accountId")
+    account_id = (
+        _provider_id(account, "accountId", "account_id", "id", "_id")
+        or (str(payload["account"]).strip() if isinstance(payload.get("account"), (str, int)) and str(payload["account"]).strip() else "")
+        or _provider_id(message, "accountId", "account_id")
+        or _provider_id(comment, "accountId", "account_id")
+        or _provider_id(payload, "accountId", "account_id")
+    )
     connection = SocialConnection.objects.filter(
         provider=SocialProvider.ZERNIO,
-        provider_account_id=account_id,
         status=ConnectionState.CONNECTED,
+    ).filter(
+        models.Q(provider_account_id=account_id) | models.Q(provider_profile_id=account_id)
     ).select_related("workspace").first()
     if connection is None:
         raise ProviderAuthenticationError("The webhook account is not connected to a workspace.")
@@ -489,8 +530,10 @@ def process_engagement_webhook(headers, body):
     contact_payload = _nested(payload, "contact") or author
     contact_id = (
         _provider_object_id(contact_payload)
-        or _provider_id(message, "senderId", "fromId", "contactId")
-        or _provider_id(comment, "authorId", "contactId")
+        or _provider_id(contact_payload, "id", "_id", "senderId", "sender_id", "fromId", "from_id", "authorId", "author_id", "contactId", "contact_id")
+        or _provider_id(message, "senderId", "sender_id", "fromId", "from_id", "authorId", "author_id", "contactId", "contact_id")
+        or _provider_id(comment, "authorId", "author_id", "senderId", "sender_id", "contactId", "contact_id")
+        or _provider_id(payload, "senderId", "sender_id", "fromId", "from_id", "contactId", "contact_id")
         or f"event:{event_id}"
     )
     display_name = _provider_id(contact_payload, "name", "displayName", "fullName", "username") or "Social contact"
@@ -506,10 +549,23 @@ def process_engagement_webhook(headers, body):
 
     created = []
     if event_type == "comment.received":
-        text = _provider_id(comment, "message", "text", "content")
+        text = (
+            _provider_id(comment, "message", "text", "content")
+            or (str(payload.get("comment")).strip() if isinstance(payload.get("comment"), str) else "")
+            or _provider_id(payload, "message", "text", "content")
+        )
         post = _nested(payload, "post")
-        post_id = _provider_object_id(post) or _provider_id(comment, "postId") or _provider_id(payload, "postId")
-        comment_id = _provider_object_id(comment)
+        post_id = (
+            _provider_object_id(post)
+            or _provider_id(post, "id", "_id", "postId", "post_id")
+            or _provider_id(comment, "postId", "post_id")
+            or _provider_id(payload, "postId", "post_id")
+        )
+        comment_id = (
+            _provider_object_id(comment)
+            or _provider_id(comment, "id", "_id", "commentId", "comment_id")
+            or _provider_id(payload, "commentId", "comment_id")
+        )
         automation = _automation_for(connection, EngagementAutomationKind.COMMENT_TO_DM, text)
         public_suggestion = (
             automation.approved_comment_reply.strip()
@@ -551,21 +607,80 @@ def process_engagement_webhook(headers, body):
             created.append(private_item)
         return created
 
-    # Zernio sends Instagram story/referral context at the top level of
-    # message.received payloads. Keep accepting message-level metadata for
-    # compatibility with older payloads.
+    # Zernio and Meta send Instagram story/referral context in various locations:
+    # 1. payload/message metadata dict
+    # 2. Meta Graph API: message.reply_to.story or message.replyTo.story
+    # 3. Zernio top-level or message-level story/storyReply/story_reply object
     metadata = {
         **_nested(message, "metadata"),
         **_nested(payload, "metadata"),
     }
-    text = _provider_id(message, "message", "text", "content")
-    conversation_id = _provider_object_id(conversation) or _provider_id(message, "conversationId") or _provider_id(payload, "conversationId")
-    is_story = bool(
-        metadata.get("storyReply")
-        or metadata.get("storyId")
-        or str(metadata.get("source") or "").lower() == "story_reply"
+    reply_to = (
+        _nested(message, "reply_to")
+        or _nested(message, "replyTo")
+        or _nested(payload, "reply_to")
+        or _nested(payload, "replyTo")
+        or _nested(metadata, "reply_to")
+        or _nested(metadata, "replyTo")
     )
-    is_ad = bool(metadata.get("adId") or metadata.get("referral") or metadata.get("ad"))
+    story_context = (
+        _nested(payload, "story")
+        or _nested(message, "story")
+        or _nested(payload, "storyReply")
+        or _nested(message, "storyReply")
+        or _nested(payload, "story_reply")
+        or _nested(message, "story_reply")
+        or _nested(reply_to, "story")
+        or _nested(metadata, "story")
+        or _nested(metadata, "storyReply")
+        or _nested(metadata, "story_reply")
+    )
+    story_id = (
+        _provider_id(story_context, "id", "_id", "storyId", "story_id")
+        or _provider_id(metadata, "storyId", "story_id")
+        or _provider_id(message, "storyId", "story_id")
+        or _provider_id(payload, "storyId", "story_id")
+        or _provider_id(reply_to, "storyId", "story_id")
+    )
+    text = (
+        _provider_id(message, "message", "text", "content")
+        or (str(payload.get("message")).strip() if isinstance(payload.get("message"), str) else "")
+        or _provider_id(payload, "message", "text", "content")
+    )
+    conversation_id = (
+        _provider_object_id(conversation)
+        or _provider_id(conversation, "id", "_id", "conversationId", "conversation_id")
+        or (str(payload.get("conversation")).strip() if isinstance(payload.get("conversation"), str) else "")
+        or _provider_id(message, "conversationId", "conversation_id", "threadId", "thread_id")
+        or _provider_id(payload, "conversationId", "conversation_id", "threadId", "thread_id")
+    )
+    is_story = bool(
+        is_explicit_story_event
+        or story_id
+        or story_context
+        or metadata.get("storyReply")
+        or metadata.get("story_reply")
+        or metadata.get("isStoryReply")
+        or metadata.get("is_story_reply")
+        or message.get("storyReply")
+        or message.get("story_reply")
+        or payload.get("storyReply")
+        or payload.get("story_reply")
+        or bool(reply_to.get("story"))
+        or str(metadata.get("source") or "").lower() in {"story", "story_reply", "storyreply"}
+        or str(message.get("source") or "").lower() in {"story", "story_reply", "storyreply"}
+        or str(payload.get("source") or "").lower() in {"story", "story_reply", "storyreply"}
+        or str(metadata.get("type") or "").lower() in {"story", "story_reply", "storyreply"}
+        or str(message.get("type") or "").lower() in {"story", "story_reply", "storyreply"}
+        or str(payload.get("type") or "").lower() in {"story", "story_reply", "storyreply"}
+    )
+    is_ad = bool(
+        metadata.get("adId")
+        or metadata.get("referral")
+        or metadata.get("ad")
+        or payload.get("adId")
+        or message.get("adId")
+    )
     automation_kind = (
         EngagementAutomationKind.STORY_REPLY
         if is_story
@@ -574,13 +689,18 @@ def process_engagement_webhook(headers, body):
         else EngagementAutomationKind.DM_KEYWORD
     )
     automation = _automation_for(connection, automation_kind, text)
-    kind = EngagementItemKind.STORY_REPLY if is_story else EngagementItemKind.DIRECT_MESSAGE
+    kind = EngagementItemKind.STORY_REPLY if (is_story or (automation and automation.kind == EngagementAutomationKind.STORY_REPLY)) else EngagementItemKind.DIRECT_MESSAGE
+    source_title = (
+        automation.name
+        if automation
+        else ("Story reply" if kind == EngagementItemKind.STORY_REPLY else "Direct message")
+    )
     item = EngagementReviewItem.objects.create(
         workspace=connection.workspace,
         connection=connection,
         contact=contact,
         kind=kind,
-        source_label=(automation.name if automation else "Story reply" if is_story else "Direct message"),
+        source_label=source_title,
         incoming_text=text,
         suggested_text=automation.approved_dm_message if automation else _generic_suggestion(kind, display_name),
         conversation_id=conversation_id,

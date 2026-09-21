@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -15,6 +17,7 @@ from integrations.social.models import (
     EngagementCampaign,
     EngagementCampaignStatus,
     EngagementContact,
+    EngagementItemKind,
     EngagementReviewItem,
     EngagementReviewStatus,
     SocialConnection,
@@ -29,6 +32,8 @@ from integrations.social.publishing.errors import (
 )
 from integrations.social.services.engagement import (
     EngagementProvider,
+    _automation_for,
+    _generic_suggestion,
     approve_and_send,
     approve_automation,
     approve_campaign,
@@ -239,6 +244,7 @@ class EngagementAutomationsAPIView(EngagementWorkspaceAPIView):
         configuration = request.data.get("configuration") or {}
         if not isinstance(configuration, dict):
             return Response({"configuration": ["Send configuration as an object."]}, status=400)
+        auto_activate = bool(request.data.get("activate", False) or request.data.get("auto_activate", False))
         item = EngagementAutomation.objects.create(
             workspace=self.workspace(request),
             connection=connection,
@@ -251,6 +257,12 @@ class EngagementAutomationsAPIView(EngagementWorkspaceAPIView):
             configuration=configuration,
             owner=owner,
         )
+        if auto_activate:
+            try:
+                approve_automation(item, request.user)
+            except DjangoValidationError as error:
+                item.last_error = str(error)
+                item.save(update_fields=["last_error", "updated_at"])
         return Response(serialize_automation(item), status=201)
 
 
@@ -440,3 +452,111 @@ class ZernioEngagementWebhookAPIView(GenericAPIView):
         except ProviderConfigurationError:
             return Response({"detail": "Engagement callback is not configured."}, status=503)
         return Response({"accepted": len(items)}, status=202)
+
+
+class EngagementTestTriggerAPIView(EngagementWorkspaceAPIView):
+    def post(self, request):
+        workspace = self.workspace(request)
+        automation_id = request.data.get("automation_id")
+        automation = None
+        if automation_id:
+            automation = get_object_or_404(
+                EngagementAutomation.objects.filter(workspace=workspace),
+                pk=automation_id,
+            )
+            connection = automation.connection
+            kind = automation.kind
+            keyword_hint = automation.keywords[0] if automation.keywords else "HI"
+        else:
+            connection_id = request.data.get("connection_id")
+            connection = self.connected_account(request, connection_id, instagram_only=True)
+            kind = str(request.data.get("kind") or EngagementAutomationKind.COMMENT_TO_DM)
+            keyword_hint = "PRICE"
+
+        text = str(request.data.get("text") or keyword_hint).strip()
+        contact_handle = str(request.data.get("handle") or "@tester").strip()
+        if not contact_handle.startswith("@"):
+            contact_handle = f"@{contact_handle}"
+        display_name = str(request.data.get("name") or contact_handle.lstrip("@").capitalize())
+
+        event_id = f"test-{uuid.uuid4()}"
+        contact, _ = EngagementContact.objects.update_or_create(
+            workspace=workspace,
+            platform=connection.network,
+            provider_contact_id=f"test-contact-{uuid.uuid4().hex[:8]}",
+            defaults={"display_name": display_name, "handle": contact_handle},
+        )
+
+        created = []
+        if kind == EngagementAutomationKind.COMMENT_TO_DM:
+            matched_auto = _automation_for(connection, EngagementAutomationKind.COMMENT_TO_DM, text) or automation
+            public_suggestion = (
+                matched_auto.approved_comment_reply.strip()
+                if matched_auto and matched_auto.approved_comment_reply.strip()
+                else _generic_suggestion(EngagementItemKind.COMMENT_REPLY, display_name)
+            )
+            post_id = f"sim-post-{uuid.uuid4().hex[:8]}"
+            comment_id = f"sim-comment-{uuid.uuid4().hex[:8]}"
+            public_item = EngagementReviewItem.objects.create(
+                workspace=workspace,
+                connection=connection,
+                contact=contact,
+                kind=EngagementItemKind.COMMENT_REPLY,
+                source_label=f"Comment keyword: {text}" if matched_auto else "Social comment",
+                incoming_text=text,
+                suggested_text=public_suggestion,
+                provider_post_id=post_id,
+                provider_comment_id=comment_id,
+                provider_event_id=event_id,
+                assignee=matched_auto.owner if matched_auto else request.user,
+                metadata={"automation_id": str(matched_auto.id), "simulated": True} if matched_auto else {"simulated": True},
+            )
+            created.append(public_item)
+            if matched_auto:
+                private_item = EngagementReviewItem.objects.create(
+                    workspace=workspace,
+                    connection=connection,
+                    contact=contact,
+                    kind=EngagementItemKind.DIRECT_MESSAGE,
+                    source_label=f"{matched_auto.name} · private reply",
+                    incoming_text=text,
+                    suggested_text=matched_auto.approved_dm_message,
+                    provider_post_id=post_id,
+                    provider_comment_id=comment_id,
+                    provider_event_id=f"{event_id}:private",
+                    assignee=matched_auto.owner or request.user,
+                    metadata={"automation_id": str(matched_auto.id), "private_reply": True, "simulated": True},
+                )
+                matched_auto.stats = {**matched_auto.stats, "runs": int(matched_auto.stats.get("runs", 0)) + 1}
+                matched_auto.save(update_fields=["stats", "updated_at"])
+                created.append(private_item)
+        else:
+            is_story = kind == EngagementAutomationKind.STORY_REPLY
+            matched_auto = (
+                _automation_for(connection, EngagementAutomationKind.STORY_REPLY, text)
+                if is_story
+                else _automation_for(connection, EngagementAutomationKind.DM_KEYWORD, text)
+            ) or automation
+            review_kind = EngagementItemKind.STORY_REPLY if is_story else EngagementItemKind.DIRECT_MESSAGE
+            item = EngagementReviewItem.objects.create(
+                workspace=workspace,
+                connection=connection,
+                contact=contact,
+                kind=review_kind,
+                source_label=(matched_auto.name if matched_auto else "Story reply" if is_story else "Direct message"),
+                incoming_text=text,
+                suggested_text=matched_auto.approved_dm_message if matched_auto else _generic_suggestion(review_kind, display_name),
+                conversation_id=f"sim-conversation-{uuid.uuid4().hex[:8]}",
+                provider_event_id=event_id,
+                assignee=matched_auto.owner if matched_auto else request.user,
+                metadata={"automation_id": str(matched_auto.id), "simulated": True} if matched_auto else {"simulated": True},
+            )
+            if matched_auto:
+                matched_auto.stats = {**matched_auto.stats, "runs": int(matched_auto.stats.get("runs", 0)) + 1}
+                matched_auto.save(update_fields=["stats", "updated_at"])
+            created.append(item)
+
+        return Response({
+            "message": f"Successfully simulated {kind} event. {len(created)} review item(s) prepared.",
+            "reviews": [serialize_review(item) for item in created],
+        }, status=201)

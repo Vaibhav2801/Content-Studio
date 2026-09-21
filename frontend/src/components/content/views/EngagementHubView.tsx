@@ -326,6 +326,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
   const [publicReply, setPublicReply] = useState('')
   const [connectionId, setConnectionId] = useState('')
   const [ownerId, setOwnerId] = useState('')
+  const [autoActivate, setAutoActivate] = useState(false)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     if (!connectionId && instagram[0]) setConnectionId(instagram[0].id)
@@ -339,10 +340,13 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
         connection_id: connectionId, kind, name: name.trim(),
         keywords: keyword.split(',').map((value) => value.trim()).filter(Boolean),
         match_mode: 'contains', dm_message: message.trim(), comment_reply: publicReply.trim(), owner_id: ownerId || undefined,
+        activate: autoActivate,
       })
       onCreate(item)
       setName(''); setKeyword(''); setMessage(''); setPublicReply(''); setCreating(false)
-      showNotice('Automation created in review mode. Nothing will run until it is approved.')
+      showNotice(item.status === 'ACTIVE'
+        ? `Automation "${item.name}" created and activated! Incoming matched interactions will prepare drafts in Review.`
+        : 'Automation created in review mode. Nothing will run until it is approved.')
     } catch (error) { showNotice(errorMessage(error)) }
     finally { setBusy(false) }
   }
@@ -384,7 +388,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
           <div className="quick-form-icon"><WandSparkles size={20} /></div>
           <div>
             <strong>Create a simple automation</strong>
-            <span>It starts in review mode — every reply is queued for human sign-off.</span>
+            <span>Replies are prepared for human sign-off in the Review tab.</span>
           </div>
         </div>
 
@@ -407,7 +411,11 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
           </label>
           <label className="quick-field">
             <span>Trigger Keywords (comma-separated)</span>
-            <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Example: PRICE, PLANS" />
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder={kind === 'STORY_REPLY' ? 'Optional: Leave empty or type * for all story replies' : 'Example: PRICE, PLANS'}
+            />
           </label>
           <label className="quick-field quick-field-full">
             <span>Suggested Direct Message (DM)</span>
@@ -425,12 +433,20 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
               {team.map((person) => <option key={person.id} value={person.id}>{person.is_current_user ? 'You' : person.name}</option>)}
             </select>
           </label>
+          <label className="quick-field quick-field-full" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={autoActivate} onChange={(event) => setAutoActivate(event.target.checked)} />
+            <span><strong>Activate immediately</strong> (start matching incoming interactions right away)</span>
+          </label>
         </div>
 
         <div className="quick-form-footer">
           <button type="button" className="li-quiet-button" onClick={() => setCreating(false)}>Cancel</button>
-          <button className="button button-dark" disabled={busy || !name.trim() || !keyword.trim() || !message.trim()} type="submit">
-            {busy ? 'Creating…' : 'Create for review'}
+          <button
+            className="button button-dark"
+            disabled={busy || !name.trim() || (kind !== 'STORY_REPLY' && !keyword.trim()) || !message.trim()}
+            type="submit"
+          >
+            {busy ? 'Creating…' : autoActivate ? 'Create and activate' : 'Create for review'}
           </button>
         </div>
       </form>
@@ -451,7 +467,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
     {automations.length ? (
       <div className="automation-list">
         {automations.map((item) => (
-          <AutomationCard key={item.id} item={item} onAction={() => void action(item)} />
+          <AutomationCard key={item.id} item={item} onAction={() => void action(item)} showNotice={showNotice} />
         ))}
       </div>
     ) : (
@@ -464,17 +480,34 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
   </div>
 }
 
-function AutomationCard({ item, onAction }: { item: EngagementAutomation; onAction: () => void }) {
+function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutomation; onAction: () => void; showNotice: (message: string) => void }) {
+  const [testing, setTesting] = useState(false)
   const icons = { COMMENT_TO_DM: MessageCircleMore, STORY_REPLY: Instagram, DM_KEYWORD: Search, CLICK_TO_DM: MousePointerClick }
   const Icon = icons[item.kind] || MessageCircleMore
-  const trigger = item.keywords.length ? `${item.match_mode} “${item.keywords.join('”, “')}”` : 'No keywords'
+  const trigger = item.keywords.length
+    ? `${item.match_mode} “${item.keywords.join('”, “')}”`
+    : (item.kind === 'STORY_REPLY' ? 'Any story reply' : 'Any comment')
+
+  const handleTest = async () => {
+    try {
+      setTesting(true)
+      const res = await contentStudioApi.testEngagementAutomation({ automation_id: item.id })
+      showNotice(`${res.message} Switch to the Review tab to view and approve!`)
+    } catch (error) {
+      showNotice(errorMessage(error))
+    } finally {
+      setTesting(false)
+    }
+  }
 
   return <article className="automation-row">
     <div className="automation-row-icon"><Icon size={20} /></div>
     <div className="automation-main">
       <div className="automation-header-meta">
         <span className="automation-type-tag">{item.type}</span>
-        <span className={`automation-state ${item.state.toLowerCase().replaceAll(' ', '-')}`}>{item.state}</span>
+        <span className={`automation-state ${item.state.toLowerCase().replaceAll(' ', '-')}`}>
+          {item.status === 'ACTIVE' ? 'Active' : item.status === 'DRAFT' ? 'Draft (Needs Activation)' : item.state}
+        </span>
       </div>
       <h3>{item.name}</h3>
       <p className="automation-guard-note">Matched replies are prepared for human review; no copy is sent automatically.</p>
@@ -487,6 +520,12 @@ function AutomationCard({ item, onAction }: { item: EngagementAutomation; onActi
           <span className="detail-key">DM:</span>
           <span className="detail-val">{item.dm_message}</span>
         </div>
+        {item.kind === 'COMMENT_TO_DM' && item.comment_reply && (
+          <div className="automation-detail-pill">
+            <span className="detail-key">Public:</span>
+            <span className="detail-val">{item.comment_reply}</span>
+          </div>
+        )}
       </div>
     </div>
     <div className="automation-owner">
@@ -494,15 +533,37 @@ function AutomationCard({ item, onAction }: { item: EngagementAutomation; onActi
       <span className="automation-owner-name">Owner: {item.owner}</span>
       {item.error && <span className="automation-error-tag">{item.error}</span>}
     </div>
-    <div className="automation-actions">
+    <div className="automation-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <button
-        className="automation-play"
+        className="li-quiet-button"
         type="button"
-        aria-label={item.status === 'ACTIVE' ? `Pause ${item.name}` : item.status === 'DRAFT' ? `Approve ${item.name}` : `Activate ${item.name}`}
-        onClick={onAction}
+        disabled={testing}
+        onClick={() => void handleTest()}
+        title="Simulate a test interaction for this automation to verify review card creation"
+        style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
       >
-        {item.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
+        <Sparkles size={14} />
+        <span>{testing ? 'Testing…' : 'Test Rule'}</span>
       </button>
+      {item.status === 'DRAFT' ? (
+        <button
+          className="button button-dark"
+          type="button"
+          onClick={onAction}
+          style={{ fontSize: '12px', padding: '6px 12px' }}
+        >
+          <Play size={14} style={{ marginRight: '4px' }} /> Activate
+        </button>
+      ) : (
+        <button
+          className="automation-play"
+          type="button"
+          aria-label={item.status === 'ACTIVE' ? `Pause ${item.name}` : `Activate ${item.name}`}
+          onClick={onAction}
+        >
+          {item.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
+        </button>
+      )}
     </div>
   </article>
 }

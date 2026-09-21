@@ -283,3 +283,176 @@ class EngagementApiTests(TestCase):
         campaign_table = connection.ops.quote_name(type(campaign)._meta.db_table)
         lookup = next(query["sql"] for query in queries if f"FROM {campaign_table}" in query["sql"])
         self.assertNotIn(" JOIN ", lookup.upper())
+
+    def test_comment_to_dm_webhook_creates_public_comment_and_private_dm(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="COMMENT_TO_DM",
+            name="Pricing Comment Automation",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["PRICE", "COST"],
+            match_mode="contains",
+            approved_dm_message="Here is our pricing sheet: https://example.com/pricing",
+            approved_comment_reply="Sent you a DM with the details!",
+            owner=self.user,
+        )
+        payload = {
+            "id": "webhook-comment-1",
+            "event": "comment.received",
+            "account": {"id": "account-instagram"},
+            "post": {"id": "instagram-post-101"},
+            "comment": {"id": "comment-555", "text": "What is the price of this?", "postId": "instagram-post-101"},
+            "contact": {"id": "contact-commenter", "name": "Commenter User", "username": "commenter"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        response = self.client.post(
+            reverse("social-engagement-webhook"),
+            data=body,
+            content_type="application/json",
+            HTTP_X_ZERNIO_SIGNATURE=signature,
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["accepted"], 2)
+
+        public_item = EngagementReviewItem.objects.get(provider_event_id="webhook-comment-1")
+        self.assertEqual(public_item.kind, EngagementItemKind.COMMENT_REPLY)
+        self.assertEqual(public_item.suggested_text, "Sent you a DM with the details!")
+        self.assertEqual(public_item.provider_post_id, "instagram-post-101")
+        self.assertEqual(public_item.provider_comment_id, "comment-555")
+
+        private_item = EngagementReviewItem.objects.get(provider_event_id="webhook-comment-1:private")
+        self.assertEqual(private_item.kind, EngagementItemKind.DIRECT_MESSAGE)
+        self.assertEqual(private_item.suggested_text, "Here is our pricing sheet: https://example.com/pricing")
+        self.assertEqual(private_item.provider_post_id, "instagram-post-101")
+        self.assertEqual(private_item.provider_comment_id, "comment-555")
+        self.assertTrue(private_item.metadata.get("private_reply"))
+
+        automation.refresh_from_db()
+        self.assertEqual(automation.stats["runs"], 1)
+
+    def test_story_reply_with_meta_reply_to_story_format(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="STORY_REPLY",
+            name="Meta Story Greeting",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["COOL"],
+            match_mode="contains",
+            approved_dm_message="Thanks for checking out our story!",
+            owner=self.user,
+        )
+        # Native Meta Graph API webhook format for story reply
+        payload = {
+            "id": "webhook-meta-story-1",
+            "event": "message.received",
+            "account": {"id": "account-instagram"},
+            "conversation": {"id": "conv-story-100"},
+            "message": {
+                "id": "mid-story-1",
+                "text": "So cool!",
+                "reply_to": {
+                    "story": {
+                        "id": "story-meta-id-1",
+                        "url": "https://instagram.com/stories/...",
+                    }
+                },
+                "senderId": "contact-story-fan",
+            },
+            "contact": {"id": "contact-story-fan", "name": "Story Fan", "username": "storyfan"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        response = self.client.post(
+            reverse("social-engagement-webhook"),
+            data=body,
+            content_type="application/json",
+            HTTP_X_ZERNIO_SIGNATURE=signature,
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["accepted"], 1)
+
+        created = EngagementReviewItem.objects.get(provider_event_id="webhook-meta-story-1")
+        self.assertEqual(created.kind, EngagementItemKind.STORY_REPLY)
+        self.assertEqual(created.suggested_text, "Thanks for checking out our story!")
+        self.assertEqual(created.metadata["automation_id"], str(automation.id))
+        automation.refresh_from_db()
+        self.assertEqual(automation.stats["runs"], 1)
+
+    def test_story_reply_without_keywords_matches_any_story_response(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="STORY_REPLY",
+            name="Catch-All Story Reply",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=[],
+            match_mode="contains",
+            approved_dm_message="Hey! Thanks for replying to our story.",
+            owner=self.user,
+        )
+        payload = {
+            "id": "webhook-story-emoji-1",
+            "event": "message.received",
+            "account": {"id": "account-instagram"},
+            "conversation": {"id": "conv-story-200"},
+            "message": {
+                "id": "mid-story-emoji",
+                "text": "🔥",
+                "storyReply": {"storyId": "story-emoji-id"},
+                "senderId": "contact-emoji-fan",
+            },
+            "contact": {"id": "contact-emoji-fan", "name": "Emoji Fan", "username": "emojifan"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        response = self.client.post(
+            reverse("social-engagement-webhook"),
+            data=body,
+            content_type="application/json",
+            HTTP_X_ZERNIO_SIGNATURE=signature,
+        )
+        self.assertEqual(response.status_code, 202)
+        created = EngagementReviewItem.objects.get(provider_event_id="webhook-story-emoji-1")
+        self.assertEqual(created.kind, EngagementItemKind.STORY_REPLY)
+        self.assertEqual(created.suggested_text, "Hey! Thanks for replying to our story.")
+
+    def test_auto_activate_on_create_automation(self):
+        response = self.client.post(reverse("social-engagement-automations"), {
+            "connection_id": str(self.instagram.id),
+            "kind": "STORY_REPLY",
+            "name": "Auto Activated Story Rule",
+            "keywords": ["LINK"],
+            "dm_message": "Here is the story link!",
+            "activate": True,
+        }, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["status"], EngagementAutomationStatus.ACTIVE)
+
+    def test_test_trigger_endpoint_creates_review_items(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="COMMENT_TO_DM",
+            name="Test Sim Rule",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["DISCOUNT"],
+            approved_dm_message="Your 20% discount code is SAVE20",
+            approved_comment_reply="Check your DMs for the discount code!",
+            owner=self.user,
+        )
+        response = self.client.post(reverse("social-engagement-test-trigger"), {
+            "automation_id": str(automation.id),
+            "text": "DISCOUNT please",
+            "handle": "@test_shopper",
+        }, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data["reviews"]), 2)
+        kinds = [r["kind"] for r in response.data["reviews"]]
+        self.assertIn("Comment reply", kinds)
+        self.assertIn("Direct message", kinds)

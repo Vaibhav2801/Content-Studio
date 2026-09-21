@@ -113,6 +113,7 @@ export interface CreateEngagementAutomation {
   dm_message: string
   comment_reply?: string
   owner_id?: string
+  activate?: boolean
 }
 
 export interface CreateEngagementCampaign {
