@@ -1,7 +1,7 @@
 import {
   BarChart3, Check, CheckCircle2, ChevronDown, ExternalLink, Instagram, Linkedin,
-  MessageCircleMore, MousePointerClick, Pause, Play, Plus, Search, Send, ShieldCheck, Sparkles,
-  Users, WandSparkles, X, Zap, Copy, AlertCircle,
+  MessageCircleMore, MessageSquare, MousePointerClick, Pause, Play, Plus, Search, Send, ShieldCheck, Sparkles,
+  Users, WandSparkles, X, Zap, Copy, AlertCircle, Clock, CornerDownRight, RotateCw, RefreshCw,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { contentStudioApi } from '../../../api/contentStudio'
@@ -12,7 +12,7 @@ import type {
 import './EngagementHubView.css'
 
 type EngageView = 'review' | 'automations' | 'campaigns' | 'analytics' | 'linkedin'
-type ReviewFilter = 'all' | 'mine' | 'instagram' | 'linkedin'
+type ReviewFilter = 'all' | 'mine' | 'story' | 'comment' | 'dm' | 'instagram' | 'linkedin' | 'failed'
 
 const navItems: Array<{ id: EngageView; label: string; icon: typeof CheckCircle2 }> = [
   { id: 'review', label: 'Review', icon: CheckCircle2 },
@@ -131,87 +131,262 @@ export function EngagementHubView() {
 
 function ReviewWorkspace({ reviews, team, connections, onReplace, showNotice }: { reviews: EngagementReview[]; team: EngagementTeamMember[]; connections: EngagementConnection[]; onReplace: (item: EngagementReview) => void; showNotice: (message: string) => void }) {
   const [filter, setFilter] = useState<ReviewFilter>('all')
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'instagram' | 'linkedin'>('all')
   const [connectionId, setConnectionId] = useState('all')
   const [query, setQuery] = useState('')
   const currentUser = team.find((member) => member.is_current_user)
   const connectedAccounts = useMemo(() => connections.filter((item) => item.connected && item.engagement_supported), [connections])
+
+  const storyCount = useMemo(() => reviews.filter((r) => r.kind === 'Story reply').length, [reviews])
+  const commentCount = useMemo(() => reviews.filter((r) => r.kind === 'Comment reply').length, [reviews])
+  const dmCount = useMemo(() => reviews.filter((r) => r.kind === 'Direct message').length, [reviews])
+  const assignedCount = useMemo(() => reviews.filter((item) => item.assignee_id === currentUser?.id).length, [currentUser?.id, reviews])
+  const failedCount = useMemo(() => reviews.filter((item) => item.status === 'FAILED').length, [reviews])
+
   const filtered = useMemo(() => reviews.filter((item) => {
+    // Kind / Category Filter
     if (filter === 'mine' && item.assignee_id !== currentUser?.id) return false
-    if ((filter === 'instagram' || filter === 'linkedin') && item.platform !== filter) return false
+    if (filter === 'failed' && item.status !== 'FAILED') return false
+    if (filter === 'story' && item.kind !== 'Story reply') return false
+    if (filter === 'comment' && item.kind !== 'Comment reply') return false
+    if (filter === 'dm' && item.kind !== 'Direct message') return false
+    if (filter === 'instagram' && item.platform !== 'instagram') return false
+    if (filter === 'linkedin' && item.platform !== 'linkedin') return false
+
+    // Platform Filter
+    if (platformFilter !== 'all' && item.platform !== platformFilter) return false
+
+    // Account Filter
     if (connectionId !== 'all' && item.connection_id !== connectionId) return false
-    return `${item.person} ${item.handle} ${item.account_name} ${item.incoming} ${item.draft}`.toLowerCase().includes(query.toLowerCase())
-  }), [connectionId, currentUser?.id, filter, query, reviews])
+
+    // Text Search
+    if (query.trim()) {
+      const q = query.toLowerCase()
+      const searchContent = `${item.person} ${item.handle} ${item.account_name} ${item.incoming} ${item.draft} ${item.kind} ${item.source}`.toLowerCase()
+      if (!searchContent.includes(q)) return false
+    }
+
+    return true
+  }), [connectionId, currentUser?.id, filter, platformFilter, query, reviews])
 
   return <div className="engage-view">
-    <section className="engage-intro">
-      <div className="engage-intro-copy">
-        <span className="engage-eyebrow">ONE CLEAR QUEUE</span>
+    <header className="engage-hero-section">
+      <div className="engage-hero-content">
+        <div className="engage-hero-badge">
+          <Sparkles size={13} className="hero-sparkle" />
+          <span>ONE CLEAR QUEUE</span>
+        </div>
         <h2>Review AI suggestions</h2>
         <p>Edit the draft, choose an owner, and approve when it sounds right. Solo users and teams follow the same flow.</p>
       </div>
-      <div className="engage-mini-stats">
-        <div className="mini-stat-item">
-          <strong>{reviews.length}</strong>
-          <span>Waiting</span>
-        </div>
-        <div className="mini-stat-item">
-          <strong>{reviews.filter((item) => item.assignee_id === currentUser?.id).length}</strong>
-          <span>Assigned to you</span>
-        </div>
-        <div className="mini-stat-item">
-          <strong>{reviews.filter((item) => item.status === 'FAILED').length}</strong>
-          <span>Need retry</span>
-        </div>
+
+      <div className="engage-hero-metrics" role="region" aria-label="Review metrics">
+        <button
+          type="button"
+          className={`hero-metric-card ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => setFilter('all')}
+          title="Show all pending reviews"
+        >
+          <div className="metric-icon-wrap waiting">
+            <Clock size={16} />
+          </div>
+          <div className="metric-info">
+            <strong className="metric-value">{reviews.length}</strong>
+            <span className="metric-label">Waiting</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={`hero-metric-card ${filter === 'mine' ? 'active' : ''}`}
+          onClick={() => setFilter('mine')}
+          title="Show reviews assigned to you"
+        >
+          <div className="metric-icon-wrap assigned">
+            <Users size={16} />
+          </div>
+          <div className="metric-info">
+            <strong className="metric-value">{assignedCount}</strong>
+            <span className="metric-label">Assigned to you</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={`hero-metric-card ${filter === 'failed' ? 'active' : ''}`}
+          onClick={() => setFilter('failed')}
+          title="Show reviews needing retry"
+        >
+          <div className="metric-icon-wrap failed">
+            <AlertCircle size={16} />
+          </div>
+          <div className="metric-info">
+            <strong className="metric-value">{failedCount}</strong>
+            <span className="metric-label">Need retry</span>
+          </div>
+        </button>
       </div>
-    </section>
+    </header>
 
     <div className="engage-toolbar">
       <div className="engage-toolbar-filters">
-        <div className="engage-filters" role="group" aria-label="Filter review queue">
-          {([['all', 'All'], ['mine', 'Mine'], ['instagram', 'Instagram'], ['linkedin', 'LinkedIn']] as Array<[ReviewFilter, string]>).map(([id, label]) => (
+        <div className="engage-pill-filters" role="group" aria-label="Filter review queue">
+          <button
+            type="button"
+            className={`engage-pill-btn ${filter === 'all' ? 'active' : ''}`}
+            aria-pressed={filter === 'all'}
+            onClick={() => setFilter('all')}
+          >
+            <span>All</span>
+            <span className="pill-count">{reviews.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`engage-pill-btn story-pill ${filter === 'story' ? 'active' : ''}`}
+            aria-pressed={filter === 'story'}
+            onClick={() => setFilter('story')}
+            title="Filter by Story Automation Replies"
+          >
+            <span className="kind-dot story-dot" />
+            <span>Story replies</span>
+            <span className="pill-count">{storyCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`engage-pill-btn comment-pill ${filter === 'comment' ? 'active' : ''}`}
+            aria-pressed={filter === 'comment'}
+            onClick={() => setFilter('comment')}
+            title="Filter by Comment to DM Automations"
+          >
+            <MessageCircleMore size={13} />
+            <span>Comment to DM</span>
+            <span className="pill-count">{commentCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`engage-pill-btn dm-pill ${filter === 'dm' ? 'active' : ''}`}
+            aria-pressed={filter === 'dm'}
+            onClick={() => setFilter('dm')}
+            title="Filter by Direct Messages"
+          >
+            <MessageSquare size={13} />
+            <span>Direct messages</span>
+            <span className="pill-count">{dmCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`engage-pill-btn ${filter === 'mine' ? 'active' : ''}`}
+            aria-pressed={filter === 'mine'}
+            onClick={() => setFilter('mine')}
+            title="Filter by reviews assigned to you"
+          >
+            <Users size={13} />
+            <span>Mine</span>
+            <span className="pill-count">{assignedCount}</span>
+          </button>
+
+          {failedCount > 0 && (
             <button
               type="button"
-              key={id}
-              className={`engage-filter-btn ${filter === id ? 'active' : ''}`}
-              aria-pressed={filter === id}
-              onClick={() => setFilter(id)}
+              className={`engage-pill-btn failed-pill ${filter === 'failed' ? 'active' : ''}`}
+              aria-pressed={filter === 'failed'}
+              onClick={() => setFilter('failed')}
+              title="Filter by failed sends"
             >
-              {label}
-              {id === 'all' ? <span className="engage-filter-count">{reviews.length}</span> : null}
+              <AlertCircle size={12} />
+              <span>Retry</span>
+              <span className="pill-count">{failedCount}</span>
             </button>
-          ))}
+          )}
         </div>
-        <label className="engage-account-filter">
-          <span className="sr-only">Connected account</span>
-          <select aria-label="Connected account" value={connectionId} onChange={(event) => setConnectionId(event.target.value)}>
-            <option value="all">All accounts</option>
-            {connectedAccounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name} · {account.platform === 'instagram' ? 'Instagram' : 'LinkedIn'}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="select-chevron" />
+
+        <div className="engage-dropdown-filters">
+          <label className="engage-account-select-wrap">
+            <span className="sr-only">Platform</span>
+            <select
+              aria-label="Platform"
+              className="engage-account-select"
+              value={platformFilter}
+              onChange={(event) => setPlatformFilter(event.target.value as 'all' | 'instagram' | 'linkedin')}
+            >
+              <option value="all">All platforms</option>
+              <option value="instagram">Instagram</option>
+              <option value="linkedin">LinkedIn</option>
+            </select>
+            <ChevronDown size={14} className="select-chevron" />
+          </label>
+
+          <label className="engage-account-select-wrap">
+            <span className="sr-only">Connected account</span>
+            <select
+              aria-label="Connected account"
+              className="engage-account-select"
+              value={connectionId}
+              onChange={(event) => setConnectionId(event.target.value)}
+            >
+              <option value="all">All accounts ({connectedAccounts.length})</option>
+              {connectedAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name} · {account.platform === 'instagram' ? 'Instagram' : 'LinkedIn'}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="select-chevron" />
+          </label>
+        </div>
+      </div>
+
+      <div className="engage-search-container">
+        <label className="engage-search-label">
+          <Search size={15} className="search-icon" />
+          <span className="sr-only">Search reviews</span>
+          <input
+            type="text"
+            className="engage-search-input"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search people, messages, handles…"
+          />
+          {query && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              aria-label="Clear search"
+              onClick={() => setQuery('')}
+            >
+              <X size={13} />
+            </button>
+          )}
         </label>
       </div>
-      <label className="engage-search">
-        <Search size={16} className="search-icon" />
-        <span className="sr-only">Search reviews</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people or messages…" />
-      </label>
     </div>
 
     {filtered.length ? (
-      <div className="review-inbox">
+      <div className="review-inbox-grid">
         {filtered.map((item) => (
           <ReviewCard key={item.id} item={item} team={team} onReplace={onReplace} showNotice={showNotice} />
         ))}
       </div>
     ) : (
-      <div className="engage-empty">
-        <div className="engage-empty-icon"><CheckCircle2 size={32} /></div>
-        <h3>You’re all caught up</h3>
-        <p>No suggestions match your current filter.</p>
+      <div className="engage-empty-state">
+        <div className="empty-state-icon-wrap">
+          <CheckCircle2 size={36} />
+        </div>
+        <h3>You’re all caught up!</h3>
+        <p>No messages or suggestions match the selected view.</p>
+        {(filter !== 'all' || connectionId !== 'all' || query) && (
+          <button
+            type="button"
+            className="empty-state-reset-btn"
+            onClick={() => { setFilter('all'); setConnectionId('all'); setQuery('') }}
+          >
+            Reset all filters
+          </button>
+        )}
       </div>
     )}
   </div>
@@ -219,8 +394,14 @@ function ReviewWorkspace({ reviews, team, connections, onReplace, showNotice }: 
 
 function ReviewCard({ item, team, onReplace, showNotice }: { item: EngagementReview; team: EngagementTeamMember[]; onReplace: (item: EngagementReview) => void; showNotice: (message: string) => void }) {
   const [draft, setDraft] = useState(item.draft)
+  const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const PlatformIcon = item.platform === 'instagram' ? Instagram : Linkedin
+
+  useEffect(() => {
+    setDraft(item.draft)
+  }, [item.draft])
+
   const update = async (payload: { draft?: string; assignee_id?: string }, message?: string) => {
     try {
       setBusy(true)
@@ -230,6 +411,7 @@ function ReviewCard({ item, team, onReplace, showNotice }: { item: EngagementRev
     } catch (error) { showNotice(errorMessage(error)) }
     finally { setBusy(false) }
   }
+
   const action = async (name: 'GENERATE' | 'APPROVE_SEND' | 'RETRY' | 'DISMISS') => {
     try {
       setBusy(true)
@@ -245,70 +427,244 @@ function ReviewCard({ item, team, onReplace, showNotice }: { item: EngagementRev
     finally { setBusy(false) }
   }
 
-  return <article className="engage-review-card">
-    <header className="review-card-header">
-      <div className="review-card-author">
-        <span className={`engage-platform-icon ${item.platform}`}><PlatformIcon size={17} /></span>
-        <div className="review-person-info">
-          <strong className="review-person-name">{item.person}</strong>
-          <span className="review-person-handle">{item.handle}</span>
+  const copyDraft = () => {
+    if (!draft) return
+    navigator.clipboard.writeText(draft)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2200)
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return '?'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return name.slice(0, 2).toUpperCase()
+  }
+
+  return <article className={`engage-review-card ${item.status === 'FAILED' ? 'card-failed' : ''}`}>
+    {/* Card Top: Author Profile & Channel & Time */}
+    <header className="card-top-bar">
+      <div className="card-author-cluster">
+        <div className={`card-avatar ${item.platform}`}>
+          <span>{getInitials(item.person)}</span>
+          <span className={`card-avatar-network ${item.platform}`} title={item.platform === 'instagram' ? 'Instagram' : 'LinkedIn'}>
+            <PlatformIcon size={11} />
+          </span>
+        </div>
+        <div className="card-author-details">
+          <div className="card-author-primary">
+            <strong className="card-author-name">{item.person || 'Social contact'}</strong>
+            {item.handle && <span className="card-author-handle">{item.handle}</span>}
+          </div>
+          <div className="card-meta-line">
+            <span className="card-account-tag" title={`Connected account: ${item.account_name}`}>
+              {item.account_name}
+            </span>
+            <span className="meta-separator">•</span>
+            <span className="card-relative-time" title={new Date(item.received_at).toLocaleString()}>
+              <Clock size={11} />
+              {relativeTime(item.received_at)}
+            </span>
+          </div>
         </div>
       </div>
-      <div className="review-card-meta">
-        <span className="review-account-name" title={item.account_name}>{item.account_name}</span>
-        <span className="review-time">{relativeTime(item.received_at)}</span>
+
+      <div className="card-top-badges">
+        <span className={`card-kind-badge kind-${item.kind.toLowerCase().replace(/\s+/g, '-')}`}>
+          {item.kind === 'Story reply' ? (
+            <>
+              <span className="kind-dot story-dot" />
+              Story reply
+            </>
+          ) : item.kind === 'Comment reply' ? (
+            <>
+              <MessageCircleMore size={12} />
+              Comment
+            </>
+          ) : (
+            <>
+              <MessageSquare size={12} />
+              Direct message
+            </>
+          )}
+        </span>
+        {item.status === 'FAILED' && (
+          <span className="card-failed-badge">
+            <AlertCircle size={11} />
+            Send failed
+          </span>
+        )}
       </div>
     </header>
 
-    <div className="review-context">
-      <div className="review-context-header">
-        <span className="review-context-kind">{item.kind}</span>
-        <span className="review-context-source">{item.source}</span>
-      </div>
-      <blockquote>{item.incoming}</blockquote>
-    </div>
-
-    <label className="review-draft">
-      <div className="review-draft-label">
-        <span className="review-draft-title"><Sparkles size={15} /> AI suggestion</span>
-        <span className={`review-status-pill ${item.status === 'FAILED' ? 'failed' : ''}`}>
-          {item.status === 'FAILED' ? item.error : 'Not sent'}
+    {/* Inbound Context: What the user sent or commented */}
+    <section className="card-inbound-section">
+      <div className="inbound-label-bar">
+        <span className="inbound-source-label">
+          {item.source || (item.kind === 'Story reply' ? 'Story response' : 'Incoming interaction')}
         </span>
       </div>
-      <textarea
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder="Edit the suggested response before sending…"
-      />
-    </label>
+      <div className="inbound-chat-bubble">
+        <p>{item.incoming || '(Empty message)'}</p>
+      </div>
+    </section>
 
-    <footer className="review-card-footer">
-      <div className="review-footer-assignee">
-        <label className="review-assignee">
-          <Users size={15} />
+    {/* Visual Flow Indicator */}
+    <div className="card-flow-connector">
+      <div className="connector-line" />
+      <div className="connector-tag">
+        <CornerDownRight size={12} />
+        <span>AI Generated Suggestion</span>
+      </div>
+      <div className="connector-line" />
+    </div>
+
+    {/* AI Suggestion Box */}
+    <section className="card-ai-section">
+      <div className="ai-section-header">
+        <div className="ai-header-left">
+          <Sparkles size={14} className="sparkles-icon" />
+          <strong className="ai-header-title">AI suggestion</strong>
+        </div>
+        <div className="ai-header-right">
+          <span className="ai-char-count">{draft.length} chars</span>
+          <span className={`ai-status-tag ${item.status === 'FAILED' ? 'failed' : 'ready'}`}>
+            {item.status === 'FAILED' ? (item.error || 'Failed') : 'Not sent'}
+          </span>
+        </div>
+      </div>
+
+      <div className="ai-editor-box">
+        <textarea
+          className="ai-draft-textarea"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Edit the suggested response before sending…"
+          rows={3}
+        />
+      </div>
+
+      {/* Quick AI Polish Toolbar */}
+      <div className="ai-quick-toolbar">
+        <span className="quick-toolbar-label">Quick polish:</span>
+        <button
+          type="button"
+          className="quick-action-chip"
+          disabled={busy}
+          onClick={() => void action('GENERATE')}
+          title="Regenerate copy with AI"
+        >
+          <Sparkles size={11} />
+          <span>Improve with AI</span>
+        </button>
+        <button
+          type="button"
+          className="quick-action-chip"
+          disabled={busy || !draft.trim()}
+          onClick={() => {
+            const trimmed = draft.trim()
+            if (trimmed.length > 80) {
+              const shortened = trimmed.split(/([.!?])/).slice(0, 2).join('').trim() || trimmed.slice(0, 80)
+              setDraft(shortened)
+            }
+          }}
+          title="Make this response concise"
+        >
+          <span>Shorter</span>
+        </button>
+        <button
+          type="button"
+          className="quick-action-chip"
+          disabled={busy || !draft.trim()}
+          onClick={() => {
+            if (!draft.includes('😊') && !draft.includes('🙌')) {
+              setDraft(draft.trim() + ' 🙌')
+            }
+          }}
+          title="Add a friendly closing"
+        >
+          <span>Friendly 🙌</span>
+        </button>
+      </div>
+    </section>
+
+    {/* Card Footer: Assignee & Actions */}
+    <footer className="card-bottom-actions">
+      <div className="bottom-left-controls">
+        <label className="card-assignee-control">
+          <Users size={14} className="assignee-icon" />
           <span className="sr-only">Assignee</span>
-          <select value={item.assignee_id} disabled={busy} onChange={(event) => void update({ assignee_id: event.target.value })}>
+          <select
+            className="card-assignee-select"
+            value={item.assignee_id}
+            disabled={busy}
+            onChange={(event) => void update({ assignee_id: event.target.value })}
+            aria-label="Assignee"
+          >
             <option value="">Unassigned</option>
             {team.map((person) => (
-              <option key={person.id} value={person.id}>{person.is_current_user ? 'You' : person.name}</option>
+              <option key={person.id} value={person.id}>
+                {person.is_current_user ? 'You' : person.name}
+              </option>
             ))}
           </select>
-          <ChevronDown size={14} className="select-chevron" />
+          <ChevronDown size={13} className="select-chevron" />
         </label>
+
+        <button
+          type="button"
+          className="card-copy-btn"
+          onClick={copyDraft}
+          title="Copy response to clipboard"
+        >
+          {copied ? <Check size={13} className="copy-success" /> : <Copy size={13} />}
+          <span>{copied ? 'Copied!' : 'Copy'}</span>
+        </button>
       </div>
-      <div className="review-footer-actions">
-        <button className="li-text-button" type="button" disabled={busy} onClick={() => void action('DISMISS')}>
+
+      <div className="bottom-right-actions">
+        <button
+          type="button"
+          className="btn-ghost-dismiss"
+          disabled={busy}
+          onClick={() => void action('DISMISS')}
+          title="Dismiss this review suggestion"
+        >
           Dismiss
         </button>
-        <button className="li-quiet-button" type="button" disabled={busy} onClick={() => void action('GENERATE')}>
-          <Sparkles size={14} />Improve with AI
-        </button>
-        <button className="li-quiet-button" type="button" disabled={busy || draft === item.draft} onClick={() => void update({ draft }, 'Draft saved.')}>
+
+        <button
+          type="button"
+          className={`btn-subtle-save ${draft !== item.draft ? 'has-changes' : ''}`}
+          disabled={busy || draft === item.draft}
+          onClick={() => void update({ draft }, 'Draft saved.')}
+          title="Save draft without sending"
+        >
           Save draft
         </button>
-        <button className="button button-dark review-action-btn" type="button" disabled={busy || !draft.trim() || !item.can_send} onClick={() => void action(item.status === 'FAILED' ? 'RETRY' : 'APPROVE_SEND')}>
-          <Check size={16} />
-          {busy ? 'Working…' : item.status === 'FAILED' ? 'Retry send' : `Approve ${item.platform === 'linkedin' ? 'reply' : '& send'}`}
+
+        <button
+          type="button"
+          className={`btn-primary-approve ${item.status === 'FAILED' ? 'is-retry' : ''}`}
+          disabled={busy || !draft.trim() || !item.can_send}
+          onClick={() => void action(item.status === 'FAILED' ? 'RETRY' : 'APPROVE_SEND')}
+        >
+          {busy ? (
+            <>
+              <RefreshCw size={14} className="btn-spinner" />
+              <span>Working…</span>
+            </>
+          ) : item.status === 'FAILED' ? (
+            <>
+              <RotateCw size={14} />
+              <span>Retry send</span>
+            </>
+          ) : (
+            <>
+              <Check size={15} />
+              <span>Approve {item.platform === 'linkedin' ? 'reply' : '& send'}</span>
+            </>
+          )}
         </button>
       </div>
     </footer>

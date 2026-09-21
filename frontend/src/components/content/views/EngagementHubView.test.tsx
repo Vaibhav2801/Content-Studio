@@ -93,4 +93,30 @@ describe('EngagementHubView', () => {
     expect(screen.getByText(/Connection requests, personal DMs, and InMail are never automated/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Open LinkedIn/i })).toHaveAttribute('href', 'https://www.linkedin.com')
   })
+
+  it('filters reviews by story replies and comment to dm', async () => {
+    render(<EngagementHubView />)
+    await screen.findByText('Priya Mehta')
+    // Priya Mehta is Direct message, Daniel Kim is Comment reply
+    expect(screen.getByText('Priya Mehta')).toBeInTheDocument()
+    expect(screen.getByText('Daniel Kim')).toBeInTheDocument()
+
+    // Filter by Comment to DM
+    const commentBtn = screen.getByRole('button', { name: /Comment to DM/i })
+    fireEvent.click(commentBtn)
+    expect(screen.queryByText('Priya Mehta')).not.toBeInTheDocument()
+    expect(screen.getByText('Daniel Kim')).toBeInTheDocument()
+
+    // Filter by Direct messages
+    const dmBtn = screen.getByRole('button', { name: /Direct messages/i })
+    fireEvent.click(dmBtn)
+    expect(screen.getByText('Priya Mehta')).toBeInTheDocument()
+    expect(screen.queryByText('Daniel Kim')).not.toBeInTheDocument()
+
+    // Filter by All
+    const allBtn = screen.getByRole('button', { name: /^All/i })
+    fireEvent.click(allBtn)
+    expect(screen.getByText('Priya Mehta')).toBeInTheDocument()
+    expect(screen.getByText('Daniel Kim')).toBeInTheDocument()
+  })
 })
