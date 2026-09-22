@@ -4,9 +4,9 @@ import { useAuth } from '../components/content/AuthContext'
 import './LandingPage.css'
 
 const plans = [
-  { name: 'Starter', price: 19, credits: 50, accounts: 1, description: 'For one brand finding its rhythm.', examples: 'About 5 AI image posts', featured: false },
-  { name: 'Growth', price: 49, credits: 250, accounts: 2, description: 'For consistent publishing on two channels.', examples: 'About 25 image posts', featured: true },
-  { name: 'Studio', price: 99, credits: 600, accounts: 4, description: 'For teams managing more ideas and accounts.', examples: 'About 60 image posts', featured: false },
+  { name: 'Free', price: 0, credits: 15, accounts: 0, description: 'Test the AI creation engine and plan upcoming drafts.', examples: 'Draft around 5 posts with images', featured: false },
+  { name: 'Starter', price: 20, credits: 50, accounts: 1, description: 'For creators building an authentic personal presence.', examples: 'Around 15-18 posts + unlimited scheduling', featured: false },
+  { name: 'Advance', price: 39, credits: 150, accounts: 1, description: 'High-volume publishing with Engage lead automation.', examples: 'Around 45-50 posts + Engage suite', featured: true },
 ]
 
 export function LandingPage() {

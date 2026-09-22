@@ -31,10 +31,10 @@ describe('Content Studio authentication routes', () => {
   it('renders the dedicated pricing plans and dynamic cost builder page', async () => {
     window.history.replaceState({}, '', '/pricing')
     render(<App />)
-    expect(await screen.findByRole('heading', { name: /Pay for your actual reach/i })).toBeInTheDocument()
-    expect(screen.getByText(/Dynamic Cost Estimate/i)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Simple plans/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Dynamic Cost Manager/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Everything you get with Content Studio/i })).toBeInTheDocument()
-    expect(screen.getByText(/Post Scheduling is 100% Free/i)).toBeInTheDocument()
+    expect(screen.getByText(/Unlimited Post Scheduling is always included/i)).toBeInTheDocument()
     expect(window.location.pathname).toBe('/pricing')
   })
 

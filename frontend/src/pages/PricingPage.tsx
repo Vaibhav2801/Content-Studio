@@ -1,160 +1,80 @@
 import {
-  ArrowRight, BarChart3, Bot, CalendarDays, Check, ChevronRight, HelpCircle,
-  Instagram, Layers3, Linkedin, MessageSquare, Plus, RefreshCw, Repeat2,
-  ShieldCheck, Sparkles, WandSparkles, Zap,
+  ArrowRight, CalendarDays, Check, Instagram,
+  Layers3, Linkedin, MessageSquare, Sparkles, WandSparkles, X, Zap,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
 import './PricingPage.css'
 
-interface BaseTierConfig {
-  id: 'starter' | 'growth' | 'scale'
-  name: string
-  monthlyPrice: number
-  connections: number
-  credits: number
-  engageIncluded: boolean
-  description: string
-  popular?: boolean
-}
-
-const BASE_TIERS: Record<string, BaseTierConfig> = {
-  starter: {
-    id: 'starter',
-    name: 'Starter',
-    monthlyPrice: 29,
-    connections: 2,
-    credits: 50,
-    engageIncluded: false,
-    description: 'For solopreneurs & creators growing an authentic personal brand.',
-  },
-  growth: {
-    id: 'growth',
-    name: 'Growth',
-    monthlyPrice: 69,
-    connections: 5,
-    credits: 200,
-    engageIncluded: true,
-    description: 'For growing businesses and consultants turning content into inbound leads.',
-    popular: true,
-  },
-  scale: {
-    id: 'scale',
-    name: 'Scale',
-    monthlyPrice: 139,
-    connections: 15,
-    credits: 600,
-    engageIncluded: true,
-    description: 'For agencies and multi-channel teams managing high-volume publishing.',
-  },
-}
-
-const BOOSTER_PACKS = [
-  { credits: 50, label: 'Starter Pack', price: 10, unit: '$0.20 / credit' },
-  { credits: 150, label: 'Growth Pack', price: 25, unit: '$0.16 / credit' },
-  { credits: 500, label: 'Power Pack', price: 60, unit: '$0.12 / credit' },
-  { credits: 1200, label: 'Agency Pack', price: 120, unit: '$0.10 / credit' },
-]
-
 export function PricingPage() {
   const { user } = useAuth()
   const primaryPath = user ? '/content' : '/signup'
-  const primaryLabel = user ? 'Open workspace' : 'Get started'
+  const primaryLabel = user ? 'Open workspace' : 'Get started free'
 
-  // Configurator state
-  const [selectedTier, setSelectedTier] = useState<'starter' | 'growth' | 'scale'>('growth')
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
-  const [connections, setConnections] = useState<number>(5)
-  const [credits, setCredits] = useState<number>(200)
-  const [engageEnabled, setEngageEnabled] = useState<boolean>(true)
+  // Dynamic Cost Manager State (Default on Starter $20)
+  const [baseTier, setBaseTier] = useState<'free' | 'starter' | 'advance'>('starter')
+  const [connections, setConnections] = useState<number>(1)
+  const [credits, setCredits] = useState<number>(50)
+  const [engageEnabled, setEngageEnabled] = useState<boolean>(false)
 
-  const activeTierConfig = BASE_TIERS[selectedTier]
-  const isAnnual = billingCycle === 'annual'
-  const annualDiscount = isAnnual ? 0.2 : 0
-
-  // Calculation logic
-  const extraConnections = Math.max(0, connections - activeTierConfig.connections)
-  const connectionRate = extraConnections >= 5 ? 4 : 5
-  const extraConnectionsCost = extraConnections * connectionRate
-
-  const extraCredits = Math.max(0, credits - activeTierConfig.credits)
-  let extraCreditsCost = 0
-  if (extraCredits > 0) {
-    if (extraCredits <= 200) {
-      extraCreditsCost = extraCredits * 0.15
-    } else {
-      extraCreditsCost = (200 * 0.15) + ((extraCredits - 200) * 0.1)
-    }
-  }
-
-  let engageCost = 0
-  if (!activeTierConfig.engageIncluded && engageEnabled) {
-    engageCost = 25
-  }
-
-  const rawMonthlyTotal = activeTierConfig.monthlyPrice + extraConnectionsCost + extraCreditsCost + engageCost
-  const finalMonthlyTotal = Math.round(rawMonthlyTotal * (1 - annualDiscount))
-  const annualSavings = Math.round(rawMonthlyTotal * 12 * 0.2)
-
-  const effectiveCostPerConn = (finalMonthlyTotal / connections).toFixed(2)
-  const effectiveCostPerCredit = (finalMonthlyTotal / credits).toFixed(2)
-
-  // Handlers
-  const handleTierChange = (tierId: 'starter' | 'growth' | 'scale') => {
-    setSelectedTier(tierId)
-    const tier = BASE_TIERS[tierId]
-    if (connections < tier.connections) {
-      setConnections(tier.connections)
-    }
-    if (credits < tier.credits) {
-      setCredits(tier.credits)
-    }
-    if (tier.engageIncluded) {
-      setEngageEnabled(true)
-    }
-  }
-
-  const applyArchetype = (type: 'creator' | 'growth' | 'agency' | 'power') => {
-    if (type === 'creator') {
-      setSelectedTier('starter')
-      setConnections(2)
+  const handleSelectTier = (tier: 'free' | 'starter' | 'advance') => {
+    setBaseTier(tier)
+    if (tier === 'free') {
+      setConnections(0)
+      setCredits(15)
+      setEngageEnabled(false)
+    } else if (tier === 'starter') {
+      setConnections(1)
       setCredits(50)
       setEngageEnabled(false)
-    } else if (type === 'growth') {
-      setSelectedTier('growth')
-      setConnections(5)
-      setCredits(200)
-      setEngageEnabled(true)
-    } else if (type === 'agency') {
-      setSelectedTier('scale')
-      setConnections(12)
-      setCredits(500)
-      setEngageEnabled(true)
-    } else if (type === 'power') {
-      setSelectedTier('scale')
-      setConnections(20)
-      setCredits(1200)
+    } else if (tier === 'advance') {
+      setConnections(1)
+      setCredits(150)
       setEngageEnabled(true)
     }
   }
+
+  // Cost calculation:
+  // Free = $0 (0 conn, 15 credits)
+  // Starter = $20 (1 conn, 50 credits)
+  // Advance = $39 (1 conn, 150 credits, Engage included)
+  // Extra connections: $5 / month each
+  // Extra credits: $10 per 50 credits
+  // Engage: $15 / month (free on Advance)
+  const basePrice = baseTier === 'free' ? 0 : baseTier === 'starter' ? 20 : 39
+  const baseIncludedConns = baseTier === 'free' ? 0 : 1
+  const baseIncludedCredits = baseTier === 'free' ? 15 : baseTier === 'starter' ? 50 : 150
+
+  const extraConnections = Math.max(0, connections - baseIncludedConns)
+  const extraConnectionsCost = extraConnections * 5
+
+  const extraCredits = Math.max(0, credits - baseIncludedCredits)
+  const extraCreditsCost = Math.round((extraCredits / 50) * 10)
+
+  let engageCost = 0
+  if (engageEnabled && baseTier !== 'advance') {
+    engageCost = 15
+  }
+
+  const dynamicMonthlyTotal = basePrice + extraConnectionsCost + extraCreditsCost + engageCost
 
   return (
     <div className="pricing-page">
       {/* Navigation Header */}
       <header className="pricing-header">
         <Link className="pricing-brand" to="/" aria-label="Content Studio home">
-          <span><Sparkles size={20} /></span> content studio
+          <span><Sparkles size={18} /></span> content studio
         </Link>
         <nav aria-label="Main navigation">
           <Link to="/#features">Features</Link>
           <Link to="/#how-it-works">How it works</Link>
-          <Link to="/pricing" className="active">Pricing</Link>
+          <Link to="/pricing" style={{ color: '#6352de', fontWeight: 750 }}>Pricing</Link>
         </nav>
         <div className="pricing-header-actions">
           {!user && <Link className="pricing-signin" to="/signin">Sign in</Link>}
           <Link className="pricing-top-cta" to={primaryPath}>
-            {primaryLabel} <ArrowRight size={15} />
+            {primaryLabel} <ArrowRight size={14} />
           </Link>
         </div>
       </header>
@@ -162,609 +82,431 @@ export function PricingPage() {
       <main>
         {/* Hero Section */}
         <section className="pricing-hero">
-          <span className="pricing-kicker">
-            <span /> TRANSPARENT &amp; DYNAMIC PRICING
-          </span>
+          <div className="pricing-hero-badge">
+            <Sparkles size={13} /> Transparent Monthly Pricing
+          </div>
           <h1>
-            Pay for your actual reach. <em>Never for scheduling.</em>
+            Simple plans. <em>Infinite reach.</em>
           </h1>
-          <p className="pricing-hero-desc">
-            Scale seamlessly on the basis of social connections and automated post creation credits.
-            Enjoy unlimited post scheduling across all plans with our modular Engage automation suite.
+          <p>
+            Choose a plan that fits your current workflow, or buy credit top-ups anytime.
+            Post scheduling is always 100% free and unlimited on every plan.
           </p>
-
-          {/* Billing Toggle */}
-          <div className="pricing-toggle-wrap">
-            <button
-              type="button"
-              className={`pricing-toggle-btn ${billingCycle === 'monthly' ? 'active' : ''}`}
-              onClick={() => setBillingCycle('monthly')}
-            >
-              Billed Monthly
-            </button>
-            <button
-              type="button"
-              className={`pricing-toggle-btn ${billingCycle === 'annual' ? 'active' : ''}`}
-              onClick={() => setBillingCycle('annual')}
-            >
-              <span>Billed Annually</span>
-              <span className="pricing-discount-pill">Save 20%</span>
-            </button>
-          </div>
-
-          {/* Preset Archetypes */}
-          <div className="pricing-archetypes">
-            <span className="pricing-archetypes-label">Quick Setups:</span>
-            <button
-              type="button"
-              className={`pricing-preset-btn ${selectedTier === 'starter' && connections === 2 ? 'selected' : ''}`}
-              onClick={() => applyArchetype('creator')}
-            >
-              Solo Creator (2 Conn, 50 Credits)
-            </button>
-            <button
-              type="button"
-              className={`pricing-preset-btn ${selectedTier === 'growth' && connections === 5 ? 'selected' : ''}`}
-              onClick={() => applyArchetype('growth')}
-            >
-              Growth Team (5 Conn, 200 Credits + Engage)
-            </button>
-            <button
-              type="button"
-              className={`pricing-preset-btn ${selectedTier === 'scale' && connections === 12 ? 'selected' : ''}`}
-              onClick={() => applyArchetype('agency')}
-            >
-              Agency / Multi-Brand (12 Conn, 500 Credits)
-            </button>
-            <button
-              type="button"
-              className={`pricing-preset-btn ${selectedTier === 'scale' && connections === 20 ? 'selected' : ''}`}
-              onClick={() => applyArchetype('power')}
-            >
-              Power Publisher (20 Conn, 1,200 Credits)
-            </button>
-          </div>
         </section>
 
-        {/* Dynamic Builder & Cost Manager */}
-        <section className="pricing-builder-container">
-          <div className="pricing-builder-grid">
+        {/* 3 Modern Light Plan Cards */}
+        <section className="pricing-plans-section">
+          <div className="pricing-plans-grid">
             
-            {/* Left: Controls */}
-            <div className="builder-controls-card">
-              
-              {/* Step 1: Base Tier Selection */}
-              <div className="builder-section-title">
-                <h3>
-                  <span className="builder-step-num">1</span>
-                  Choose your base foundation
-                </h3>
+            {/* Card 1: Free */}
+            <div className="light-plan-card">
+              <div className="plan-card-name">Free</div>
+              <div className="plan-card-desc">
+                Test drive the AI content creation engine and plan drafts risk-free.
               </div>
-
-              <div className="builder-tier-cards">
-                {(Object.keys(BASE_TIERS) as Array<'starter' | 'growth' | 'scale'>).map((tierKey) => {
-                  const tier = BASE_TIERS[tierKey]
-                  const isSelected = selectedTier === tierKey
-                  const displayPrice = isAnnual ? Math.round(tier.monthlyPrice * 0.8) : tier.monthlyPrice
-
-                  return (
-                    <div
-                      key={tier.id}
-                      className={`builder-tier-card ${isSelected ? 'active' : ''}`}
-                      onClick={() => handleTierChange(tier.id)}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      {tier.popular && <span className="builder-tier-badge">Most Popular</span>}
-                      <div className="tier-card-header">
-                        <strong>{tier.name}</strong>
-                        <span className="tier-card-price">${displayPrice}/mo</span>
-                      </div>
-                      <div className="tier-card-desc">{tier.description}</div>
-                      <div className="tier-card-specs">
-                        <div className="spec-item">
-                          <Check size={14} /> {tier.connections} Social Connections
-                        </div>
-                        <div className="spec-item">
-                          <Check size={14} /> {tier.credits} AI Post Credits / mo
-                        </div>
-                        <div className="spec-item">
-                          <Check size={14} /> Unlimited Scheduling
-                        </div>
-                        <div className="spec-item">
-                          <Check size={14} /> {tier.engageIncluded ? 'Engage Suite Included' : 'Engage available as Add-on'}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="plan-card-price">
+                <strong>$0</strong>
+                <span>/ month</span>
               </div>
-
-              {/* Step 2: Dynamic Volume Controls */}
-              <div className="builder-section-title">
-                <h3>
-                  <span className="builder-step-num">2</span>
-                  Scale volume dynamically
-                </h3>
-              </div>
-
-              {/* Slider 1: Connections */}
-              <div className="slider-group">
-                <div className="slider-header">
-                  <div className="slider-title-area">
-                    <span className="slider-title">Social Account Connections</span>
-                    <span className="slider-value-badge">{connections} connected</span>
-                  </div>
-                  <span className="slider-subdetail">
-                    {extraConnections > 0
-                      ? `+${extraConnections} extra accounts ($${extraConnectionsCost}/mo)`
-                      : `${activeTierConfig.connections} accounts included in plan`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={25}
-                  value={connections}
-                  onChange={(e) => setConnections(parseInt(e.target.value, 10))}
-                  className="custom-range-slider"
-                />
-                <div className="slider-ticks">
-                  <span>1</span>
-                  <span>5 (Growth)</span>
-                  <span>10</span>
-                  <span>15 (Scale)</span>
-                  <span>20</span>
-                  <span>25+</span>
-                </div>
-                <div className="slider-explanation">
-                  Base plan includes {activeTierConfig.connections} connections (LinkedIn Profile/Page, Instagram Business). Additional connections are $5/month ($4/mo for 5+).
-                </div>
-              </div>
-
-              {/* Slider 2: Automated Post Credits */}
-              <div className="slider-group">
-                <div className="slider-header">
-                  <div className="slider-title-area">
-                    <span className="slider-title">Monthly Automated Post Credits</span>
-                    <span className="slider-value-badge">{credits} credits / mo</span>
-                  </div>
-                  <span className="slider-subdetail">
-                    {extraCredits > 0
-                      ? `+${extraCredits} extra credits ($${Math.round(extraCreditsCost)}/mo)`
-                      : `${activeTierConfig.credits} credits included in plan`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={20}
-                  max={1500}
-                  step={10}
-                  value={credits}
-                  onChange={(e) => setCredits(parseInt(e.target.value, 10))}
-                  className="custom-range-slider"
-                />
-                <div className="slider-ticks">
-                  <span>20</span>
-                  <span>200 (Growth)</span>
-                  <span>500</span>
-                  <span>600 (Scale)</span>
-                  <span>1,000</span>
-                  <span>1,500</span>
-                </div>
-                <div className="slider-explanation">
-                  1 credit generates a full brand-tailored post with channel variants and hooks. Run out mid-month? Purchase non-expiring credit packs anytime.
-                </div>
-              </div>
-
-              {/* Unlimited Scheduling Callout */}
-              <div className="unlimited-scheduling-banner">
-                <div className="unlimited-badge-icon">
-                  <CalendarDays size={16} />
-                </div>
-                <div className="unlimited-text">
-                  <strong>Post Scheduling is 100% Free &amp; Unlimited</strong>
-                  <p>
-                    Unlike legacy platforms, we never cap how many posts you schedule or queue.
-                    Plan as far ahead on your calendar as you want without paying a dime extra.
-                  </p>
-                </div>
-              </div>
-
-              {/* Engage Feature Toggle Box */}
-              <div className={`engage-module-box ${engageEnabled ? 'active' : ''}`}>
-                <div className="engage-module-copy">
-                  <strong>
-                    Engage Automation Module {activeTierConfig.engageIncluded ? '(Included in your plan)' : '(+$25/mo Add-on)'}
-                  </strong>
-                  <p>
-                    Convert engagement into pipeline: automated Comment-to-DM flows, Instagram story replies, DM keyword triggers, and LinkedIn Copilot inbox management.
-                  </p>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={engageEnabled}
-                    disabled={activeTierConfig.engageIncluded}
-                    onChange={(e) => setEngageEnabled(e.target.checked)}
-                  />
-                  <span className="switch-slider" />
-                </label>
-              </div>
-
-            </div>
-
-            {/* Right: Real-time Invoice & Cost Summary */}
-            <div className="builder-summary-card">
-              <div className="summary-header">
-                <span className="summary-label">Dynamic Cost Estimate</span>
-                <div className="summary-total-price">
-                  <strong>${finalMonthlyTotal}</strong>
-                  <span>{isAnnual ? '/ month (billed annually)' : '/ month'}</span>
-                </div>
-                {isAnnual && (
-                  <div className="summary-savings-banner">
-                    ✨ Saving ${annualSavings}/year with annual billing
-                  </div>
-                )}
-              </div>
-
-              <div className="summary-divider" />
-
-              <div className="summary-item-list">
-                <div className="summary-item">
-                  <span>{activeTierConfig.name} Base Plan</span>
-                  <strong>${(activeTierConfig.monthlyPrice * (1 - annualDiscount)).toFixed(2)}</strong>
-                </div>
-
-                <div className="summary-item">
-                  <span>
-                    Extra Connections ({extraConnections} @ ${connectionRate}/mo)
-                  </span>
-                  <strong>${(extraConnectionsCost * (1 - annualDiscount)).toFixed(2)}</strong>
-                </div>
-
-                <div className="summary-item">
-                  <span>Extra Credits ({extraCredits})</span>
-                  <strong>${(extraCreditsCost * (1 - annualDiscount)).toFixed(2)}</strong>
-                </div>
-
-                <div className="summary-item">
-                  <span>Engage Feature Suite</span>
-                  <strong>
-                    {activeTierConfig.engageIncluded
-                      ? 'INCLUDED'
-                      : `$${(engageCost * (1 - annualDiscount)).toFixed(2)}`}
-                  </strong>
-                </div>
-
-                {isAnnual && (
-                  <div className="summary-item discount-item">
-                    <span>20% Annual Prepaid Discount</span>
-                    <strong>-${(rawMonthlyTotal * 0.2).toFixed(2)}</strong>
-                  </div>
-                )}
-              </div>
-
-              <div className="summary-divider" />
-
-              <div className="summary-unit-metrics">
-                <div className="metric-box">
-                  <small>Cost / Connection</small>
-                  <strong>${effectiveCostPerConn}/mo</strong>
-                </div>
-                <div className="metric-box">
-                  <small>Cost / Post Credit</small>
-                  <strong>${effectiveCostPerCredit}/post</strong>
-                </div>
-              </div>
-
-              <Link to={primaryPath} className="summary-checkout-btn">
-                <span>Lock in this Plan</span>
-                <ArrowRight size={16} />
+              <Link to={primaryPath} className="plan-card-btn">
+                Try for Free <ArrowRight size={14} />
               </Link>
+              <div className="plan-card-divider" />
+              <div className="plan-card-specs-title">What's included:</div>
+              <ul className="plan-card-specs">
+                <li><Check size={16} /> <strong>0 Social Connections</strong> (Sandbox mode)</li>
+                <li><Check size={16} /> <strong>15 AI Credits</strong></li>
+                <li><Check size={16} /> <strong>Unlimited Post Scheduling</strong> &amp; Calendar</li>
+                <li><Check size={16} /> Multi-platform copy adaptation</li>
+                <li className="disabled-spec"><X size={16} /> Social account publishing</li>
+                <li className="disabled-spec"><X size={16} /> Engage automation suite</li>
+              </ul>
+            </div>
 
-              <div className="summary-guarantee">
-                ✓ 14-day free trial &bull; No contracts &bull; Change or cancel quotas anytime
+            {/* Card 2: Starter ($20) */}
+            <div className="light-plan-card">
+              <div className="plan-card-name">Starter</div>
+              <div className="plan-card-desc">
+                For creators and founders building a consistent personal channel.
               </div>
+              <div className="plan-card-price">
+                <strong>$20</strong>
+                <span>/ month</span>
+              </div>
+              <Link to={primaryPath} className="plan-card-btn">
+                Start with Starter <ArrowRight size={14} />
+              </Link>
+              <div className="plan-card-divider" />
+              <div className="plan-card-specs-title">What's included:</div>
+              <ul className="plan-card-specs">
+                <li><Check size={16} /> <strong>1 Social Connection</strong> (LinkedIn or Instagram)</li>
+                <li><Check size={16} /> <strong>50 AI Credits / month</strong></li>
+                <li><Check size={16} /> <strong>100% Unlimited Post Scheduling</strong></li>
+                <li><Check size={16} /> Brand Voice Brain &amp; tone settings</li>
+                <li><Check size={16} /> Standard post analytics</li>
+                <li className="disabled-spec"><X size={16} /> Engage suite (Available as Add-on)</li>
+              </ul>
+            </div>
+
+            {/* Card 3: Advance ($39) - Featured */}
+            <div className="light-plan-card featured">
+              <span className="plan-card-tag">Recommended</span>
+              <div className="plan-card-name">Advance</div>
+              <div className="plan-card-desc">
+                High-volume content creation with full Engage lead conversion automation.
+              </div>
+              <div className="plan-card-price">
+                <strong>$39</strong>
+                <span>/ month</span>
+              </div>
+              <Link to={primaryPath} className="plan-card-btn featured-btn">
+                Start 14-Day Free Trial <ArrowRight size={14} />
+              </Link>
+              <div className="plan-card-divider" />
+              <div className="plan-card-specs-title">Everything in Starter, plus:</div>
+              <ul className="plan-card-specs">
+                <li><Check size={16} /> <strong>1 Social Connection</strong> (Expandable with add-ons)</li>
+                <li><Check size={16} /> <strong>150 AI Credits / month</strong></li>
+                <li><Check size={16} /> <strong>Engage Automation Suite Included</strong></li>
+                <li><Check size={16} /> Automated Comment-to-DM lead magnets</li>
+                <li><Check size={16} /> Instagram Story replies &amp; DM keywords</li>
+                <li><Check size={16} /> <strong>100% Unlimited Post Scheduling</strong></li>
+                <li><Check size={16} /> LinkedIn Copilot smart inbox triage</li>
+              </ul>
             </div>
 
           </div>
         </section>
 
-        {/* Deep Dive Feature Explanations ("What You Get") */}
-        <section className="pricing-features-section" id="features-detail">
-          <div className="features-section-header">
-            <span className="pricing-kicker"><span /> DEEP-DIVE ARCHITECTURE</span>
-            <h2>Everything you get with Content Studio</h2>
-            <p>
-              Designed from the ground up for modern B2B creators, founders, and marketing teams who demand predictable costs and uncompromised content quality.
-            </p>
-          </div>
-
-          <div className="feature-cards-grid">
-            {/* Feature 1: Connections */}
-            <div className="feature-detail-card">
-              <div className="feature-icon-badge purple">
-                <Linkedin size={22} />
-              </div>
-              <h3>1. Multi-Platform Social Connections</h3>
+        {/* Credit Top-Up Booster Packs (Positioned prominently right under plans) */}
+        <section className="boosters-prominent-section">
+          <div className="boosters-prominent-card">
+            <div className="boosters-header">
+              <span className="boosters-kicker">On-Demand Credit Top-Ups</span>
+              <h3>Need extra credits? Buy booster packs anytime.</h3>
               <p>
-                Connect personal LinkedIn profiles, company pages, and Instagram Business profiles securely via OAuth 2.0 with persistent token management.
+                If you exhaust your monthly plan credits, top up on-demand without upgrading your tier. Booster credits never expire while your account is active.
               </p>
-              <ul className="feature-bullets">
-                <li><Check size={16} /> Seamlessly switch between brand pages and executive personal profiles.</li>
-                <li><Check size={16} /> Instant disconnect and reconnect without losing scheduled queues or historical analytics.</li>
-                <li><Check size={16} /> Multi-brand tenancy keeps assets, voices, and drafts strictly isolated.</li>
-              </ul>
             </div>
 
-            {/* Feature 2: Automated Post Credits */}
-            <div className="feature-detail-card">
-              <div className="feature-icon-badge emerald">
-                <WandSparkles size={22} />
+            <div className="boosters-grid-row">
+              <div className="booster-item-box">
+                <div className="booster-item-name">Starter Booster</div>
+                <div className="booster-item-credits">50 Credits</div>
+                <div className="booster-item-price">$10</div>
+                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
               </div>
-              <h3>2. Automated Post Generation Credits</h3>
-              <p>
-                Each credit fuels an end-to-end multi-platform post generation powered by state-of-the-art LLMs, grounded in your Brand Brain.
-              </p>
-              <ul className="feature-bullets">
-                <li><Check size={16} /> Generates tailored variants for LinkedIn, Instagram carousels, and stories simultaneously.</li>
-                <li><Check size={16} /> Grounded directly in your uploaded source documents, PDFs, and notes.</li>
-                <li><Check size={16} /> Exhausted credits? Refill instantly with top-up booster packs that <strong>never expire</strong>.</li>
-              </ul>
-            </div>
 
-            {/* Feature 3: Unlimited Scheduling */}
-            <div className="feature-detail-card">
-              <div className="feature-icon-badge blue">
-                <CalendarDays size={22} />
+              <div className="booster-item-box">
+                <div className="booster-item-name">Growth Booster</div>
+                <div className="booster-item-credits">150 Credits</div>
+                <div className="booster-item-price">$25</div>
+                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
               </div>
-              <h3>3. Unlimited Post Scheduling (100% Free)</h3>
-              <p>
-                We believe scheduling and publishing are core utilities, not paywalled commodities. Never pay extra for planning ahead.
-              </p>
-              <ul className="feature-bullets">
-                <li><Check size={16} /> Unlimited queue depth and calendar planning months in advance.</li>
-                <li><Check size={16} /> Visual drag-and-drop calendar with per-network time slot recommendations.</li>
-                <li><Check size={16} /> Automated Celery-backed worker publishing with automatic retry and rate-limit handling.</li>
-              </ul>
-            </div>
 
-            {/* Feature 4: Engage Automation Suite */}
-            <div className="feature-detail-card">
-              <div className="feature-icon-badge amber">
-                <Zap size={22} />
+              <div className="booster-item-box">
+                <div className="booster-item-name">Power Booster</div>
+                <div className="booster-item-credits">350 Credits</div>
+                <div className="booster-item-price">$50</div>
+                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
               </div>
-              <h3>4. Engage Inbound Conversion Engine</h3>
-              <p>
-                Turn content views and comments into active conversations, qualified leads, and booked discovery calls around the clock.
-              </p>
-              <ul className="feature-bullets">
-                <li><Check size={16} /> <strong>Comment-to-DM:</strong> Auto-reply to comments with keyword triggers and deliver private lead magnets.</li>
-                <li><Check size={16} /> <strong>Story &amp; DM Triggers:</strong> Instant response sequences to story mentions and inbound inquiries.</li>
-                <li><Check size={16} /> <strong>LinkedIn Copilot:</strong> Inbox review queue with smart reply suggestions and lead prioritization.</li>
-              </ul>
             </div>
           </div>
         </section>
 
-        {/* Credit Booster Top-Up Packs */}
-        <section className="pricing-booster-section">
-          <div className="features-section-header">
-            <span className="pricing-kicker"><span /> ON-DEMAND BOOSTERS</span>
-            <h2>Need more generation credits? Top up anytime.</h2>
-            <p>
-              If your team is running a major launch or needs extra drafts, top-up booster packs add credits immediately. Booster credits roll over indefinitely while your account is active.
-            </p>
-          </div>
+        {/* Dynamic Cost Manager */}
+        <section className="light-calculator-section">
+          <div className="light-calculator-card">
+            <div className="calc-title-header">
+              <h2>Dynamic Cost Manager</h2>
+              <p>
+                Need more social connections or higher monthly credit volume? Adjust the controls below to calculate your custom rate.
+              </p>
+            </div>
 
-          <div className="booster-grid">
-            {BOOSTER_PACKS.map((pack) => (
-              <div key={pack.label} className="booster-card">
-                <div className="booster-credits">{pack.credits}</div>
-                <div className="booster-label">{pack.label}</div>
-                <div className="booster-price">${pack.price}</div>
-                <div className="booster-unit-rate">{pack.unit}</div>
-                <Link to={primaryPath} className="booster-buy-btn">
-                  Select Booster
+            <div className="calc-main-layout">
+              {/* Controls Column */}
+              <div className="calc-inputs-col">
+                
+                {/* Step 1: Base Tier Selector */}
+                <div className="calc-slider-block">
+                  <div className="calc-slider-top">
+                    <span>1. Base Plan</span>
+                    <span className="calc-pill-badge">{baseTier.toUpperCase()}</span>
+                  </div>
+                  <div className="calc-base-selector">
+                    <button
+                      type="button"
+                      className={`calc-base-btn ${baseTier === 'free' ? 'selected' : ''}`}
+                      onClick={() => handleSelectTier('free')}
+                    >
+                      <strong>Free ($0)</strong>
+                      <span>Sandbox &bull; 15 Credits</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`calc-base-btn ${baseTier === 'starter' ? 'selected' : ''}`}
+                      onClick={() => handleSelectTier('starter')}
+                    >
+                      <strong>Starter ($20)</strong>
+                      <span>1 Conn &bull; 50 Credits</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`calc-base-btn ${baseTier === 'advance' ? 'selected' : ''}`}
+                      onClick={() => handleSelectTier('advance')}
+                    >
+                      <strong>Advance ($39)</strong>
+                      <span>1 Conn &bull; Engage Incl.</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slider 1: Social Connections */}
+                <div className="calc-slider-block">
+                  <div className="calc-slider-top">
+                    <span>2. Connected Social Accounts</span>
+                    <span className="calc-pill-badge">
+                      {connections} {connections === 1 ? 'Connection' : 'Connections'}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={baseTier === 'free' ? 0 : 1}
+                    max={10}
+                    value={connections}
+                    onChange={(e) => setConnections(parseInt(e.target.value, 10))}
+                    className="light-range"
+                  />
+                  <div className="calc-slider-scale">
+                    <span>{baseTier === 'free' ? '0' : '1'}</span>
+                    <span>2</span>
+                    <span>4</span>
+                    <span>6</span>
+                    <span>8</span>
+                    <span>10 accounts</span>
+                  </div>
+                  <div className="calc-subnote">
+                    {extraConnections > 0
+                      ? `+${extraConnections} additional accounts (+$${extraConnectionsCost}/mo)`
+                      : `${baseIncludedConns} connection included in base plan`}
+                  </div>
+                </div>
+
+                {/* Slider 2: Monthly Credits */}
+                <div className="calc-slider-block">
+                  <div className="calc-slider-top">
+                    <span>3. Monthly AI Credit Quota</span>
+                    <span className="calc-pill-badge">{credits} Credits / mo</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={baseTier === 'free' ? 15 : 50}
+                    max={400}
+                    step={25}
+                    value={credits}
+                    onChange={(e) => setCredits(parseInt(e.target.value, 10))}
+                    className="light-range"
+                  />
+                  <div className="calc-slider-scale">
+                    <span>{baseTier === 'free' ? '15' : '50'} credits</span>
+                    <span>100</span>
+                    <span>150 (Advance)</span>
+                    <span>250</span>
+                    <span>400 credits</span>
+                  </div>
+                  <div className="calc-subnote">
+                    {extraCredits > 0
+                      ? `+${extraCredits} additional credits (+$${extraCreditsCost}/mo)`
+                      : `${baseIncludedCredits} credits included in base plan`}
+                  </div>
+                </div>
+
+                {/* Unlimited Scheduling Callout */}
+                <div className="calc-unlimited-box">
+                  <CalendarDays size={18} />
+                  <span>Unlimited Post Scheduling is always included at no extra charge</span>
+                </div>
+
+                {/* Engage Feature Toggle */}
+                <div className="calc-toggle-row">
+                  <div className="calc-toggle-copy">
+                    <strong>Engage Automation Suite</strong>
+                    <span>
+                      {baseTier === 'advance'
+                        ? 'Included Free in the Advance Plan'
+                        : 'Comment-to-DM flows, story triggers & auto replies (+$15/mo)'}
+                    </span>
+                  </div>
+                  <label className="calc-switch">
+                    <input
+                      type="checkbox"
+                      checked={engageEnabled || baseTier === 'advance'}
+                      disabled={baseTier === 'advance'}
+                      onChange={(e) => setEngageEnabled(e.target.checked)}
+                    />
+                    <span className="calc-switch-slider" />
+                  </label>
+                </div>
+
+              </div>
+
+              {/* Output Invoice Card */}
+              <div className="calc-output-card">
+                <div className="output-eyebrow">Calculated Plan</div>
+                <div className="output-price-number">${dynamicMonthlyTotal}</div>
+                <div className="output-price-cycle">/ month (no contracts, cancel anytime)</div>
+
+                <div className="output-details-list">
+                  <div>
+                    <span>Base Tier:</span>
+                    <strong>${basePrice} ({baseTier.toUpperCase()})</strong>
+                  </div>
+                  <div>
+                    <span>Social Connections:</span>
+                    <strong>{connections} account{connections !== 1 ? 's' : ''}</strong>
+                  </div>
+                  <div>
+                    <span>Monthly AI Credits:</span>
+                    <strong>{credits} credits</strong>
+                  </div>
+                  <div>
+                    <span>Post Scheduling:</span>
+                    <strong style={{ color: '#34d399' }}>100% Unlimited</strong>
+                  </div>
+                  <div>
+                    <span>Engage Automation:</span>
+                    <strong>{engageEnabled || baseTier === 'advance' ? 'Active' : 'Off'}</strong>
+                  </div>
+                </div>
+
+                <Link to={primaryPath} className="output-action-btn">
+                  <span>Start with this Plan</span>
+                  <ArrowRight size={15} />
                 </Link>
+
+                <div className="output-footnote">
+                  Adjust your connections or credits from settings anytime.
+                </div>
               </div>
-            ))}
+
+            </div>
           </div>
         </section>
 
-        {/* Full Plan Comparison Table */}
-        <section className="pricing-matrix-section">
-          <div className="features-section-header">
-            <span className="pricing-kicker"><span /> SIDE-BY-SIDE MATRIX</span>
-            <h2>Compare all features &amp; capabilities</h2>
+        {/* Feature Explanations ("What You Get") */}
+        <section className="features-light-section">
+          <div className="calc-title-header">
+            <h2>Everything you get with Content Studio</h2>
+            <p>Designed for consistent publishing, authentic brand voice, and inbound lead conversion.</p>
           </div>
 
-          <div className="pricing-table-wrapper">
-            <table className="pricing-table">
-              <thead>
-                <tr>
-                  <th className="col-feature">Feature / Quota</th>
-                  <th className="col-tier">Starter</th>
-                  <th className="col-tier">Growth</th>
-                  <th className="col-tier">Scale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Section: Pricing & Base */}
-                <tr className="table-category-row">
-                  <td colSpan={4}>Pricing &amp; Base Entitlements</td>
-                </tr>
-                <tr>
-                  <td>Monthly Base Cost</td>
-                  <td className="cell-tier"><strong>$29 / mo</strong></td>
-                  <td className="cell-tier"><strong>$69 / mo</strong></td>
-                  <td className="cell-tier"><strong>$139 / mo</strong></td>
-                </tr>
-                <tr>
-                  <td>Annual Base Cost (-20%)</td>
-                  <td className="cell-tier">$23 / mo</td>
-                  <td className="cell-tier">$55 / mo</td>
-                  <td className="cell-tier">$111 / mo</td>
-                </tr>
-                <tr>
-                  <td>Included Social Connections</td>
-                  <td className="cell-tier">2 accounts</td>
-                  <td className="cell-tier">5 accounts</td>
-                  <td className="cell-tier">15 accounts</td>
-                </tr>
-                <tr>
-                  <td>Extra Connection Cost</td>
-                  <td className="cell-tier">$5 / conn / mo</td>
-                  <td className="cell-tier">$5 / conn / mo ($4 for 5+)</td>
-                  <td className="cell-tier">$4 / conn / mo</td>
-                </tr>
-                <tr>
-                  <td>Included Monthly Post Credits</td>
-                  <td className="cell-tier">50 credits / mo</td>
-                  <td className="cell-tier">200 credits / mo</td>
-                  <td className="cell-tier">600 credits / mo</td>
-                </tr>
+          <div className="features-grid-light">
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <Linkedin size={20} />
+              </div>
+              <h3>Social Connections</h3>
+              <p>
+                Link personal LinkedIn profiles, company pages, and Instagram Business accounts securely. Connect or disconnect accounts anytime without losing scheduled queues.
+              </p>
+            </div>
 
-                {/* Section: Publishing & Scheduling */}
-                <tr className="table-category-row">
-                  <td colSpan={4}>Publishing &amp; Content Management</td>
-                </tr>
-                <tr>
-                  <td>Scheduled Posts &amp; Calendar</td>
-                  <td className="cell-tier"><strong>Unlimited</strong></td>
-                  <td className="cell-tier"><strong>Unlimited</strong></td>
-                  <td className="cell-tier"><strong>Unlimited</strong></td>
-                </tr>
-                <tr>
-                  <td>Multi-channel Content Series</td>
-                  <td className="cell-tier">Basic (3-part series)</td>
-                  <td className="cell-tier">Full (7-part series)</td>
-                  <td className="cell-tier">Unlimited Series</td>
-                </tr>
-                <tr>
-                  <td>Brand Brain Knowledge Base</td>
-                  <td className="cell-tier">1 Brand Voice</td>
-                  <td className="cell-tier">3 Brand Voices</td>
-                  <td className="cell-tier">Unlimited Brand Voices</td>
-                </tr>
-                <tr>
-                  <td>Story Interview Audio Engine</td>
-                  <td className="cell-tier">Optional add-on</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /></td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /></td>
-                </tr>
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <WandSparkles size={20} />
+              </div>
+              <h3>Automated Post Generation</h3>
+              <p>
+                Use your AI credits to create complete multi-channel posts tailored to your brand voice with compelling hooks, custom image generation, and hashtag recommendations.
+              </p>
+            </div>
 
-                {/* Section: Engagement & Lead Generation */}
-                <tr className="table-category-row">
-                  <td colSpan={4}>Engage Automation Suite</td>
-                </tr>
-                <tr>
-                  <td>Comment-to-DM Triggers</td>
-                  <td className="cell-tier">Add-on ($25/mo)</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                </tr>
-                <tr>
-                  <td>Instagram Story Reply Automations</td>
-                  <td className="cell-tier">Add-on ($25/mo)</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                </tr>
-                <tr>
-                  <td>LinkedIn Copilot Smart Triage</td>
-                  <td className="cell-tier">—</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /> Included</td>
-                </tr>
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <CalendarDays size={20} />
+              </div>
+              <h3>100% Unlimited Scheduling</h3>
+              <p>
+                Schedule without limits. Whether you queue 5 posts or 200 posts, our publishing engine handles delivery automatically without extra fees.
+              </p>
+            </div>
 
-                {/* Section: Team & Support */}
-                <tr className="table-category-row">
-                  <td colSpan={4}>Team &amp; Governance</td>
-                </tr>
-                <tr>
-                  <td>Team Seats</td>
-                  <td className="cell-tier">1 user</td>
-                  <td className="cell-tier">Up to 3 users</td>
-                  <td className="cell-tier">Up to 10 users</td>
-                </tr>
-                <tr>
-                  <td>Multi-workspace Isolation</td>
-                  <td className="cell-tier">—</td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /></td>
-                  <td className="cell-tier"><Check size={16} color="#10b981" /></td>
-                </tr>
-                <tr>
-                  <td>Support Channel</td>
-                  <td className="cell-tier">Standard Email</td>
-                  <td className="cell-tier">Priority Support</td>
-                  <td className="cell-tier">Dedicated Account Manager</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <Zap size={20} />
+              </div>
+              <h3>Engage Lead Conversion</h3>
+              <p>
+                Turn comments into warm leads. Automatically deliver download links or lead magnets via private DM whenever someone comments a keyword.
+              </p>
+            </div>
+
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <Layers3 size={20} />
+              </div>
+              <h3>Brand Voice Brain</h3>
+              <p>
+                Upload company notes, guidelines, or PDFs to ground all AI drafts in your real expertise and unique tone of voice.
+              </p>
+            </div>
+
+            <div className="feature-box-light">
+              <div className="feature-icon-circle">
+                <MessageSquare size={20} />
+              </div>
+              <h3>LinkedIn Copilot Inbox</h3>
+              <p>
+                Stay on top of every comment, mention, and inbound conversation with auto-suggested smart reply drafts.
+              </p>
+            </div>
           </div>
         </section>
 
         {/* FAQ Section */}
-        <section className="pricing-faq-section">
-          <div className="features-section-header">
-            <span className="pricing-kicker"><span /> FREQUENTLY ASKED QUESTIONS</span>
-            <h2>Got questions? We've got answers.</h2>
+        <section className="faq-light-section">
+          <div className="calc-title-header">
+            <h2>Frequently Asked Questions</h2>
           </div>
 
-          <div className="faq-grid">
-            <div className="faq-item">
+          <div className="faq-grid-light">
+            <div className="faq-card-light">
               <h4>What happens when I exhaust my post generation credits?</h4>
               <p>
-                When your credits hit zero, your existing scheduled posts will continue to publish without any interruption.
-                You can instantly purchase top-up booster packs (starting at $10 for 50 credits) from your dashboard. Booster credits never expire while your account remains active.
+                Your already scheduled posts will publish normally without interruption. You can immediately purchase an on-demand credit booster pack starting at $10 to generate more content. Booster credits never expire.
               </p>
             </div>
 
-            <div className="faq-item">
+            <div className="faq-card-light">
+              <h4>Is post scheduling really 100% unlimited?</h4>
+              <p>
+                Yes! We do not charge for scheduling posts or queue depth. You can schedule as many posts, carousels, and threads as you want across your connected channels.
+              </p>
+            </div>
+
+            <div className="faq-card-light">
               <h4>How do social connections work?</h4>
               <p>
-                A connection is any individual social channel profile (e.g., a LinkedIn Personal Profile, a LinkedIn Company Page, or an Instagram Business account).
-                You can disconnect an account and connect a different one at any time without penalty.
+                Each connection allows you to link one social profile (LinkedIn Personal Profile, LinkedIn Company Page, or Instagram Business Profile). You can disconnect and connect a different account at any time.
               </p>
             </div>
 
-            <div className="faq-item">
-              <h4>Is post scheduling truly unlimited on all tiers?</h4>
+            <div className="faq-card-light">
+              <h4>Can I cancel or change plans anytime?</h4>
               <p>
-                Yes! We never limit the number of posts, carousels, or threads you schedule.
-                Whether you schedule 10 posts a week or 300 posts a month across your connected accounts, there are zero extra fees.
-              </p>
-            </div>
-
-            <div className="faq-item">
-              <h4>Can I add the Engage module to the Starter plan?</h4>
-              <p>
-                Yes! The Engage suite is available as a flexible $25/month add-on for Starter plans, or you can upgrade to the Growth plan ($69/mo) where it is included completely free alongside more connections and credits.
-              </p>
-            </div>
-
-            <div className="faq-item">
-              <h4>Can I upgrade, downgrade, or cancel anytime?</h4>
-              <p>
-                Absolutely. Content Studio has no lock-in contracts. You can scale your connections and credits up or down dynamically, and prorated credits will apply to your next invoice.
+                Yes, there are no contracts or commitments. You can adjust your connections, credits, or cancel your subscription directly from your settings at any time.
               </p>
             </div>
           </div>
         </section>
 
         {/* Bottom CTA */}
-        <section className="pricing-bottom-cta">
-          <span className="pricing-kicker" style={{ color: '#c2baf8' }}>
-            GET STARTED TODAY
-          </span>
-          <h2>Start creating better content in 2 minutes.</h2>
-          <p>
-            Join founders, creators, and agencies using Content Studio to build consistent presence across LinkedIn and Instagram.
-          </p>
-          <Link to={primaryPath} className="pricing-primary-btn" style={{ minHeight: 50, padding: '0 28px', fontSize: 15 }}>
-            {primaryLabel} <ArrowRight size={18} />
+        <section className="cta-light-section">
+          <h2>Start publishing better content today</h2>
+          <p>Join creators and teams using Content Studio to run their content creation and publishing smoothly.</p>
+          <Link to={primaryPath} className="cta-btn-main">
+            {primaryLabel} <ArrowRight size={16} />
           </Link>
         </section>
       </main>
@@ -772,13 +514,12 @@ export function PricingPage() {
       {/* Footer */}
       <footer className="pricing-footer">
         <Link className="pricing-brand" to="/">
-          <span><Sparkles size={17} /></span> content studio
+          <span><Sparkles size={16} /></span> content studio
         </Link>
-        <p>Create with clarity. Publish with confidence.</p>
+        <p>&copy; Content Studio Platform. Simple, calm content publishing.</p>
         <div>
           <Link to="/">Home</Link>
           <Link to="/#features">Features</Link>
-          <Link to="/pricing">Pricing</Link>
           <Link to="/signin">Sign in</Link>
         </div>
       </footer>
