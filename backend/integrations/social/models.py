@@ -1042,7 +1042,7 @@ class WorkspaceSubscription(models.Model):
     tier = models.CharField(
         max_length=20,
         choices=WorkspaceTier.choices,
-        default=WorkspaceTier.STARTER,
+        default=WorkspaceTier.FREE,
         db_index=True,
     )
     extra_connections = models.PositiveIntegerField(default=0)

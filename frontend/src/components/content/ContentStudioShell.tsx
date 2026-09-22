@@ -131,7 +131,9 @@ export function ContentStudioShell() {
           const billing = await billingApi.getSubscription()
           if (active) setBillingOverview(billing)
         }
-      } catch { /* topbar billing optional */ }
+      } catch (err) {
+        console.error('Failed to load subscription in shell:', err)
+      }
     }
     void load()
     return () => { active = false }

@@ -44,7 +44,7 @@ def get_or_create_workspace_billing(
         subscription, sub_created = WorkspaceSubscription.objects.select_for_update().get_or_create(
             workspace=workspace,
             defaults={
-                "tier": WorkspaceTier.ADMIN if (user and (getattr(user, "is_superuser", False) or getattr(user, "is_staff", False))) else WorkspaceTier.STARTER,
+                "tier": WorkspaceTier.ADMIN if (user and (getattr(user, "is_superuser", False) or getattr(user, "is_staff", False))) else WorkspaceTier.FREE,
                 "extra_connections": 0,
                 "has_engage_addon": False,
                 "is_active": True,
@@ -88,13 +88,13 @@ def check_connection_quota(
     subscription, _ = get_or_create_workspace_billing(workspace, user)
     if is_workspace_admin(workspace, user) or subscription.tier == WorkspaceTier.ADMIN:
         used = SocialConnection.objects.filter(
-            workspace=workspace, state=ConnectionState.CONNECTED
+            workspace=workspace, status=ConnectionState.CONNECTED
         ).count()
         return True, "", 999999, used
 
     quota = subscription.connections_quota
     used = SocialConnection.objects.filter(
-        workspace=workspace, state=ConnectionState.CONNECTED
+        workspace=workspace, status=ConnectionState.CONNECTED
     ).count()
 
     if subscription.tier == WorkspaceTier.FREE:

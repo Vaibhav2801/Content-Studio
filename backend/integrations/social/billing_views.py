@@ -26,7 +26,7 @@ class SubscriptionOverviewAPIView(SocialWorkspaceScopedAPIView):
         is_admin = is_workspace_admin(workspace, user)
 
         connected_count = SocialConnection.objects.filter(
-            workspace=workspace, state=ConnectionState.CONNECTED
+            workspace=workspace, status=ConnectionState.CONNECTED
         ).count()
 
         # Recent credit transactions (last 10)
