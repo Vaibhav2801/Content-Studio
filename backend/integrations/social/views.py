@@ -153,6 +153,11 @@ from integrations.linkedin.services.images import (
     LinkedInImageGenerator,
 )
 from integrations.linkedin.workspaces import resolve_active_workspace
+from integrations.social.services.billing import (
+    check_connection_quota,
+    check_credit_quota,
+    deduct_credits,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -467,6 +472,22 @@ class SocialPostDetailAPIView(SocialWorkspaceScopedAPIView):
 class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request):
         workspace = self.workspace(request)
+        controls = request.data.get("controls") or {}
+        include_image = bool(controls.get("include_image"))
+        required_credits = 3 if include_image else 2
+
+        has_credits, balance = check_credit_quota(workspace, required_credits, request.user)
+        if not has_credits:
+            return Response(
+                {
+                    "detail": f"Insufficient AI credits. This generation requires {required_credits} credits, but you have {balance} remaining.",
+                    "code": "insufficient_credits",
+                    "balance": balance,
+                    "required": required_credits,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
         post_id = request.data.get("post_id")
         if post_id:
             post = self.post_object(request, post_id)
@@ -504,6 +525,16 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                 )
             except DjangoValidationError as error:
                 return social_validation_response(error)
+
+        deduct_credits(
+            workspace=workspace,
+            amount=required_credits,
+            category="POST_GENERATION",
+            description=f"Generated draft '{post.idea_title or 'Untitled Post'}' ({required_credits} credits)",
+            post=post,
+            user=request.user if request.user and request.user.is_authenticated else None,
+        )
+
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "GENERATING"
         metadata["generation_error"] = ""
@@ -560,6 +591,28 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
         items = request.data.get("items") or request.data.get("posts")
         creative_brief = request.data.get("creative_brief") if "creative_brief" in request.data else None
         controls = request.data.get("controls") if "controls" in request.data else None
+
+        base_include_image = bool(controls.get("include_image")) if controls else False
+        total_credits = 0
+        for index in range(count):
+            item = items[index] if isinstance(items, list) and index < len(items) and isinstance(items[index], dict) else {}
+            part_include = item.get("include_image")
+            if part_include is None:
+                part_include = base_include_image
+            total_credits += 3 if part_include else 2
+
+        has_credits, balance = check_credit_quota(workspace, total_credits, request.user)
+        if not has_credits:
+            return Response(
+                {
+                    "detail": f"Insufficient AI credits for series. Generating {count} posts requires {total_credits} credits, but you have {balance} remaining.",
+                    "code": "insufficient_credits",
+                    "balance": balance,
+                    "required": total_credits,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
         posts = []
         posts_with_controls = []
         try:
@@ -630,6 +683,14 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
                     posts_with_controls.append((post, part_controls))
         except DjangoValidationError as error:
             return social_validation_response(error)
+
+        deduct_credits(
+            workspace=workspace,
+            amount=total_credits,
+            category="SERIES_GENERATION",
+            description=f"Generated {count}-part content series '{title}' ({total_credits} credits)",
+            user=request.user if request.user and request.user.is_authenticated else None,
+        )
 
         from integrations.social.tasks import generate_post_variants
         for post, part_controls in posts_with_controls:
@@ -1072,6 +1133,9 @@ class ContentStudioBusinessProfileAPIView(SocialWorkspaceScopedAPIView):
 class ContentStudioConnectionStartAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request):
         workspace = self.workspace(request)
+        can_connect, reason, quota, used = check_connection_quota(workspace, request.user)
+        if not can_connect:
+            return Response({"detail": reason, "quota": quota, "used": used}, status=status.HTTP_403_FORBIDDEN)
         try:
             return_path = "/content/connections" if request.data.get("return_to") == "connections" else "/content/onboarding"
             onboarding, authorization_url = start_connection(workspace, redirect_uri=connection_return_uri(request, return_path), network=request.data.get("network", "LINKEDIN"))
@@ -1278,6 +1342,19 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
 
     def post(self, request, variant_id):
         variant = self.variant(request, variant_id)
+        workspace = variant.post.workspace
+        has_credits, balance = check_credit_quota(workspace, 1, request.user)
+        if not has_credits:
+            return Response(
+                {
+                    "detail": "Insufficient AI credits. Regenerating an image requires 1 credit.",
+                    "code": "insufficient_credits",
+                    "balance": balance,
+                    "required": 1,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
         prompt = str(
             request.data.get("prompt")
             or variant.metadata.get("image_prompt")
@@ -1363,6 +1440,16 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
             return self.media_error(error)
         except DjangoValidationError as error:
             return Response({"detail": error.messages}, status=409)
+
+        deduct_credits(
+            workspace=workspace,
+            amount=1,
+            category="IMAGE_REGENERATION",
+            description=f"Regenerated AI image for post '{variant.post.idea_title or 'Untitled Post'}'",
+            post=variant.post,
+            user=request.user if request.user and request.user.is_authenticated else None,
+        )
+
         return Response(MediaAssetSerializer(asset).data, status=201)
 
 

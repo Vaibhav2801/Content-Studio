@@ -1,9 +1,11 @@
-import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, Sparkles, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { billingApi } from '../../../api/billingApi'
 import { contentOnboardingApi, type LinkedInAccountChoice } from '../../../api/contentOnboarding'
 import { contentStudioApi } from '../../../api/contentStudio'
 import { contentStudioMockConnections } from '../../../api/contentStudioMock'
+import type { SubscriptionOverview } from '../../../types/billing'
 import type { StudioConnection } from '../../../types/contentStudio'
 import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
@@ -18,6 +20,7 @@ export function ContentConnectionsView() {
   const [searchParams] = useSearchParams()
   const handledReturn = useRef(false)
   const [connections, setConnections] = useState<StudioConnection[] | null>(null)
+  const [overview, setOverview] = useState<SubscriptionOverview | null>(null)
   const [busy, setBusy] = useState('')
   const [connectingButton, setConnectingButton] = useState<ConnectButton | null>(null)
   const [error, setError] = useState('')
@@ -26,8 +29,15 @@ export function ContentConnectionsView() {
 
   const load = useCallback(async () => {
     setError('')
-    try { setConnections(isDemo ? structuredClone(contentStudioMockConnections) : await contentStudioApi.connections()) }
-    catch (loadError) { setError(customerSafeMessage(loadError instanceof Error ? loadError.message : undefined, 'Could not load social accounts.')) }
+    try {
+      setConnections(isDemo ? structuredClone(contentStudioMockConnections) : await contentStudioApi.connections())
+      if (!isDemo) {
+        const sub = await billingApi.getSubscription()
+        setOverview(sub)
+      }
+    } catch (loadError) {
+      setError(customerSafeMessage(loadError instanceof Error ? loadError.message : undefined, 'Could not load social accounts.'))
+    }
   }, [isDemo])
   useEffect(() => { void load() }, [load])
 
@@ -111,6 +121,16 @@ export function ContentConnectionsView() {
 
   const connect = async (button: ConnectButton, network: 'LINKEDIN' | 'INSTAGRAM') => {
     if (connectingButton) return
+    if (
+      overview &&
+      !overview.connections.unlimited &&
+      (connections?.length || 0) >= overview.connections.limit
+    ) {
+      setError(
+        `Connection limit reached for your plan (${overview.connections.limit} accounts). Upgrade your plan or add an extra connection ($5/mo) in Plan & Invoices.`
+      )
+      return
+    }
     setConnectingButton(button)
     try { await connectLinkedIn(network, 'connections') }
     finally { setConnectingButton(null) }
@@ -128,6 +148,60 @@ export function ContentConnectionsView() {
 
   return <section className="studio-screen" aria-label="Social account connections">
     {error && <div className="li-banner error" role="alert">{error}</div>}
+
+    {overview && (
+      <div
+        className="card"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '16px 20px',
+          marginBottom: '16px',
+          background: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              background: '#f3f4f6',
+              color: '#374151',
+            }}
+          >
+            {overview.role_label} Plan
+          </span>
+          <span style={{ fontSize: '0.92rem', color: '#111827' }}>
+            Connected Accounts:{' '}
+            <strong>
+              {overview.connections.unlimited
+                ? `${connections?.length || 0} (Unlimited)`
+                : `${connections?.length || 0} of ${overview.connections.limit} active`}
+            </strong>
+          </span>
+        </div>
+
+        {!overview.connections.unlimited && (
+          <Link
+            to="/content/settings?tab=billing"
+            className="button button-outline"
+            style={{ fontSize: '0.82rem', padding: '6px 14px', textDecoration: 'none' }}
+          >
+            {overview.connections.limit === 0
+              ? 'Upgrade to Connect Accounts'
+              : 'Add Extra Connection ($5/mo)'}
+          </Link>
+        )}
+      </div>
+    )}
+
     {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || connectionInProgress} aria-busy={connectingButton === 'empty-linkedin'} onClick={() => void connect('empty-linkedin', 'LINKEDIN')}>{connectingButton === 'empty-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
     <div className="card content-connect-options">
       <div className="connect-options-header">

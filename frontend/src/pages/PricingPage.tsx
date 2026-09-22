@@ -262,63 +262,114 @@ export function PricingPage() {
                   </div>
                 </div>
 
-                {/* Slider 1: Social Connections */}
+                {/* Slider 1: Social Connections (Unlimited) */}
                 <div className="calc-slider-block">
                   <div className="calc-slider-top">
                     <span>2. Connected Social Accounts</span>
-                    <span className="calc-pill-badge">
-                      {connections} {connections === 1 ? 'Connection' : 'Connections'}
-                    </span>
+                    <div className="calc-stepper-wrap">
+                      <button
+                        type="button"
+                        className="calc-stepper-btn"
+                        onClick={() => setConnections(Math.max(baseTier === 'free' ? 0 : 1, connections - 1))}
+                        title="Decrease connections"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={baseTier === 'free' ? 0 : 1}
+                        value={connections}
+                        onChange={(e) => setConnections(Math.max(baseTier === 'free' ? 0 : 1, parseInt(e.target.value, 10) || 0))}
+                        className="calc-number-input"
+                        title="Enter any number of connections"
+                      />
+                      <button
+                        type="button"
+                        className="calc-stepper-btn"
+                        onClick={() => setConnections(connections + 1)}
+                        title="Increase connections"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   <input
                     type="range"
                     min={baseTier === 'free' ? 0 : 1}
-                    max={10}
+                    max={Math.max(20, connections + 5)}
                     value={connections}
                     onChange={(e) => setConnections(parseInt(e.target.value, 10))}
                     className="light-range"
                   />
-                  <div className="calc-slider-scale">
-                    <span>{baseTier === 'free' ? '0' : '1'}</span>
-                    <span>2</span>
-                    <span>4</span>
-                    <span>6</span>
-                    <span>8</span>
-                    <span>10 accounts</span>
+                  <div className="calc-quick-pills">
+                    <span style={{ fontSize: '11px', color: '#8c88a0', marginRight: '4px' }}>Quick Add:</span>
+                    <button type="button" className="calc-quick-pill" onClick={() => setConnections(connections + 1)}>+1</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setConnections(connections + 5)}>+5</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setConnections(connections + 10)}>+10</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setConnections(connections + 25)}>+25</button>
                   </div>
                   <div className="calc-subnote">
                     {extraConnections > 0
                       ? `+${extraConnections} additional accounts (+$${extraConnectionsCost}/mo)`
                       : `${baseIncludedConns} connection included in base plan`}
+                    {' '}&bull; <em>No upper limit (type any number)</em>
                   </div>
                 </div>
 
-                {/* Slider 2: Monthly Credits */}
+                {/* Slider 2: Monthly Credits (Unlimited) */}
                 <div className="calc-slider-block">
                   <div className="calc-slider-top">
                     <span>3. Monthly AI Credit Quota</span>
-                    <span className="calc-pill-badge">{credits} Credits / mo</span>
+                    <div className="calc-stepper-wrap">
+                      <button
+                        type="button"
+                        className="calc-stepper-btn"
+                        onClick={() => setCredits(Math.max(baseTier === 'free' ? 15 : 50, credits - 25))}
+                        title="Decrease credits"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={baseTier === 'free' ? 15 : 50}
+                        step={25}
+                        value={credits}
+                        onChange={(e) => setCredits(Math.max(baseTier === 'free' ? 15 : 50, parseInt(e.target.value, 10) || 0))}
+                        className="calc-number-input"
+                        style={{ width: '82px' }}
+                        title="Enter any credit volume"
+                      />
+                      <button
+                        type="button"
+                        className="calc-stepper-btn"
+                        onClick={() => setCredits(credits + 25)}
+                        title="Increase credits"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   <input
                     type="range"
                     min={baseTier === 'free' ? 15 : 50}
-                    max={400}
+                    max={Math.max(500, credits + 100)}
                     step={25}
                     value={credits}
                     onChange={(e) => setCredits(parseInt(e.target.value, 10))}
                     className="light-range"
                   />
-                  <div className="calc-slider-scale">
-                    <span>{baseTier === 'free' ? '15' : '50'} credits</span>
-                    <span>100</span>
-                    <span>150 (Advance)</span>
-                    <span>250</span>
-                    <span>400 credits</span>
+                  <div className="calc-quick-pills">
+                    <span style={{ fontSize: '11px', color: '#8c88a0', marginRight: '4px' }}>Quick Add:</span>
+                    <button type="button" className="calc-quick-pill" onClick={() => setCredits(credits + 50)}>+50</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setCredits(credits + 100)}>+100</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setCredits(credits + 250)}>+250</button>
+                    <button type="button" className="calc-quick-pill" onClick={() => setCredits(credits + 500)}>+500</button>
                   </div>
                   <div className="calc-subnote">
                     {extraCredits > 0
                       ? `+${extraCredits} additional credits (+$${extraCreditsCost}/mo)`
                       : `${baseIncludedCredits} credits included in base plan`}
+                    {' '}&bull; <em>No upper limit (type any number)</em>
                   </div>
                 </div>
 

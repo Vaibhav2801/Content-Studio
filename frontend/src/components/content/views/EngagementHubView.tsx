@@ -46,11 +46,27 @@ export function EngagementHubView() {
   const [data, setData] = useState<EngagementOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lockedDueToPlan, setLockedDueToPlan] = useState(false)
   const [notice, setNotice] = useState('')
   const load = useCallback(async () => {
-    try { setError(''); setData(await contentStudioApi.engagement()) }
-    catch (caught) { setError(errorMessage(caught)) }
-    finally { setLoading(false) }
+    try {
+      setError('')
+      setLockedDueToPlan(false)
+      setData(await contentStudioApi.engagement())
+    } catch (caught) {
+      const msg = errorMessage(caught)
+      if (
+        msg.includes('Engage feature is not included') ||
+        msg.includes('Upgrade to the Advance plan') ||
+        msg.includes('Engage add-on')
+      ) {
+        setLockedDueToPlan(true)
+      } else {
+        setError(msg)
+      }
+    } finally {
+      setLoading(false)
+    }
   }, [])
   useEffect(() => { void load() }, [load])
   const showNotice = (message: string) => {
@@ -72,6 +88,120 @@ export function EngagementHubView() {
   const replaceCampaign = (campaign: EngagementCampaign) => updateData((current) => ({
     ...current, campaigns: current.campaigns.map((item) => item.id === campaign.id ? campaign : item),
   }))
+
+  if (lockedDueToPlan) {
+    return (
+      <section className="engagement-hub" aria-label="Engagement workspace">
+        <div
+          className="card"
+          style={{
+            padding: '52px 36px',
+            textAlign: 'center',
+            maxWidth: '640px',
+            margin: '40px auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '18px',
+            background: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: '#f5f3ff',
+              color: '#7c3aed',
+            }}
+          >
+            <Sparkles size={30} />
+          </div>
+          <div>
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                color: '#7c3aed',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Advance Tier Feature
+            </span>
+            <h2
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 800,
+                color: '#111827',
+                margin: '8px 0 6px 0',
+              }}
+            >
+              Automated Engagement Suite
+            </h2>
+            <p
+              style={{
+                color: '#6b7280',
+                fontSize: '0.94rem',
+                maxWidth: '480px',
+                lineHeight: 1.5,
+                margin: '0 auto',
+              }}
+            >
+              Convert comments into customers with keyword-to-DM triggers, automate Instagram story responses, and streamline review approvals with safety-first human oversight.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '10px',
+              width: '100%',
+              margin: '12px 0',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ padding: '10px 14px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.85rem', color: '#374151' }}>
+              ✓ <strong>Comment to DM</strong> triggers
+            </div>
+            <div style={{ padding: '10px 14px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.85rem', color: '#374151' }}>
+              ✓ <strong>Story reply</strong> copilot
+            </div>
+            <div style={{ padding: '10px 14px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.85rem', color: '#374151' }}>
+              ✓ <strong>LinkedIn Copilot</strong> insights
+            </div>
+            <div style={{ padding: '10px 14px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.85rem', color: '#374151' }}>
+              ✓ <strong>Human approval</strong> safeguards
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
+            <a
+              href="/content/settings?tab=billing"
+              className="button button-dark"
+              style={{
+                padding: '12px 28px',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              Upgrade to Advance ($39/mo) or Add On ($15/mo)
+            </a>
+            <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+              Instant activation · Included for Advance & Admin users
+            </span>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return <section className="engagement-hub" aria-label="Engagement workspace">
     <div className="engage-safety-strip">

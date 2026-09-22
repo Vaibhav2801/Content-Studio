@@ -1,6 +1,7 @@
 import {
   Building2,
   Check,
+  CreditCard,
   Download,
   Image as ImageIcon,
   LoaderCircle,
@@ -15,11 +16,13 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { contentKnowledgeApi } from '../../../api/contentKnowledge'
 import { contentStudioApi } from '../../../api/contentStudio'
 import type { BrandBrain } from '../../../types/contentKnowledge'
 import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
+import { ContentBillingTab } from './ContentBillingTab'
 
 const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const splitList = (value: string) => value.split(/\n|,/).map((item) => item.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean)
@@ -91,6 +94,17 @@ const LOGO_INCLUDE_KEY = 'content_studio_include_logo'
 
 export function ContentSettingsView() {
   const { settingsDraft, setSettingsDraft, saveSettings, busy, isDemo, reload } = useContentStudio()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') === 'billing' ? 'billing' : 'general'
+
+  const selectTab = (tab: 'general' | 'billing') => {
+    if (tab === 'billing') {
+      setSearchParams({ tab: 'billing' })
+    } else {
+      setSearchParams({})
+    }
+  }
+
   const [brand, setBrand] = useState<BrandBrain | null>(null)
   const [brandBusy, setBrandBusy] = useState('')
   const [brandMessage, setBrandMessage] = useState('')
@@ -232,33 +246,60 @@ export function ContentSettingsView() {
 
   return (
     <section className="li-settings-page" aria-label="Content Studio settings">
-      <div className="li-settings-actions">
-        <button
-          type="button"
-          className="li-quiet-button ai-suggest-open-btn"
-          onClick={() => {
-            setShowAiModal(true)
-            if (!generatedSuggestions) handleGenerateAiSuggestions()
-          }}
-        >
-          <Sparkles size={16} className="ai-sparkle-icon" />
-          <span>Suggest with AI</span>
-        </button>
-        <button
-          className="button button-dark"
-          onClick={() => void saveAll()}
-          disabled={saving}
-          aria-busy={saving}
-        >
-          {saving ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Save changes
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className={`button ${activeTab === 'general' ? 'button-dark' : 'li-quiet-button'}`}
+            onClick={() => selectTab('general')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '8px' }}
+          >
+            <Palette size={16} /> Brand & Publishing
+          </button>
+          <button
+            type="button"
+            className={`button ${activeTab === 'billing' ? 'button-dark' : 'li-quiet-button'}`}
+            onClick={() => selectTab('billing')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '8px' }}
+          >
+            <CreditCard size={16} /> Plan & Invoices
+          </button>
+        </div>
+
+        {activeTab === 'general' && (
+          <div className="li-settings-actions" style={{ margin: 0 }}>
+            <button
+              type="button"
+              className="li-quiet-button ai-suggest-open-btn"
+              onClick={() => {
+                setShowAiModal(true)
+                if (!generatedSuggestions) handleGenerateAiSuggestions()
+              }}
+            >
+              <Sparkles size={16} className="ai-sparkle-icon" />
+              <span>Suggest with AI</span>
+            </button>
+            <button
+              className="button button-dark"
+              onClick={() => void saveAll()}
+              disabled={saving}
+              aria-busy={saving}
+            >
+              {saving ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Save changes
+            </button>
+          </div>
+        )}
       </div>
 
-      {brandMessage && (
-        <div className={`li-banner ${brandError ? 'error' : 'success'}`} role={brandError ? 'alert' : 'status'}>
-          {brandMessage}
-        </div>
-      )}
+      {activeTab === 'billing' ? (
+        <ContentBillingTab onPlanChanged={() => void reload()} />
+      ) : (
+        <>
+          {brandMessage && (
+            <div className={`li-banner ${brandError ? 'error' : 'success'}`} role={brandError ? 'alert' : 'status'}>
+              {brandMessage}
+            </div>
+          )}
 
       <div className="li-settings-grid">
         {/* Card 1: Brand and business */}
@@ -865,6 +906,8 @@ export function ContentSettingsView() {
             </footer>
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   )

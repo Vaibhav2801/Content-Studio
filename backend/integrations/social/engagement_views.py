@@ -45,6 +45,8 @@ from integrations.social.services.engagement import (
     serialize_connection,
     serialize_review,
 )
+from integrations.social.services.billing import check_engage_entitlement
+from rest_framework.exceptions import PermissionDenied
 from prospecting.models import WorkspaceMembership
 
 
@@ -73,6 +75,13 @@ def _provider_response(error):
 class EngagementWorkspaceAPIView(GenericAPIView):
     authentication_classes = [BasicAuthentication, SessionAuthentication]
     serializer_class = EngagementEnvelopeSerializer
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        workspace = self.workspace(request)
+        entitled, reason = check_engage_entitlement(workspace, request.user)
+        if not entitled:
+            raise PermissionDenied(reason)
 
     def workspace(self, request):
         return resolve_active_workspace(request)

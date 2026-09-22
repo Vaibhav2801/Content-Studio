@@ -17,12 +17,15 @@ import {
   Sparkles,
   LoaderCircle,
   X,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { billingApi } from '../../api/billingApi'
 import { contentStudioApi } from '../../api/contentStudio'
 import { contentStudioMockHome } from '../../api/contentStudioMock'
+import type { SubscriptionOverview } from '../../types/billing'
 import type { HomeSummary } from '../../types/contentStudio'
 import { CONTENT_STUDIO_NAV, type ContentStudioSection } from '../../types/content'
 import { useContentStudio } from './ContentStudioContext'
@@ -113,6 +116,9 @@ export function ContentStudioShell() {
     } catch { setWorkspaceError('Could not create workspace. Please try again.'); setWorkspaceBusy(false) }
   }
 
+  const [billingOverview, setBillingOverview] = useState<SubscriptionOverview | null>(null)
+  const [creditMenuOpen, setCreditMenuOpen] = useState(false)
+
   useEffect(() => {
     let active = true
     const load = async () => {
@@ -120,6 +126,12 @@ export function ContentStudioShell() {
         const result = isDemo ? structuredClone(contentStudioMockHome) : await contentStudioApi.home()
         if (active) setSummary(result)
       } catch { /* Each screen presents its own load error. */ }
+      try {
+        if (!isDemo) {
+          const billing = await billingApi.getSubscription()
+          if (active) setBillingOverview(billing)
+        }
+      } catch { /* topbar billing optional */ }
     }
     void load()
     return () => { active = false }
@@ -197,6 +209,121 @@ export function ContentStudioShell() {
           <div className="studio-breadcrumb"><span>Workspace</span><ChevronRight size={15} /><strong>{isOnboarding ? 'Setup' : current.label}</strong></div>
           <div className="studio-topbar-right">
             {isDemo && <span className="studio-demo-pill"><span /> Demo mode</span>}
+            {billingOverview && (
+              <div className="studio-billing-topbar-widget" style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="studio-credit-pill-btn"
+                  onClick={() => setCreditMenuOpen((o) => !o)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    border: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    color: '#374151',
+                    cursor: 'pointer',
+                  }}
+                  title="View plan & credit balance"
+                >
+                  <span
+                    style={{
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background:
+                        billingOverview.tier === 'ADMIN'
+                          ? '#ecfdf5'
+                          : billingOverview.tier === 'ADVANCE'
+                          ? '#f5f3ff'
+                          : billingOverview.tier === 'STARTER'
+                          ? '#eff6ff'
+                          : '#f3f4f6',
+                      color:
+                        billingOverview.tier === 'ADMIN'
+                          ? '#065f46'
+                          : billingOverview.tier === 'ADVANCE'
+                          ? '#5b21b6'
+                          : billingOverview.tier === 'STARTER'
+                          ? '#1e40af'
+                          : '#4b5563',
+                    }}
+                  >
+                    {billingOverview.role_label}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Zap size={13} style={{ color: '#7c3aed' }} />
+                    {billingOverview.credits.unlimited
+                      ? 'Unlimited'
+                      : `${billingOverview.credits.balance} Credits`}
+                  </span>
+                </button>
+
+                {creditMenuOpen && (
+                  <div
+                    className="studio-credit-popover card"
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '120%',
+                      width: '260px',
+                      padding: '16px',
+                      zIndex: 100,
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                      border: '1px solid #e5e7eb',
+                      background: '#ffffff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '0.9rem', color: '#111827' }}>
+                        {billingOverview.role_label} Plan
+                      </strong>
+                      <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        {billingOverview.tier === 'ADMIN' ? 'Full Access' : 'Monthly'}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: '8px 10px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.82rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ color: '#6b7280' }}>AI Credits left:</span>
+                        <strong style={{ color: '#111827' }}>
+                          {billingOverview.credits.unlimited ? 'Unlimited' : billingOverview.credits.balance}
+                        </strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#6b7280' }}>Connections:</span>
+                        <strong style={{ color: '#111827' }}>
+                          {billingOverview.connections.unlimited
+                            ? `${billingOverview.connections.used} (Unlimited)`
+                            : `${billingOverview.connections.used} / ${billingOverview.connections.limit}`}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                      Draft: 2 credits · AI image: 3 credits · Image regen: 1 credit
+                    </p>
+
+                    <Link
+                      to="/content/settings?tab=billing"
+                      className="button button-dark"
+                      style={{ textAlign: 'center', fontSize: '0.82rem', padding: '6px 12px' }}
+                      onClick={() => setCreditMenuOpen(false)}
+                    >
+                      {billingOverview.tier === 'ADMIN' ? 'View Billing & Invoices' : 'Top up / Manage Plan'}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
             <AskAIButton />
             <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Content Studio settings"><Settings2 size={18} /></Link>
           </div>

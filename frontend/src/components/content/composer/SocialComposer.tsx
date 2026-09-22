@@ -768,7 +768,31 @@ export function SocialComposer({ onPostChange }: Props) {
 
     </div>
 
-    <div className="composer-action-bar" aria-label="Composer actions"><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : 'Ready to start'}</span><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>{saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {mode === 'manual' && !post ? 'Start writing' : 'Save draft'}</button>{mode !== 'manual' && <button className="button button-dark" type="button" disabled={Boolean(busy) || !networks.length || (!ideaText.trim() && !sourceIds.length)} aria-busy={busy === 'generate'} onClick={() => void generate()}>{busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{busy === 'generate' ? ' Generating…' : ' Generate'}</button>}<button className="button button-dark" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'schedule'} onClick={() => void schedule()}>{busy === 'schedule' ? <LoaderCircle className="spin" size={16} /> : <CalendarClock size={16} />} Schedule post</button><button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'submit'} onClick={() => void submit()}>{busy === 'submit' ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Send for approval</button></div>
+    <div className="composer-action-bar" aria-label="Composer actions">
+      <span className={`save-indicator ${saveState.toLowerCase()}`}>
+        {saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : 'Ready to start'}
+      </span>
+      <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>
+        {saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {mode === 'manual' && !post ? 'Start writing' : 'Save draft'}
+      </button>
+      {mode !== 'manual' && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <button className="button button-dark" type="button" disabled={Boolean(busy) || !networks.length || (!ideaText.trim() && !sourceIds.length)} aria-busy={busy === 'generate'} onClick={() => void generate()}>
+            {busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}
+            {busy === 'generate' ? ' Generating…' : ' Generate'}
+          </button>
+          <span style={{ fontSize: '0.78rem', color: '#6b7280', whiteSpace: 'nowrap' }} title="AI credit cost for this generation">
+            ⚡ {controls.include_image ? '3 credits' : '2 credits'}
+          </span>
+        </div>
+      )}
+      <button className="button button-dark" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'schedule'} onClick={() => void schedule()}>
+        {busy === 'schedule' ? <LoaderCircle className="spin" size={16} /> : <CalendarClock size={16} />} Schedule post
+      </button>
+      <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'submit'} onClick={() => void submit()}>
+        {busy === 'submit' ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Send for approval
+      </button>
+    </div>
 
   </div>
 

@@ -1023,3 +1023,127 @@ class EngagementWebhookEvent(models.Model):
 
     class Meta:
         ordering = ["-processed_at"]
+
+
+class WorkspaceTier(models.TextChoices):
+    FREE = "FREE", "Free"
+    STARTER = "STARTER", "Starter"
+    ADVANCE = "ADVANCE", "Advance"
+    ADMIN = "ADMIN", "Admin"
+
+
+class WorkspaceSubscription(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.OneToOneField(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="subscription",
+    )
+    tier = models.CharField(
+        max_length=20,
+        choices=WorkspaceTier.choices,
+        default=WorkspaceTier.STARTER,
+        db_index=True,
+    )
+    extra_connections = models.PositiveIntegerField(default=0)
+    has_engage_addon = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    billing_name = models.CharField(max_length=255, blank=True, default="")
+    billing_email = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.workspace.name} ({self.tier})"
+
+    @property
+    def connections_quota(self) -> int:
+        if self.tier == WorkspaceTier.ADMIN:
+            return 999999
+        if self.tier == WorkspaceTier.FREE:
+            return 0
+        # Starter and Advance both include 1 connection base + extra
+        return 1 + self.extra_connections
+
+    @property
+    def engage_entitled(self) -> bool:
+        if self.tier in (WorkspaceTier.ADMIN, WorkspaceTier.ADVANCE):
+            return True
+        return self.has_engage_addon
+
+
+class CreditAccount(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.OneToOneField(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="credit_account",
+    )
+    total_allocated = models.PositiveIntegerField(default=50)
+    total_used = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.workspace.name} ({self.balance} remaining)"
+
+    @property
+    def balance(self) -> int:
+        return max(0, self.total_allocated - self.total_used)
+
+
+class CreditTransaction(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="credit_transactions",
+    )
+    amount = models.IntegerField()  # Negative for usage, positive for refill
+    action_type = models.CharField(max_length=50)
+    description = models.CharField(max_length=255)
+    balance_after = models.IntegerField(default=0)
+    post = models.ForeignKey(
+        SocialPost,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="credit_transactions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class BillingInvoice(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice_number = models.CharField(max_length=50, unique=True, db_index=True)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="invoices",
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="USD")
+    status = models.CharField(max_length=20, default="PAID")
+    title = models.CharField(max_length=255)
+    line_items = models.JSONField(default=list, blank=True)
+    payment_method = models.CharField(max_length=100, default="Credit Card (Simulated Checkout)")
+    billing_name = models.CharField(max_length=255, blank=True, default="")
+    billing_email = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.workspace.name} (${self.amount})"
+
