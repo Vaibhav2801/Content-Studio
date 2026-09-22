@@ -28,6 +28,16 @@ describe('Content Studio authentication routes', () => {
     expect(window.location.pathname).toBe('/')
   })
 
+  it('renders the dedicated pricing plans and dynamic cost builder page', async () => {
+    window.history.replaceState({}, '', '/pricing')
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: /Pay for your actual reach/i })).toBeInTheDocument()
+    expect(screen.getByText(/Dynamic Cost Estimate/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Everything you get with Content Studio/i })).toBeInTheDocument()
+    expect(screen.getByText(/Post Scheduling is 100% Free/i)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/pricing')
+  })
+
   it.each(['/signin', '/signup'])('returns from %s to the public homepage', async (path) => {
     window.history.replaceState({}, '', path)
     render(<App />)

@@ -17,7 +17,7 @@ export function LandingPage() {
   return <div className="landing-page">
     <header className="landing-header">
       <Link className="landing-brand" to="/" aria-label="Content Studio home"><span><Sparkles size={20} /></span> content studio</Link>
-      <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#pricing">Pricing</a></nav>
+      <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><Link to="/pricing">Pricing</Link></nav>
       <div className="landing-header-actions">{!user && <Link className="landing-signin" to="/signin">Sign in</Link>}<Link className="landing-top-cta" to={primaryPath}>{user ? 'Workspace' : 'Get started'} <ArrowRight size={15} /></Link></div>
     </header>
 
@@ -53,10 +53,22 @@ export function LandingPage() {
 
       <section className="landing-workflow" id="how-it-works"><div className="landing-workflow-copy"><span className="landing-kicker">A SIMPLE FLOW</span><h2>From first thought to final post.</h2><p>Content Studio gives every idea a clear path to publishing.</p><Link className="landing-text-link" to={primaryPath}>{primaryLabel} <ArrowRight size={17} /></Link></div><div className="landing-steps"><div><span>01</span><div><h3>Bring your idea</h3><p>Add a prompt, source, or rough note.</p></div></div><div><span>02</span><div><h3>Make it yours</h3><p>Refine the channel draft and add an image for Instagram.</p></div></div><div><span>03</span><div><h3>Approve and publish</h3><p>Choose a time or publish when you are ready.</p></div></div></div></section>
 
-      <section className="landing-section landing-pricing" id="pricing"><div className="landing-section-head"><span className="landing-kicker">PLANNED PRICING</span><h2>Pay for the creative work you use.</h2><p>Every plan includes AI post and series creation, planning, approvals, and analytics. Credits cover AI work; scheduling and publishing use no credits.</p></div><div className="landing-pricing-grid">{plans.map((plan) => <article className={plan.featured ? 'featured' : ''} key={plan.name}>{plan.featured && <span className="landing-plan-badge">POPULAR CHOICE</span>}<div className="landing-plan-name">{plan.name}</div><p>{plan.description}</p><div className="landing-plan-price"><strong>${plan.price}</strong><span>/ month<br />plus applicable tax</span></div><div className="landing-plan-divider" /><ul><li><Check size={17} /> {plan.credits} AI credits each month</li><li><Check size={17} /> {plan.accounts} connected {plan.accounts === 1 ? 'account' : 'accounts'}</li><li><Check size={17} /> {plan.examples}</li><li><Check size={17} /> AI post and series creation</li><li><Check size={17} /> Calendar, approvals and analytics</li><li><Check size={17} /> Unlimited scheduling and publishing</li></ul><Link className={plan.featured ? 'landing-plan-cta featured' : 'landing-plan-cta'} to={primaryPath}>{primaryLabel} <ArrowRight size={16} /></Link></article>)}</div><p className="landing-pricing-note">Pricing is a proposal; checkout and credit metering are not active yet. A platform draft uses 2 credits and an AI image uses 8; series creation uses the same rates per draft. Extra credits and accounts would be available separately.</p></section>
+      <section className="landing-section landing-pricing" id="pricing"><div className="landing-section-head"><span className="landing-kicker">PLANNED PRICING</span><h2>Pay for the creative work you use.</h2><p>Every plan includes AI post and series creation, planning, approvals, and analytics. Credits cover AI work; scheduling and publishing use no credits.</p></div><div className="landing-pricing-grid">{plans.map((plan) => <article className={plan.featured ? 'featured' : ''} key={plan.name}>{plan.featured && <span className="landing-plan-badge">POPULAR CHOICE</span>}<div className="landing-plan-name">{plan.name}</div><p>{plan.description}</p><div className="landing-plan-price"><strong>${plan.price}</strong><span>/ month<br />plus applicable tax</span></div><div className="landing-plan-divider" /><ul><li><Check size={17} /> {plan.credits} AI credits each month</li><li><Check size={17} /> {plan.accounts} connected {plan.accounts === 1 ? 'account' : 'accounts'}</li><li><Check size={17} /> {plan.examples}</li><li><Check size={17} /> AI post and series creation</li><li><Check size={17} /> Calendar, approvals and analytics</li><li><Check size={17} /> Unlimited scheduling and publishing</li></ul><Link className={plan.featured ? 'landing-plan-cta featured' : 'landing-plan-cta'} to={primaryPath}>{primaryLabel} <ArrowRight size={16} /></Link></article>)}</div>
+        <div className="landing-builder-banner">
+          <div className="landing-builder-banner-copy">
+            <span className="landing-kicker"><span /> DYNAMIC COST MANAGER &amp; BUILDER</span>
+            <h3>Need more connections or credits? Calculate your exact plan</h3>
+            <p>Customize social accounts, monthly automated post credits, and unlock the Engage automation suite with real-time dynamic pricing and complete feature breakdowns.</p>
+          </div>
+          <Link to="/pricing" className="landing-primary" style={{ whiteSpace: 'nowrap' }}>
+            Open Dynamic Cost Builder <ArrowRight size={17} />
+          </Link>
+        </div>
+        <p className="landing-pricing-note">Pricing is a proposal; checkout and credit metering are not active yet. A platform draft uses 2 credits and an AI image uses 8; series creation uses the same rates per draft. Extra credits and accounts would be available separately.</p>
+      </section>
 
       <section className="landing-close"><span className="landing-kicker">MAKE SPACE FOR WHAT MATTERS</span><h2>Your next good idea deserves to be shared.</h2><Link className="landing-primary" to={primaryPath}>{primaryLabel} <ArrowRight size={18} /></Link></section>
     </main>
-    <footer className="landing-footer"><Link className="landing-brand" to="/"><span><Sparkles size={17} /></span> content studio</Link><p>Create with clarity. Publish with confidence.</p><div><a href="#features">Features</a><a href="#pricing">Pricing</a><Link to="/signin">Sign in</Link></div></footer>
+    <footer className="landing-footer"><Link className="landing-brand" to="/"><span><Sparkles size={17} /></span> content studio</Link><p>Create with clarity. Publish with confidence.</p><div><a href="#features">Features</a><Link to="/pricing">Pricing</Link><Link to="/signin">Sign in</Link></div></footer>
   </div>
 }

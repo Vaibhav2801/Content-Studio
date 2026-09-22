@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './components/content/AuthContext'
 import { AuthPage } from './pages/AuthPage'
 import { LandingPage } from './pages/LandingPage'
+import { PricingPage } from './pages/PricingPage'
 import { ContentStudioPage } from './pages/ContentStudioPage'
 import { ContentHomeView } from './components/content/views/ContentHomeView'
 import { ContentCreateView } from './components/content/views/ContentCreateView'
@@ -30,6 +31,7 @@ export default function App() {
       <AuthProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/signin" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/content" element={<ProtectedStudio />}>
