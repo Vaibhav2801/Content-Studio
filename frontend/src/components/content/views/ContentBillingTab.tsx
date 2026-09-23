@@ -1,14 +1,10 @@
 import {
-  AlertCircle,
-  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   CreditCard,
   Download,
-  ExternalLink,
   Link2,
   LoaderCircle,
-  Lock,
   MessageCircleMore,
   Plus,
   Receipt,
@@ -23,7 +19,6 @@ import type {
   BillingInvoice,
   CheckoutPayload,
   SubscriptionOverview,
-  WorkspaceTier,
 } from '../../../types/billing'
 import './ContentBillingTab.css'
 

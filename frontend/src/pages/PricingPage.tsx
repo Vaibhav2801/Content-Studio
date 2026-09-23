@@ -1,5 +1,5 @@
 import {
-  ArrowRight, CalendarDays, Check, Instagram,
+  ArrowRight, CalendarDays, Check,
   Layers3, Linkedin, MessageSquare, Sparkles, WandSparkles, X, Zap,
 } from 'lucide-react'
 import { useState } from 'react'

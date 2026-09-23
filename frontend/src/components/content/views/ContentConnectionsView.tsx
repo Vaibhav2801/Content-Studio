@@ -1,4 +1,4 @@
-import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, Sparkles, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { billingApi } from '../../../api/billingApi'
