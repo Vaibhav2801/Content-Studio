@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from django.http import FileResponse, Http404
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -44,6 +45,7 @@ from integrations.social.models import (
     BrandProfile,
     ConnectionState,
     ContentSource,
+    ContentSourceProcessingState,
     MediaAsset,
     MediaAssetSource,
     PublishJobState,
@@ -154,9 +156,11 @@ from integrations.linkedin.services.images import (
 )
 from integrations.linkedin.workspaces import resolve_active_workspace
 from integrations.social.services.billing import (
+    PRICING_CATALOG,
     check_connection_quota,
     check_credit_quota,
-    deduct_credits,
+    finalize_credit_reservation,
+    reserve_credits,
 )
 
 
@@ -243,6 +247,16 @@ def sources_from_request(workspace, data):
     if source_id and source is None:
         return None, "source_id"
     return ([] if source is None else [source]), "source_id"
+
+
+def unavailable_source_response(sources):
+    unavailable = [
+        source.label for source in (sources or [])
+        if source.processing_status != ContentSourceProcessingState.READY or not source.extracted_text
+    ]
+    if unavailable:
+        return Response({"source_ids": [f"These sources are not ready yet: {', '.join(unavailable)}."]}, status=400)
+    return None
 
 
 def serialize_brand_brain(profile):
@@ -474,7 +488,8 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
         workspace = self.workspace(request)
         controls = request.data.get("controls") or {}
         include_image = bool(controls.get("include_image"))
-        required_credits = 3 if include_image else 2
+        costs = PRICING_CATALOG["credit_costs"]
+        required_credits = costs["draft"] + (costs["image"] if include_image else 0)
 
         has_credits, balance = check_credit_quota(workspace, required_credits, request.user)
         if not has_credits:
@@ -497,6 +512,9 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
                 sources, source_field = sources_from_request(workspace, request.data)
                 if sources is None:
                     return Response({source_field: ["Choose sources from this workspace."]}, status=400)
+                unavailable = unavailable_source_response(sources)
+                if unavailable:
+                    return unavailable
             try:
                 update_post(
                     post=post,
@@ -512,6 +530,9 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
             sources, source_field = sources_from_request(workspace, request.data)
             if sources is None:
                 return Response({source_field: ["Choose sources from this workspace."]}, status=400)
+            unavailable = unavailable_source_response(sources)
+            if unavailable:
+                return unavailable
             try:
                 post = create_draft(
                     workspace=workspace,
@@ -526,14 +547,18 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
             except DjangoValidationError as error:
                 return social_validation_response(error)
 
-        deduct_credits(
+        reservation, balance = reserve_credits(
             workspace=workspace,
             amount=required_credits,
-            category="POST_GENERATION",
+            action_type="POST_GENERATION",
             description=f"Generated draft '{post.idea_title or 'Untitled Post'}' ({required_credits} credits)",
             post=post,
             user=request.user if request.user and request.user.is_authenticated else None,
+            idempotency_key=f"post-generation:{post.id}:{request.headers.get('Idempotency-Key') or uuid.uuid4()}",
         )
+        if reservation is None:
+            return Response({"detail": "Insufficient AI credits.", "code": "insufficient_credits",
+                "balance": balance, "required": required_credits}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "GENERATING"
@@ -542,12 +567,21 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
         post.save(update_fields=["metadata", "updated_at"])
 
         from integrations.social.tasks import generate_post_variants
-        generate_post_variants.delay(
-            post_id=str(post.id),
-            networks=request.data.get("networks"),
-            controls=request.data.get("controls"),
-            connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-        )
+        try:
+            generate_post_variants.delay(
+                post_id=str(post.id), networks=request.data.get("networks"),
+                controls=request.data.get("controls"),
+                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+                reservation_id=str(reservation.id),
+            )
+        except Exception:
+            finalize_credit_reservation(reservation.id, success=False)
+            metadata["generation_status"] = "FAILED"
+            metadata["generation_error"] = "Generation worker is unavailable."
+            post.metadata = metadata
+            post.save(update_fields=["metadata", "updated_at"])
+            logger.exception("Could not queue generation for post %s", post.id)
+            return Response({"detail": "Generation worker is unavailable."}, status=503)
         post.refresh_from_db()
         return Response(social_post_response(post), status=status.HTTP_202_ACCEPTED)
 
@@ -588,18 +622,22 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
         sources, source_field = sources_from_request(workspace, request.data)
         if sources is None:
             return Response({source_field: ["Choose sources from this workspace."]}, status=400)
+        unavailable = unavailable_source_response(sources)
+        if unavailable:
+            return unavailable
         items = request.data.get("items") or request.data.get("posts")
         creative_brief = request.data.get("creative_brief") if "creative_brief" in request.data else None
         controls = request.data.get("controls") if "controls" in request.data else None
 
         base_include_image = bool(controls.get("include_image")) if controls else False
+        costs = PRICING_CATALOG["credit_costs"]
         total_credits = 0
         for index in range(count):
             item = items[index] if isinstance(items, list) and index < len(items) and isinstance(items[index], dict) else {}
             part_include = item.get("include_image")
             if part_include is None:
                 part_include = base_include_image
-            total_credits += 3 if part_include else 2
+            total_credits += costs["draft"] + (costs["image"] if part_include else 0)
 
         has_credits, balance = check_credit_quota(workspace, total_credits, request.user)
         if not has_credits:
@@ -612,6 +650,18 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
                 },
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
+
+        reservation, balance = reserve_credits(
+            workspace=workspace, amount=total_credits, action_type="SERIES_GENERATION",
+            description=f"Generated {count}-part content series '{title}' ({total_credits} credits)",
+            user=request.user if request.user and request.user.is_authenticated else None,
+            idempotency_key=f"series-generation:{workspace.id}:{request.headers.get('Idempotency-Key') or uuid.uuid4()}",
+            expected_operations=count,
+        )
+        if reservation is None:
+            return Response({"detail": "Insufficient AI credits for series.",
+                "code": "insufficient_credits", "balance": balance, "required": total_credits},
+                status=status.HTTP_402_PAYMENT_REQUIRED)
 
         posts = []
         posts_with_controls = []
@@ -682,24 +732,24 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
                     posts.append(post)
                     posts_with_controls.append((post, part_controls))
         except DjangoValidationError as error:
+            finalize_credit_reservation(reservation.id, success=False)
             return social_validation_response(error)
-
-        deduct_credits(
-            workspace=workspace,
-            amount=total_credits,
-            category="SERIES_GENERATION",
-            description=f"Generated {count}-part content series '{title}' ({total_credits} credits)",
-            user=request.user if request.user and request.user.is_authenticated else None,
-        )
+        except Exception:
+            finalize_credit_reservation(reservation.id, success=False)
+            raise
 
         from integrations.social.tasks import generate_post_variants
-        for post, part_controls in posts_with_controls:
-            generate_post_variants.delay(
-                post_id=str(post.id),
-                networks=request.data.get("networks"),
-                controls=part_controls,
-                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-            )
+        try:
+            for post, part_controls in posts_with_controls:
+                generate_post_variants.delay(
+                    post_id=str(post.id), networks=request.data.get("networks"), controls=part_controls,
+                    connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
+                    reservation_id=str(reservation.id),
+                )
+        except Exception:
+            finalize_credit_reservation(reservation.id, success=False)
+            logger.exception("Could not queue content series %s", title)
+            return Response({"detail": "Generation worker is unavailable."}, status=503)
         return Response({"posts": [social_post_response(post) for post in posts]}, status=201)
 
 
@@ -1343,14 +1393,15 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
     def post(self, request, variant_id):
         variant = self.variant(request, variant_id)
         workspace = variant.post.workspace
-        has_credits, balance = check_credit_quota(workspace, 1, request.user)
+        regeneration_cost = PRICING_CATALOG["credit_costs"]["image_regeneration"]
+        has_credits, balance = check_credit_quota(workspace, regeneration_cost, request.user)
         if not has_credits:
             return Response(
                 {
-                    "detail": "Insufficient AI credits. Regenerating an image requires 1 credit.",
+                    "detail": f"Insufficient AI credits. Regenerating an image requires {regeneration_cost} credit(s).",
                     "code": "insufficient_credits",
                     "balance": balance,
-                    "required": 1,
+                    "required": regeneration_cost,
                 },
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
@@ -1363,6 +1414,21 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
         ).strip()
         if not prompt:
             return Response({"prompt": ["Describe the image to generate."]}, status=400)
+        reservation, balance = reserve_credits(
+            workspace=workspace, amount=regeneration_cost, action_type="IMAGE_REGENERATION",
+            description=f"Regenerated AI image for post '{variant.post.idea_title or 'Untitled Post'}'",
+            post=variant.post,
+            user=request.user if request.user and request.user.is_authenticated else None,
+            idempotency_key=f"image-regeneration:{variant.id}:{request.headers.get('Idempotency-Key') or uuid.uuid4()}",
+        )
+        if reservation is None:
+            return Response({"detail": "Insufficient AI credits.", "code": "insufficient_credits",
+                "balance": balance, "required": regeneration_cost}, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+        def failed(response):
+            finalize_credit_reservation(reservation.id, success=False)
+            return response
+
         try:
             directed_prompt = compose_image_generation_prompt(variant, prompt)
             _, metadata, image_data = LinkedInImageGenerator().generate(
@@ -1372,39 +1438,39 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
             )
         except ImageGenerationQuotaError:
             logger.exception("Image generation quota exhausted for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_quota", "detail": "Image generation quota is unavailable."},
                 status=429,
-            )
+            ))
         except ImageGenerationConfigurationError:
             logger.exception("Image generation configuration rejected for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_not_configured", "detail": "Image generation is not configured correctly."},
                 status=503,
-            )
+            ))
         except ImageProviderUnavailableError:
             logger.exception("Image provider unavailable for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_provider_unavailable", "detail": "The image provider is temporarily unavailable."},
                 status=502,
-            )
+            ))
         except ImageGenerationError:
             logger.exception("Image generation failed for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_failed", "detail": "The image could not be generated."},
                 status=502,
-            )
+            ))
         except Exception:
             logger.exception("Unexpected image generation failure for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_failed", "detail": "The image could not be generated."},
                 status=502,
-            )
+            ))
         if not image_data:
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_not_configured", "detail": "Image generation is not configured."},
                 status=503,
-            )
+            ))
         try:
             image_data, content_type, extension = normalize_generated_image(
                 variant.network,
@@ -1413,10 +1479,10 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
             )
         except (OSError, ValueError):
             logger.exception("Image provider returned invalid image bytes for social variant %s.", variant.id)
-            return Response(
+            return failed(Response(
                 {"code": "image_generation_failed", "detail": "The image provider returned an invalid image."},
                 status=502,
-            )
+            ))
         uploaded_file = SimpleUploadedFile(
             f"generated-{variant.id}{extension}",
             image_data,
@@ -1427,7 +1493,7 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
         if replace_id:
             replace_asset = variant.media_assets.filter(pk=replace_id, asset_type="IMAGE").first()
             if replace_asset is None:
-                return Response({"asset_id": ["Image asset not found in this variant."]}, status=404)
+                return failed(Response({"asset_id": ["Image asset not found in this variant."]}, status=404))
         try:
             asset = store_uploaded_media(
                 variant,
@@ -1437,18 +1503,11 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
                 replace_asset=replace_asset,
             )
         except MediaValidationError as error:
-            return self.media_error(error)
+            return failed(self.media_error(error))
         except DjangoValidationError as error:
-            return Response({"detail": error.messages}, status=409)
+            return failed(Response({"detail": error.messages}, status=409))
 
-        deduct_credits(
-            workspace=workspace,
-            amount=1,
-            category="IMAGE_REGENERATION",
-            description=f"Regenerated AI image for post '{variant.post.idea_title or 'Untitled Post'}'",
-            post=variant.post,
-            user=request.user if request.user and request.user.is_authenticated else None,
-        )
+        finalize_credit_reservation(reservation.id, success=True)
 
         return Response(MediaAssetSerializer(asset).data, status=201)
 

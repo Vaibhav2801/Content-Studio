@@ -1050,6 +1050,12 @@ class WorkspaceSubscription(models.Model):
     is_active = models.BooleanField(default=True)
     billing_name = models.CharField(max_length=255, blank=True, default="")
     billing_email = models.CharField(max_length=255, blank=True, default="")
+    billing_provider = models.CharField(max_length=30, blank=True, default="")
+    provider_customer_id = models.CharField(max_length=255, blank=True, default="")
+    provider_subscription_id = models.CharField(max_length=255, blank=True, default="")
+    current_period_start = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    cancel_at_period_end = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1098,6 +1104,48 @@ class CreditAccount(models.Model):
         return max(0, self.total_allocated - self.total_used)
 
 
+class CreditReservationStatus(models.TextChoices):
+    RESERVED = "RESERVED", "Reserved"
+    CONSUMED = "CONSUMED", "Consumed"
+    REFUNDED = "REFUNDED", "Refunded"
+
+
+class CreditReservation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="credit_reservations",
+    )
+    post = models.ForeignKey(
+        SocialPost,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="credit_reservations",
+    )
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    amount = models.PositiveIntegerField()
+    action_type = models.CharField(max_length=50)
+    description = models.CharField(max_length=255)
+    expected_operations = models.PositiveIntegerField(default=1)
+    completed_operations = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=CreditReservationStatus.choices,
+        default=CreditReservationStatus.RESERVED,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["workspace", "status"], name="credit_reservation_ws_idx"),
+        ]
+
+
 class CreditTransaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
@@ -1115,6 +1163,13 @@ class CreditTransaction(models.Model):
         null=True,
         blank=True,
         related_name="credit_transactions",
+    )
+    reservation = models.ForeignKey(
+        CreditReservation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transactions",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -1136,6 +1191,7 @@ class BillingInvoice(models.Model):
     title = models.CharField(max_length=255)
     line_items = models.JSONField(default=list, blank=True)
     payment_method = models.CharField(max_length=100, default="Credit Card (Simulated Checkout)")
+    payment_reference = models.CharField(max_length=255, blank=True, default="")
     billing_name = models.CharField(max_length=255, blank=True, default="")
     billing_email = models.CharField(max_length=255, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1147,3 +1203,27 @@ class BillingInvoice(models.Model):
     def __str__(self):
         return f"{self.invoice_number} - {self.workspace.name} (${self.amount})"
 
+
+class BillingWebhookEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.CharField(max_length=30)
+    provider_event_id = models.CharField(max_length=255)
+    event_type = models.CharField(max_length=100)
+    payload_fingerprint = models.CharField(max_length=64)
+    invoice = models.ForeignKey(
+        BillingInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="webhook_events",
+    )
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-processed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "provider_event_id"],
+                name="unique_billing_provider_event",
+            ),
+        ]

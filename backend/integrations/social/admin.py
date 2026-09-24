@@ -102,6 +102,7 @@ class SocialWorkspaceSettingsAdmin(ModelAdmin):
             request.user.is_superuser
             or obj and obj.workspace.memberships.filter(
                 user=request.user,
+                is_active=True,
                 role__in=["OWNER", "ADMIN"],
             ).exists()
         ):

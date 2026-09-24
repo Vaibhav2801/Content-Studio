@@ -60,7 +60,8 @@ class ContentStudioAssistantTests(TestCase):
         self.assertEqual(response["reply"], "Here is how you use the Post Composer at /content/create.")
         self.assertEqual(response["provider"], "ai")
 
-    def test_api_endpoint_handles_chat_post(self):
+    @patch("integrations.social.services.assistant.ContentStudioAssistantService._try_llm", return_value=None)
+    def test_api_endpoint_handles_chat_post(self, mock_llm):
         response = self.client.post(
             "/api/v3/social/assistant/chat/",
             data={

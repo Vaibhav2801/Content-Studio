@@ -601,6 +601,10 @@ SOCIAL_QUALITY_LLM_ENABLED = os.environ.get(
     "SOCIAL_QUALITY_LLM_ENABLED", "false" if "test" in sys.argv else "true"
 ).strip().lower() in {"true", "1", "yes"}
 
+# Entitlements are granted only by signed provider webhooks in production.
+BILLING_SIMULATED_CHECKOUT_ENABLED = _env_bool("BILLING_SIMULATED_CHECKOUT_ENABLED", False)
+BILLING_WEBHOOK_SECRET = os.environ.get("BILLING_WEBHOOK_SECRET", "").strip()
+
 # ── Remote Celery Worker Keep-Alive & Wake Configuration ─────────────────────
 WORKER_1_URL = os.environ.get("WORKER_1_URL", "http://127.0.0.1:10000").rstrip("/")
 WORKER_2_URL = os.environ.get("WORKER_2_URL", "http://127.0.0.1:10001").rstrip("/")

@@ -27,6 +27,21 @@ from prospecting.models import Workspace, WorkspaceMembership
 @override_settings(CONTENT_AUTOMATION_DEV_BOOTSTRAP=False, SOCIAL_PUBLISHER_DEFAULT="UPLOAD_POST")
 class SocialComposerApiTests(TestCase):
     def setUp(self):
+        image_generate = patch(
+            "integrations.linkedin.services.images.LinkedInImageGenerator.generate",
+            return_value=(None, {"content_type": "image/png"}, b"test-image"),
+        )
+        image_normalize = patch(
+            "integrations.social.media.normalize_generated_image",
+            return_value=(b"test-image", "image/png", ".png"),
+        )
+        image_store = patch("integrations.social.media.store_uploaded_media")
+        image_generate.start()
+        image_normalize.start()
+        image_store.start()
+        self.addCleanup(image_generate.stop)
+        self.addCleanup(image_normalize.stop)
+        self.addCleanup(image_store.stop)
         users = get_user_model()
         self.user = users.objects.create_user(username="composer-user")
         self.other_user = users.objects.create_user(username="other-composer-user")
@@ -137,14 +152,14 @@ class SocialComposerApiTests(TestCase):
             "INSTAGRAM": {"copy": "Instagram version", "hashtags": ["#People"], "metadata": {}},
         }
         response = self.client.post(reverse("social-post-generate"), self.payload(), format="json")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 202)
         self.assertEqual(len(response.data["variants"]), 3)
         self.assertEqual(len({item["copy"] for item in response.data["variants"]}), 3)
         self.assertEqual(SocialPostVariant.objects.filter(post_id=response.data["id"]).count(), 3)
         generated_variants = SocialPostVariant.objects.filter(post_id=response.data["id"]).prefetch_related("versions")
         self.assertTrue(all(item.versions.count() == 1 for item in generated_variants))
         self.assertTrue(all(item.versions.first().quality_check.get("schema_version") == 1 for item in generated_variants))
-        self.assertNotContains(response, "UPLOAD_POST")
+        self.assertNotContains(response, "UPLOAD_POST", status_code=202)
 
     def test_generation_prompt_describes_native_linkedin_and_instagram_formats(self):
         post = SocialPost.objects.create(

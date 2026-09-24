@@ -166,12 +166,14 @@ class IntelligentRouter(BaseLLMProvider):
         
         model_name = getattr(adapter, "model_name", provider_key)
         logger.info(
-            "LLM_REQUEST provider=%s model=%s system_prompt=%r prompt=%r tools=%s",
+            "LLM_REQUEST provider=%s model=%s operation=%s correlation_id=%s prompt_chars=%s system_chars=%s tool_count=%s",
             provider_key,
             model_name,
-            system_prompt,
-            prompt,
-            tools or [],
+            operation or "llm_generate",
+            correlation_id,
+            len(prompt or ""),
+            len(system_prompt or ""),
+            len(tools or []),
         )
 
         tracer = get_tracer()

@@ -31,40 +31,14 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
+import { usePricingCatalog } from '../hooks/usePricingCatalog'
 import './LandingPage.css'
 
-const plans = [
-  {
-    name: 'Free',
-    price: 0,
-    credits: 15,
-    accounts: 0,
-    description: 'Test the AI creation engine and plan upcoming drafts.',
-    examples: 'Draft around 5 posts with images',
-    featured: false,
-    cta: 'Start with Free',
-  },
-  {
-    name: 'Starter',
-    price: 20,
-    credits: 50,
-    accounts: 1,
-    description: 'For creators building an authentic personal presence.',
-    examples: 'Around 15-18 posts + unlimited scheduling',
-    featured: false,
-    cta: 'Get Starter',
-  },
-  {
-    name: 'Advance',
-    price: 39,
-    credits: 150,
-    accounts: 1,
-    description: 'High-volume publishing with Engage lead automation.',
-    examples: 'Around 45-50 posts + Engage suite',
-    featured: true,
-    cta: 'Get Advance',
-  },
-]
+const planPresentation = {
+  free: { description: 'Test the AI creation engine and plan upcoming drafts.', examples: 'Create drafts before connecting an account', cta: 'Start with Free' },
+  starter: { description: 'For creators building an authentic personal presence.', examples: 'Consistent creation + unlimited scheduling', cta: 'Get Starter' },
+  advance: { description: 'High-volume publishing with Engage lead automation.', examples: 'High-volume creation + Engage suite', cta: 'Get Advance' },
+}
 
 const workflowSlides = [
   {
@@ -141,6 +115,7 @@ const workflowSlides = [
 
 export function LandingPage() {
   const { user } = useAuth()
+  const { catalog, error: pricingError } = usePricingCatalog()
   const primaryPath = user ? '/content' : '/signup'
   const primaryLabel = user ? 'Open workspace' : 'Create your workspace'
 
@@ -1066,11 +1041,14 @@ export function LandingPage() {
           </div>
 
           <div className="landing-pricing-grid">
-            {plans.map((plan) => (
-              <article className={plan.featured ? 'featured' : ''} key={plan.name}>
-                {plan.featured && <span className="landing-plan-badge">MOST POPULAR</span>}
+            {catalog?.plans.map((plan) => {
+              const presentation = planPresentation[plan.id]
+              const featured = plan.id === 'advance'
+              return (
+              <article className={featured ? 'featured' : ''} key={plan.id}>
+                {featured && <span className="landing-plan-badge">MOST POPULAR</span>}
                 <div className="landing-plan-name">{plan.name}</div>
-                <p>{plan.description}</p>
+                <p>{presentation.description}</p>
                 <div className="landing-plan-price">
                   <strong>${plan.price}</strong>
                   <span>
@@ -1085,10 +1063,10 @@ export function LandingPage() {
                     <Check size={17} /> {plan.credits} AI credits each month
                   </li>
                   <li>
-                    <Check size={17} /> {plan.accounts} connected {plan.accounts === 1 ? 'account' : 'accounts'}
+                    <Check size={17} /> {plan.connections} connected {plan.connections === 1 ? 'account' : 'accounts'}
                   </li>
                   <li>
-                    <Check size={17} /> {plan.examples}
+                    <Check size={17} /> {presentation.examples}
                   </li>
                   <li>
                     <Check size={17} /> AI post &amp; series creation
@@ -1101,13 +1079,14 @@ export function LandingPage() {
                   </li>
                 </ul>
                 <Link
-                  className={plan.featured ? 'landing-plan-cta featured' : 'landing-plan-cta'}
+                  className={featured ? 'landing-plan-cta featured' : 'landing-plan-cta'}
                   to={primaryPath}
                 >
-                  {plan.cta} <ArrowRight size={16} />
+                  {presentation.cta} <ArrowRight size={16} />
                 </Link>
               </article>
-            ))}
+            )})}
+            {pricingError && <p role="alert">{pricingError}</p>}
           </div>
 
           <div className="landing-builder-banner">
@@ -1127,9 +1106,10 @@ export function LandingPage() {
           </div>
 
           <p className="landing-pricing-note">
-            Pricing is a proposal; checkout and credit metering are not active yet. A platform draft uses 2
-            credits and an AI image uses 8; series creation uses the same rates per draft. Extra credits and
-            accounts would be available separately. Unlimited post scheduling consumes 0 credits.
+            Credit metering is active. A platform draft uses {catalog?.credit_costs.draft ?? '...'} credits and
+            an AI image uses {catalog?.credit_costs.image ?? '...'}; series creation uses the same rates per draft.
+            Secure payment checkout is enabled only when a payment provider is configured. Unlimited post
+            scheduling consumes 0 credits.
           </p>
         </section>
 

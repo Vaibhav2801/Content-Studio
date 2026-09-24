@@ -1,6 +1,6 @@
 import { CalendarClock, Check, Image as ImageIcon, LoaderCircle, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -128,32 +128,6 @@ export function SocialComposer({ onPostChange }: Props) {
 
 
   useEffect(() => {
-    const onComplete = (event: Event) => {
-      const custom = event as CustomEvent<SocialPost>
-      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
-        adoptPost(custom.detail)
-        setBusy('')
-        setNotice('Your generated post is ready to review.')
-      }
-    }
-    const onFailed = (event: Event) => {
-      const custom = event as CustomEvent<SocialPost>
-      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
-        setBusy('')
-        setError(custom.detail.generation_error || 'Post generation failed.')
-      }
-    }
-    window.addEventListener('content-studio-generation-complete', onComplete)
-    window.addEventListener('content-studio-generation-failed', onFailed)
-    return () => {
-      window.removeEventListener('content-studio-generation-complete', onComplete)
-      window.removeEventListener('content-studio-generation-failed', onFailed)
-    }
-  }, [])
-
-
-
-  useEffect(() => {
 
     if (startFresh) clearComposerRecovery(recoveryKey)
 
@@ -183,7 +157,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
 
 
-  const adoptPost = (value: SocialPost | null) => {
+  const adoptPost = useCallback((value: SocialPost | null) => {
 
     livePost.current = value
 
@@ -213,7 +187,33 @@ export function SocialComposer({ onPostChange }: Props) {
 
     }
 
-  }
+  }, [activeNetwork, onPostChange])
+
+
+
+  useEffect(() => {
+    const onComplete = (event: Event) => {
+      const custom = event as CustomEvent<SocialPost>
+      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
+        adoptPost(custom.detail)
+        setBusy('')
+        setNotice('Your generated post is ready to review.')
+      }
+    }
+    const onFailed = (event: Event) => {
+      const custom = event as CustomEvent<SocialPost>
+      if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
+        setBusy('')
+        setError(custom.detail.generation_error || 'Post generation failed.')
+      }
+    }
+    window.addEventListener('content-studio-generation-complete', onComplete)
+    window.addEventListener('content-studio-generation-failed', onFailed)
+    return () => {
+      window.removeEventListener('content-studio-generation-complete', onComplete)
+      window.removeEventListener('content-studio-generation-failed', onFailed)
+    }
+  }, [adoptPost])
 
 
 

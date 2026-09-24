@@ -81,14 +81,17 @@ def refresh_post_metrics():
 
 
 @shared_task(name="social.generate_post_variants")
-def generate_post_variants(post_id, networks=None, controls=None, connection_ids=None):
+def generate_post_variants(post_id, networks=None, controls=None, connection_ids=None, reservation_id=None):
     from integrations.social.models import SocialPost
+    from integrations.social.services.billing import finalize_credit_reservation
     from integrations.social.services.composer import generate_variants
 
     try:
         post = SocialPost.objects.get(pk=post_id)
     except SocialPost.DoesNotExist:
         logger.error("SocialPost %s does not exist for generation task.", post_id)
+        if reservation_id:
+            finalize_credit_reservation(reservation_id, success=False)
         return {"status": "NOT_FOUND", "post_id": post_id}
 
     metadata = dict(post.metadata or {})
@@ -116,8 +119,7 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
                         from integrations.linkedin.services.images import LinkedInImageGenerator
                         image_gen = LinkedInImageGenerator()
                     from integrations.social.services.composer import compose_image_generation_prompt
-                    from integrations.social.media import normalize_generated_image
-                    from integrations.social.services.media import store_uploaded_media
+                    from integrations.social.media import normalize_generated_image, store_uploaded_media
                     from integrations.social.models import MediaAssetSource
                     from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -130,24 +132,26 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
                     _, img_meta, image_data = image_gen.generate(
                         variant.id, directed_prompt, network=variant.network
                     )
-                    if image_data:
-                        image_data, content_type, extension = normalize_generated_image(
-                            variant.network, image_data, img_meta.get("content_type")
-                        )
-                        uploaded = SimpleUploadedFile(
-                            f"generated-{variant.id}{extension}",
-                            image_data,
-                            content_type=content_type,
-                        )
-                        store_uploaded_media(
-                            variant,
-                            uploaded,
-                            alt_text=str(variant.metadata.get("alt_text") or post.idea_title)[:500],
-                            source=MediaAssetSource.AI,
-                        )
-                        logger.info("Successfully generated image for variant %s", variant.id)
-                except Exception as img_exc:
-                    logger.warning("Could not generate image for variant %s: %s", variant.id, img_exc)
+                    if not image_data:
+                        raise RuntimeError("Image provider returned no image data.")
+                    image_data, content_type, extension = normalize_generated_image(
+                        variant.network, image_data, img_meta.get("content_type")
+                    )
+                    uploaded = SimpleUploadedFile(
+                        f"generated-{variant.id}{extension}",
+                        image_data,
+                        content_type=content_type,
+                    )
+                    store_uploaded_media(
+                        variant,
+                        uploaded,
+                        alt_text=str(variant.metadata.get("alt_text") or post.idea_title)[:500],
+                        source=MediaAssetSource.AI,
+                    )
+                    logger.info("Successfully generated image for variant %s", variant.id)
+                except Exception:
+                    logger.exception("Required image generation failed for variant %s", variant.id)
+                    raise
 
         post.refresh_from_db()
         metadata = dict(post.metadata or {})
@@ -155,6 +159,8 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
         metadata["generation_error"] = ""
         post.metadata = metadata
         post.save(update_fields=["metadata", "updated_at"])
+        if reservation_id:
+            finalize_credit_reservation(reservation_id, success=True)
         logger.info("Successfully generated post variants for post %s", post_id)
         return {"status": "READY", "post_id": post_id}
     except Exception as exc:
@@ -165,5 +171,7 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
         metadata["generation_error"] = str(exc)
         post.metadata = metadata
         post.save(update_fields=["metadata", "updated_at"])
+        if reservation_id:
+            finalize_credit_reservation(reservation_id, success=False)
         return {"status": "FAILED", "post_id": post_id, "error": str(exc)}
 

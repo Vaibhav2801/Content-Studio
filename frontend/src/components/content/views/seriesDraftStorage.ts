@@ -1,4 +1,4 @@
-import type { SocialNetwork, SocialPost } from '../../../types/socialComposer'
+import type { GenerationControls, SocialNetwork, SocialPost } from '../../../types/socialComposer'
 import type { SeriesPostItem } from './ContentSeriesView'
 
 export interface SeriesCampaignDraft {
@@ -10,9 +10,9 @@ export interface SeriesCampaignDraft {
   scheduledFor: string
   networks: SocialNetwork[]
   connectionIds: string[]
-  tone: string
-  goal: string
-  length: string
+  tone: GenerationControls['tone']
+  goal: GenerationControls['goal']
+  length: GenerationControls['length']
   includeImage: boolean
   selectedSourceId: string
   targetAudience: string

@@ -26,6 +26,8 @@ from integrations.social.models import (
     SocialPostVersion,
     SocialProvider,
     SocialWorkspaceSettings,
+    WorkspaceSubscription,
+    WorkspaceTier,
 )
 from integrations.social.publishing.types import (
     AccountMetricsResult,
@@ -50,8 +52,9 @@ class SocialAnalyticsTests(TestCase):
         self.other_user = user_model.objects.create_user(username="other-analytics-user")
         self.workspace = Workspace.objects.create(name="Analytics workspace")
         self.other_workspace = Workspace.objects.create(name="Other analytics workspace")
-        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.OWNER)
-        WorkspaceMembership.objects.create(workspace=self.other_workspace, user=self.other_user, role=WorkspaceMembership.OWNER)
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.OWNER, is_active=True)
+        WorkspaceMembership.objects.create(workspace=self.other_workspace, user=self.other_user, role=WorkspaceMembership.OWNER, is_active=True)
+        WorkspaceSubscription.objects.create(workspace=self.workspace, tier=WorkspaceTier.ADVANCE)
         settings = SocialWorkspaceSettings.objects.create(workspace=self.workspace, brand_name="Analytics Co")
         self.brand = BrandProfile.objects.create(settings=settings, content_pillars=["Growth", "Culture"])
         self.connections = {

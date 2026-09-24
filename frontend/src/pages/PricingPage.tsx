@@ -2,59 +2,63 @@ import {
   ArrowRight, CalendarDays, Check,
   Layers3, Linkedin, MessageSquare, Sparkles, WandSparkles, X, Zap,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
+import { usePricingCatalog } from '../hooks/usePricingCatalog'
 import './PricingPage.css'
 
 export function PricingPage() {
   const { user } = useAuth()
+  const { catalog, error: pricingError } = usePricingCatalog()
   const primaryPath = user ? '/content' : '/signup'
   const primaryLabel = user ? 'Open workspace' : 'Get started free'
 
-  // Dynamic Cost Manager State (Default on Starter $20)
+  // Dynamic Cost Manager state; all commercial values come from the API catalog.
   const [baseTier, setBaseTier] = useState<'free' | 'starter' | 'advance'>('starter')
-  const [connections, setConnections] = useState<number>(1)
-  const [credits, setCredits] = useState<number>(50)
+  const [connections, setConnections] = useState<number>(0)
+  const [credits, setCredits] = useState<number>(0)
   const [engageEnabled, setEngageEnabled] = useState<boolean>(false)
+
+  useEffect(() => {
+    const starter = catalog?.plans.find((plan) => plan.id === 'starter')
+    if (starter) {
+      setConnections(starter.connections)
+      setCredits(starter.credits)
+    }
+  }, [catalog])
 
   const handleSelectTier = (tier: 'free' | 'starter' | 'advance') => {
     setBaseTier(tier)
-    if (tier === 'free') {
-      setConnections(0)
-      setCredits(15)
-      setEngageEnabled(false)
-    } else if (tier === 'starter') {
-      setConnections(1)
-      setCredits(50)
-      setEngageEnabled(false)
-    } else if (tier === 'advance') {
-      setConnections(1)
-      setCredits(150)
-      setEngageEnabled(true)
-    }
+    const selected = catalog?.plans.find((plan) => plan.id === tier)
+    if (!selected) return
+    setConnections(selected.connections)
+    setCredits(selected.credits)
+    setEngageEnabled(selected.engage)
   }
 
-  // Cost calculation:
-  // Free = $0 (0 conn, 15 credits)
-  // Starter = $20 (1 conn, 50 credits)
-  // Advance = $39 (1 conn, 150 credits, Engage included)
-  // Extra connections: $5 / month each
-  // Extra credits: $10 per 50 credits
-  // Engage: $15 / month (free on Advance)
-  const basePrice = baseTier === 'free' ? 0 : baseTier === 'starter' ? 20 : 39
-  const baseIncludedConns = baseTier === 'free' ? 0 : 1
-  const baseIncludedCredits = baseTier === 'free' ? 15 : baseTier === 'starter' ? 50 : 150
+  const selectedPlan = catalog?.plans.find((plan) => plan.id === baseTier)
+  const freePlan = catalog?.plans.find((plan) => plan.id === 'free')
+  const starterPlan = catalog?.plans.find((plan) => plan.id === 'starter')
+  const advancePlan = catalog?.plans.find((plan) => plan.id === 'advance')
+  const basePrice = selectedPlan?.price ?? 0
+  const baseIncludedConns = selectedPlan?.connections ?? 0
+  const baseIncludedCredits = selectedPlan?.credits ?? 0
+  const connectionPrice = Number(catalog?.addons.find((addon) => addon.product_id === 'connection_1_monthly')?.amount ?? 0)
+  const engagePrice = Number(catalog?.addons.find((addon) => addon.product_id === 'engage_monthly')?.amount ?? 0)
+  const smallestBooster = catalog?.addons.find((addon) => addon.product_id === 'booster_50')
 
   const extraConnections = Math.max(0, connections - baseIncludedConns)
-  const extraConnectionsCost = extraConnections * 5
+  const extraConnectionsCost = extraConnections * connectionPrice
 
   const extraCredits = Math.max(0, credits - baseIncludedCredits)
-  const extraCreditsCost = Math.round((extraCredits / 50) * 10)
+  const extraCreditsCost = smallestBooster?.credits
+    ? Math.round((extraCredits / smallestBooster.credits) * Number(smallestBooster.amount))
+    : 0
 
   let engageCost = 0
   if (engageEnabled && baseTier !== 'advance') {
-    engageCost = 15
+    engageCost = engagePrice
   }
 
   const dynamicMonthlyTotal = basePrice + extraConnectionsCost + extraCreditsCost + engageCost
@@ -105,7 +109,7 @@ export function PricingPage() {
                 Test drive the AI content creation engine and plan drafts risk-free.
               </div>
               <div className="plan-card-price">
-                <strong>$0</strong>
+                <strong>${catalog?.plans.find((plan) => plan.id === 'free')?.price ?? '...'}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn">
@@ -114,8 +118,8 @@ export function PricingPage() {
               <div className="plan-card-divider" />
               <div className="plan-card-specs-title">What's included:</div>
               <ul className="plan-card-specs">
-                <li><Check size={16} /> <strong>0 Social Connections</strong> (Sandbox mode)</li>
-                <li><Check size={16} /> <strong>15 AI Credits</strong></li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'free')?.connections ?? '...'} Social Connections</strong> (Sandbox mode)</li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'free')?.credits ?? '...'} AI Credits</strong></li>
                 <li><Check size={16} /> <strong>Unlimited Post Scheduling</strong> &amp; Calendar</li>
                 <li><Check size={16} /> Multi-platform copy adaptation</li>
                 <li className="disabled-spec"><X size={16} /> Social account publishing</li>
@@ -123,14 +127,14 @@ export function PricingPage() {
               </ul>
             </div>
 
-            {/* Card 2: Starter ($20) */}
+            {/* Card 2: Starter */}
             <div className="light-plan-card">
               <div className="plan-card-name">Starter</div>
               <div className="plan-card-desc">
                 For creators and founders building a consistent personal channel.
               </div>
               <div className="plan-card-price">
-                <strong>$20</strong>
+                <strong>${catalog?.plans.find((plan) => plan.id === 'starter')?.price ?? '...'}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn">
@@ -139,8 +143,8 @@ export function PricingPage() {
               <div className="plan-card-divider" />
               <div className="plan-card-specs-title">What's included:</div>
               <ul className="plan-card-specs">
-                <li><Check size={16} /> <strong>1 Social Connection</strong> (LinkedIn or Instagram)</li>
-                <li><Check size={16} /> <strong>50 AI Credits / month</strong></li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'starter')?.connections ?? '...'} Social Connection</strong> (LinkedIn or Instagram)</li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'starter')?.credits ?? '...'} AI Credits / month</strong></li>
                 <li><Check size={16} /> <strong>100% Unlimited Post Scheduling</strong></li>
                 <li><Check size={16} /> Brand Voice Brain &amp; tone settings</li>
                 <li><Check size={16} /> Standard post analytics</li>
@@ -148,7 +152,7 @@ export function PricingPage() {
               </ul>
             </div>
 
-            {/* Card 3: Advance ($39) - Featured */}
+            {/* Card 3: Advance - Featured */}
             <div className="light-plan-card featured">
               <span className="plan-card-tag">Recommended</span>
               <div className="plan-card-name">Advance</div>
@@ -156,7 +160,7 @@ export function PricingPage() {
                 High-volume content creation with full Engage lead conversion automation.
               </div>
               <div className="plan-card-price">
-                <strong>$39</strong>
+                <strong>${catalog?.plans.find((plan) => plan.id === 'advance')?.price ?? '...'}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn featured-btn">
@@ -165,8 +169,8 @@ export function PricingPage() {
               <div className="plan-card-divider" />
               <div className="plan-card-specs-title">Everything in Starter, plus:</div>
               <ul className="plan-card-specs">
-                <li><Check size={16} /> <strong>1 Social Connection</strong> (Expandable with add-ons)</li>
-                <li><Check size={16} /> <strong>150 AI Credits / month</strong></li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'advance')?.connections ?? '...'} Social Connection</strong> (Expandable with add-ons)</li>
+                <li><Check size={16} /> <strong>{catalog?.plans.find((plan) => plan.id === 'advance')?.credits ?? '...'} AI Credits / month</strong></li>
                 <li><Check size={16} /> <strong>Engage Automation Suite Included</strong></li>
                 <li><Check size={16} /> Automated Comment-to-DM lead magnets</li>
                 <li><Check size={16} /> Instagram Story replies &amp; DM keywords</li>
@@ -190,26 +194,15 @@ export function PricingPage() {
             </div>
 
             <div className="boosters-grid-row">
-              <div className="booster-item-box">
-                <div className="booster-item-name">Starter Booster</div>
-                <div className="booster-item-credits">50 Credits</div>
-                <div className="booster-item-price">$10</div>
-                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
-              </div>
-
-              <div className="booster-item-box">
-                <div className="booster-item-name">Growth Booster</div>
-                <div className="booster-item-credits">150 Credits</div>
-                <div className="booster-item-price">$25</div>
-                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
-              </div>
-
-              <div className="booster-item-box">
-                <div className="booster-item-name">Power Booster</div>
-                <div className="booster-item-credits">350 Credits</div>
-                <div className="booster-item-price">$50</div>
-                <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
-              </div>
+              {catalog?.addons.filter((addon) => addon.kind === 'booster').map((addon) => (
+                <div className="booster-item-box" key={addon.product_id}>
+                  <div className="booster-item-name">{addon.title}</div>
+                  <div className="booster-item-credits">{addon.credits} Credits</div>
+                  <div className="booster-item-price">${addon.amount}</div>
+                  <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
+                </div>
+              ))}
+              {pricingError && <p role="alert">{pricingError}</p>}
             </div>
           </div>
         </section>
@@ -240,24 +233,24 @@ export function PricingPage() {
                       className={`calc-base-btn ${baseTier === 'free' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('free')}
                     >
-                      <strong>Free ($0)</strong>
-                      <span>Sandbox &bull; 15 Credits</span>
+                      <strong>Free (${freePlan?.price ?? '...'})</strong>
+                      <span>Sandbox &bull; {freePlan?.credits ?? '...'} Credits</span>
                     </button>
                     <button
                       type="button"
                       className={`calc-base-btn ${baseTier === 'starter' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('starter')}
                     >
-                      <strong>Starter ($20)</strong>
-                      <span>1 Conn &bull; 50 Credits</span>
+                      <strong>Starter (${starterPlan?.price ?? '...'})</strong>
+                      <span>{starterPlan?.connections ?? '...'} Conn &bull; {starterPlan?.credits ?? '...'} Credits</span>
                     </button>
                     <button
                       type="button"
                       className={`calc-base-btn ${baseTier === 'advance' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('advance')}
                     >
-                      <strong>Advance ($39)</strong>
-                      <span>1 Conn &bull; Engage Incl.</span>
+                      <strong>Advance (${advancePlan?.price ?? '...'})</strong>
+                      <span>{advancePlan?.connections ?? '...'} Conn &bull; Engage Incl.</span>
                     </button>
                   </div>
                 </div>
@@ -324,17 +317,17 @@ export function PricingPage() {
                       <button
                         type="button"
                         className="calc-stepper-btn"
-                        onClick={() => setCredits(Math.max(baseTier === 'free' ? 15 : 50, credits - 25))}
+                        onClick={() => setCredits(Math.max(baseIncludedCredits, credits - (smallestBooster?.credits ?? 1)))}
                         title="Decrease credits"
                       >
                         -
                       </button>
                       <input
                         type="number"
-                        min={baseTier === 'free' ? 15 : 50}
-                        step={25}
+                        min={baseIncludedCredits}
+                        step={smallestBooster?.credits ?? 1}
                         value={credits}
-                        onChange={(e) => setCredits(Math.max(baseTier === 'free' ? 15 : 50, parseInt(e.target.value, 10) || 0))}
+                        onChange={(e) => setCredits(Math.max(baseIncludedCredits, parseInt(e.target.value, 10) || 0))}
                         className="calc-number-input"
                         style={{ width: '82px' }}
                         title="Enter any credit volume"
@@ -342,7 +335,7 @@ export function PricingPage() {
                       <button
                         type="button"
                         className="calc-stepper-btn"
-                        onClick={() => setCredits(credits + 25)}
+                        onClick={() => setCredits(credits + (smallestBooster?.credits ?? 1))}
                         title="Increase credits"
                       >
                         +
@@ -351,7 +344,7 @@ export function PricingPage() {
                   </div>
                   <input
                     type="range"
-                    min={baseTier === 'free' ? 15 : 50}
+                    min={baseIncludedCredits}
                     max={Math.max(500, credits + 100)}
                     step={25}
                     value={credits}
@@ -386,7 +379,7 @@ export function PricingPage() {
                     <span>
                       {baseTier === 'advance'
                         ? 'Included Free in the Advance Plan'
-                        : 'Comment-to-DM flows, story triggers & auto replies (+$15/mo)'}
+                        : `Comment-to-DM flows, story triggers & auto replies (+$${engagePrice}/mo)`}
                     </span>
                   </div>
                   <label className="calc-switch">
@@ -525,7 +518,7 @@ export function PricingPage() {
             <div className="faq-card-light">
               <h4>What happens when I exhaust my post generation credits?</h4>
               <p>
-                Your already scheduled posts will publish normally without interruption. You can immediately purchase an on-demand credit booster pack starting at $10 to generate more content. Booster credits never expire.
+                Your already scheduled posts will publish normally without interruption. You can purchase an on-demand credit booster pack starting at ${smallestBooster?.amount ?? '...'} to generate more content. Booster credits never expire.
               </p>
             </div>
 

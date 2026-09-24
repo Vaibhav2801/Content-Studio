@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi, type AuthSession } from './api/auth'
+import { billingApi } from './api/billingApi'
+import type { PricingCatalog } from './types/billing'
 import App from './App'
 
 vi.mock('./pages/ContentStudioPage', () => ({ ContentStudioPage: () => <div>Private Content Studio</div> }))
@@ -11,27 +13,39 @@ const signedIn: AuthSession = {
   user: { id: 'user-1', email: 'alex@example.com', name: 'Alex Morgan' },
   workspace: { id: 'workspace-1', name: 'Alex Studio' },
 }
+const catalog: PricingCatalog = {
+  currency: 'USD',
+  credit_costs: { draft: 2, image: 1, image_regeneration: 1 },
+  simulated_checkout_enabled: false,
+  plans: [
+    { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
+    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 20, credits: 50, connections: 1, engage: false },
+    { id: 'advance', name: 'Advance', product_id: 'plan_advance_monthly', price: 39, credits: 150, connections: 1, engage: true },
+  ],
+  addons: [],
+}
 
 describe('Content Studio authentication routes', () => {
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
   beforeEach(() => {
     window.history.replaceState({}, '', '/content')
     vi.spyOn(authApi, 'session').mockResolvedValue(anonymous)
+    vi.spyOn(billingApi, 'getCatalog').mockResolvedValue(catalog)
   })
 
   it('shows the public homepage and pricing before sign in', async () => {
     window.history.replaceState({}, '', '/')
     render(<App />)
-    expect(await screen.findByRole('heading', { name: /Great content needs room to think/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Great content needs room to think/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Pay for the creative work you use/i })).toBeInTheDocument()
-    expect(screen.getByText('50 AI credits each month')).toBeInTheDocument()
+    expect(await screen.findByText('50 AI credits each month', {}, { timeout: 5000 })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/')
   })
 
   it('renders the dedicated pricing plans and dynamic cost builder page', async () => {
     window.history.replaceState({}, '', '/pricing')
     render(<App />)
-    expect(await screen.findByRole('heading', { name: /Simple plans/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Simple plans/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Dynamic Cost Manager/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Everything you get with Content Studio/i })).toBeInTheDocument()
     expect(screen.getByText(/Unlimited Post Scheduling is always included/i)).toBeInTheDocument()

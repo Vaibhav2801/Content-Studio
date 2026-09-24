@@ -66,7 +66,7 @@ class ContentKnowledgeApiTests(TestCase):
             generated = self.client.post(reverse("social-post-generate"), {
                 "idea_title": "A grounded lesson", "idea_text": "Useful context", "networks": ["LINKEDIN"], "controls": {},
             }, format="json")
-        self.assertEqual(generated.status_code, 200)
+        self.assertEqual(generated.status_code, 202)
         self.assertEqual(generated.data["brand_brain_version"]["version"], updated.data["version"])
         self.assertEqual(generated.data["variants"][0]["metadata"]["brand_brain_version"]["version"], updated.data["version"])
 

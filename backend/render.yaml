@@ -16,7 +16,11 @@ services:
           type: redis
           name: nomad-bot-redis
           property: connectionString
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: BILLING_SIMULATED_CHECKOUT_ENABLED
+        value: "False"
+      - key: BILLING_WEBHOOK_SECRET
         generateValue: true
       - key: WORKER_WAKE_TOKEN
         generateValue: true
@@ -103,11 +107,13 @@ services:
           type: redis
           name: nomad-bot-redis
           property: connectionString
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
         fromService:
           type: web
           name: nomad-bot-web
-          envVarKey: SECRET_KEY
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DEBUG
+        value: "False"
       - key: WORKER_WAKE_TOKEN
         fromService:
           type: web
@@ -203,11 +209,13 @@ services:
           type: redis
           name: nomad-bot-redis
           property: connectionString
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
         fromService:
           type: web
           name: nomad-bot-web
-          envVarKey: SECRET_KEY
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DEBUG
+        value: "False"
       - key: WORKER_WAKE_TOKEN
         fromService:
           type: web

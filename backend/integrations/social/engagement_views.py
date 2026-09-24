@@ -106,6 +106,7 @@ class EngagementWorkspaceAPIView(GenericAPIView):
         membership = WorkspaceMembership.objects.select_related("user").filter(
             workspace=self.workspace(request),
             user_id=user_id,
+            is_active=True,
         ).first()
         if membership is None:
             raise DjangoValidationError("Choose a member of this workspace.")
@@ -121,7 +122,7 @@ class EngagementOverviewAPIView(EngagementWorkspaceAPIView):
         ).select_related("connection", "contact", "assignee")
         automations = EngagementAutomation.objects.filter(workspace=workspace).select_related("connection", "owner")
         campaigns = EngagementCampaign.objects.filter(workspace=workspace).select_related("connection", "owner")
-        memberships = WorkspaceMembership.objects.filter(workspace=workspace).select_related("user").order_by("created_at")
+        memberships = WorkspaceMembership.objects.filter(workspace=workspace, is_active=True).select_related("user").order_by("created_at")
         connections = SocialConnection.objects.filter(
             workspace=workspace,
             network__in=[SocialNetwork.INSTAGRAM, SocialNetwork.LINKEDIN],

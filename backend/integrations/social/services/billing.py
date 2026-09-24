@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-import datetime
+import hashlib
+import uuid
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 from django.db import transaction
+from django.utils.html import escape
 from django.utils import timezone
 
 from prospecting.models import Workspace, WorkspaceMembership
 from integrations.social.models import (
     BillingInvoice,
+    BillingWebhookEvent,
     ConnectionState,
     CreditAccount,
+    CreditReservation,
+    CreditReservationStatus,
     CreditTransaction,
     SocialConnection,
     SocialPost,
@@ -18,22 +23,125 @@ from integrations.social.models import (
     WorkspaceTier,
 )
 
+PRICING_CATALOG = {
+    "currency": "USD",
+    "credit_costs": {"draft": 2, "image": 1, "image_regeneration": 1},
+    "plans": [
+        {
+            "id": "free",
+            "name": "Free",
+            "product_id": None,
+            "price": 0,
+            "credits": 15,
+            "connections": 0,
+            "engage": False,
+        },
+        {
+            "id": "starter",
+            "name": "Starter",
+            "product_id": "plan_starter_monthly",
+            "price": 20,
+            "credits": 50,
+            "connections": 1,
+            "engage": False,
+        },
+        {
+            "id": "advance",
+            "name": "Advance",
+            "product_id": "plan_advance_monthly",
+            "price": 39,
+            "credits": 150,
+            "connections": 1,
+            "engage": True,
+        },
+    ],
+    "products": {
+        "plan_starter_monthly": {
+            "kind": "plan",
+            "tier": WorkspaceTier.STARTER,
+            "amount": Decimal("20.00"),
+            "credits": 50,
+            "title": "Starter Plan Subscription",
+        },
+        "plan_advance_monthly": {
+            "kind": "plan",
+            "tier": WorkspaceTier.ADVANCE,
+            "amount": Decimal("39.00"),
+            "credits": 150,
+            "title": "Advance Plan Subscription",
+        },
+        "booster_50": {
+            "kind": "booster",
+            "amount": Decimal("10.00"),
+            "credits": 50,
+            "title": "50 AI Credit Booster",
+        },
+        "booster_150": {
+            "kind": "booster",
+            "amount": Decimal("25.00"),
+            "credits": 150,
+            "title": "150 AI Credit Booster",
+        },
+        "booster_350": {
+            "kind": "booster",
+            "amount": Decimal("50.00"),
+            "credits": 350,
+            "title": "350 AI Credit Booster",
+        },
+        "connection_1_monthly": {
+            "kind": "connection",
+            "amount": Decimal("5.00"),
+            "connections": 1,
+            "title": "Additional Social Connection",
+        },
+        "engage_monthly": {
+            "kind": "engage",
+            "amount": Decimal("15.00"),
+            "title": "Engage Automation Suite Add-On",
+        },
+    },
+}
+
+
+def public_pricing_catalog() -> Dict[str, Any]:
+    return {
+        "currency": PRICING_CATALOG["currency"],
+        "credit_costs": dict(PRICING_CATALOG["credit_costs"]),
+        "plans": [dict(plan) for plan in PRICING_CATALOG["plans"]],
+        "addons": [
+            {"product_id": key, **{k: (str(v) if isinstance(v, Decimal) else v) for k, v in value.items() if k != "tier"}}
+            for key, value in PRICING_CATALOG["products"].items()
+            if value["kind"] != "plan"
+        ],
+    }
+
+
+def can_manage_billing(workspace: Workspace, user: Optional[Any]) -> bool:
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+        return True
+    return WorkspaceMembership.objects.filter(
+        workspace=workspace,
+        user=user,
+        is_active=True,
+        role__in=(WorkspaceMembership.OWNER, WorkspaceMembership.ADMIN),
+    ).exists()
+
 
 def is_workspace_admin(workspace: Workspace, user: Optional[Any] = None) -> bool:
-    """Return True if user is a Django superuser, staff, or marked with ADMIN tier."""
+    """Return whether this user has the internal unrestricted billing tier."""
     if user is not None and getattr(user, "is_authenticated", False):
         if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
             return True
         membership = WorkspaceMembership.objects.filter(
             workspace=workspace, user=user, is_active=True
         ).first()
-        if membership and membership.role in (WorkspaceMembership.OWNER, WorkspaceMembership.ADMIN):
-            # Check if subscription is explicitly set to ADMIN
-            sub = WorkspaceSubscription.objects.filter(workspace=workspace).first()
-            if sub and sub.tier == WorkspaceTier.ADMIN:
-                return True
-    sub = WorkspaceSubscription.objects.filter(workspace=workspace).first()
-    return bool(sub and sub.tier == WorkspaceTier.ADMIN)
+        if membership is None:
+            return False
+        sub = WorkspaceSubscription.objects.filter(workspace=workspace).first()
+        return bool(sub and sub.tier == WorkspaceTier.ADMIN)
+    return False
 
 
 def get_or_create_workspace_billing(
@@ -44,7 +152,7 @@ def get_or_create_workspace_billing(
         subscription, sub_created = WorkspaceSubscription.objects.select_for_update().get_or_create(
             workspace=workspace,
             defaults={
-                "tier": WorkspaceTier.ADMIN if (user and (getattr(user, "is_superuser", False) or getattr(user, "is_staff", False))) else WorkspaceTier.FREE,
+                "tier": WorkspaceTier.FREE,
                 "extra_connections": 0,
                 "has_engage_addon": False,
                 "is_active": True,
@@ -140,46 +248,119 @@ def deduct_credits(
     user: Optional[Any] = None,
     category: Optional[str] = None,
 ) -> bool:
-    """
-    Atomically deduct credits and log transaction.
-    Returns True if successfully deducted or Admin, False if insufficient credits.
-    """
-    effective_action = category or action_type
-    if is_workspace_admin(workspace, user):
-        # Admin action: log zero deduction or high balance
-        _, account = get_or_create_workspace_billing(workspace, user)
-        CreditTransaction.objects.create(
-            workspace=workspace,
-            amount=0,
-            action_type=effective_action,
-            description=f"[ADMIN BYPASS] {description}",
-            balance_after=account.balance,
-            post=post,
-        )
-        return True
+    reservation, _ = reserve_credits(
+        workspace=workspace,
+        amount=amount,
+        action_type=category or action_type,
+        description=description,
+        post=post,
+        user=user,
+    )
+    if reservation is None:
+        return False
+    finalize_credit_reservation(reservation.id, success=True)
+    return True
 
+
+def reserve_credits(
+    *,
+    workspace: Workspace,
+    amount: int,
+    action_type: str,
+    description: str,
+    post: Optional[SocialPost] = None,
+    user: Optional[Any] = None,
+    idempotency_key: Optional[str] = None,
+    expected_operations: int = 1,
+) -> Tuple[Optional[CreditReservation], int]:
+    """Atomically reserve credits before dispatching paid work."""
+    if amount <= 0 or expected_operations <= 0:
+        raise ValueError("Credit reservations require positive amounts and operation counts.")
+    key = idempotency_key or f"{action_type}:{uuid.uuid4()}"
     with transaction.atomic():
-        try:
+        existing = CreditReservation.objects.select_for_update().filter(idempotency_key=key).first()
+        if existing is not None:
+            if (
+                existing.workspace_id != workspace.id
+                or existing.amount != amount
+                or existing.action_type != action_type
+                or existing.expected_operations != expected_operations
+            ):
+                raise ValueError("Credit idempotency key was reused for a different operation.")
             account = CreditAccount.objects.select_for_update().get(workspace=workspace)
-        except CreditAccount.DoesNotExist:
-            _, account = get_or_create_workspace_billing(workspace, user)
-            account = CreditAccount.objects.select_for_update().get(workspace=workspace)
+            return existing, account.balance
 
-        if account.balance < amount:
-            return False
+        _, _ = get_or_create_workspace_billing(workspace, user)
+        account = CreditAccount.objects.select_for_update().get(workspace=workspace)
+        admin_bypass = is_workspace_admin(workspace, user)
+        if not admin_bypass and account.balance < amount:
+            return None, account.balance
 
-        account.total_used += amount
-        account.save(update_fields=["total_used", "updated_at"])
-
+        reserved_amount = 0 if admin_bypass else amount
+        if reserved_amount:
+            account.total_used += reserved_amount
+            account.save(update_fields=["total_used", "updated_at"])
+        reservation = CreditReservation.objects.create(
+            workspace=workspace,
+            post=post,
+            idempotency_key=key,
+            amount=reserved_amount,
+            action_type=action_type,
+            description=description[:255],
+            expected_operations=expected_operations,
+            status=(
+                CreditReservationStatus.CONSUMED
+                if admin_bypass
+                else CreditReservationStatus.RESERVED
+            ),
+        )
         CreditTransaction.objects.create(
             workspace=workspace,
-            amount=-amount,
-            action_type=effective_action,
-            description=description,
+            amount=-reserved_amount,
+            action_type=action_type,
+            description=(
+                f"[ADMIN BYPASS] {description}" if admin_bypass else f"[RESERVED] {description}"
+            )[:255],
             balance_after=account.balance,
             post=post,
+            reservation=reservation,
         )
-        return True
+        return reservation, account.balance
+
+
+def finalize_credit_reservation(reservation_id, *, success: bool) -> Optional[CreditReservation]:
+    """Consume a successful reservation or refund it after any failed operation."""
+    with transaction.atomic():
+        reservation = (
+            CreditReservation.objects.select_for_update()
+            .select_related("workspace")
+            .filter(pk=reservation_id)
+            .first()
+        )
+        if reservation is None or reservation.status != CreditReservationStatus.RESERVED:
+            return reservation
+        account = CreditAccount.objects.select_for_update().get(workspace=reservation.workspace)
+        if not success:
+            account.total_used = max(0, account.total_used - reservation.amount)
+            account.save(update_fields=["total_used", "updated_at"])
+            reservation.status = CreditReservationStatus.REFUNDED
+            reservation.save(update_fields=["status", "updated_at"])
+            CreditTransaction.objects.create(
+                workspace=reservation.workspace,
+                amount=reservation.amount,
+                action_type="CREDIT_REFUND",
+                description=f"Refunded failed operation: {reservation.description}"[:255],
+                balance_after=account.balance,
+                post=reservation.post,
+                reservation=reservation,
+            )
+            return reservation
+
+        reservation.completed_operations += 1
+        if reservation.completed_operations >= reservation.expected_operations:
+            reservation.status = CreditReservationStatus.CONSUMED
+        reservation.save(update_fields=["completed_operations", "status", "updated_at"])
+        return reservation
 
 
 def check_engage_entitlement(
@@ -201,25 +382,11 @@ def check_engage_entitlement(
 
 
 def next_invoice_number() -> str:
-    """Generate sequential invoice number: INV-YYYY-XXXX."""
-    year = timezone.now().year
-    prefix = f"INV-{year}-"
-    last_inv = (
-        BillingInvoice.objects.filter(invoice_number__startswith=prefix)
-        .order_by("-invoice_number")
-        .first()
-    )
-    if not last_inv:
-        return f"{prefix}0001"
-    try:
-        current_seq = int(last_inv.invoice_number.split("-")[-1])
-        return f"{prefix}{current_seq + 1:04d}"
-    except (ValueError, IndexError):
-        import uuid
-        return f"{prefix}{uuid.uuid4().hex[:4].upper()}"
+    """Generate a concurrency-safe, human-readable invoice number."""
+    return f"INV-{timezone.now().year}-{uuid.uuid4().hex[:10].upper()}"
 
 
-def process_checkout(
+def _unsafe_legacy_process_checkout(
     workspace: Workspace,
     action: str,
     tier: Optional[str] = None,
@@ -232,9 +399,12 @@ def process_checkout(
     user: Optional[Any] = None,
 ) -> Tuple[BillingInvoice, WorkspaceSubscription, CreditAccount]:
     """
-    Process subscription upgrade, credit top-up, or add-ons.
-    Creates an immutable BillingInvoice and updates balances immediately.
+    Retained temporarily for migration archaeology; this path is permanently disabled.
     """
+    raise RuntimeError("Legacy arbitrary checkout is disabled; use fixed billing products.")
+
+    # Unreachable legacy implementation retained until downstream migrations no longer
+    # need to compare historical invoice behavior.
     with transaction.atomic():
         subscription, account = get_or_create_workspace_billing(workspace, user)
         line_items: List[Dict[str, Any]] = []
@@ -355,12 +525,161 @@ def process_checkout(
     return invoice, subscription, account
 
 
+def process_billing_product(
+    *,
+    workspace: Workspace,
+    product_id: str,
+    billing_name: str = "",
+    billing_email: str = "",
+    payment_method: str,
+    payment_reference: str,
+    provider: str,
+    provider_customer_id: str = "",
+    provider_subscription_id: str = "",
+    current_period_start=None,
+    current_period_end=None,
+    user: Optional[Any] = None,
+) -> Tuple[BillingInvoice, WorkspaceSubscription, CreditAccount]:
+    product = PRICING_CATALOG["products"].get(product_id)
+    if product is None:
+        raise ValueError("Unknown billing product.")
+    with transaction.atomic():
+        subscription, _ = get_or_create_workspace_billing(workspace, user)
+        subscription = WorkspaceSubscription.objects.select_for_update().get(pk=subscription.pk)
+        account = CreditAccount.objects.select_for_update().get(workspace=workspace)
+        kind = product["kind"]
+        credits = int(product.get("credits", 0))
+        if kind == "plan":
+            subscription.tier = product["tier"]
+            subscription.is_active = True
+            subscription.cancel_at_period_end = False
+        elif kind == "booster":
+            pass
+        elif kind == "connection":
+            subscription.extra_connections += int(product["connections"])
+        elif kind == "engage":
+            subscription.has_engage_addon = True
+        else:
+            raise ValueError("Unsupported billing product.")
+
+        if credits:
+            account.total_allocated += credits
+            account.save(update_fields=["total_allocated", "updated_at"])
+            CreditTransaction.objects.create(
+                workspace=workspace,
+                amount=credits,
+                action_type="PLAN_RENEWAL" if kind == "plan" else "TOPUP_PURCHASE",
+                description=f"Credits granted for {product['title']}"[:255],
+                balance_after=account.balance,
+            )
+
+        subscription.billing_provider = provider[:30]
+        subscription.provider_customer_id = provider_customer_id[:255]
+        subscription.provider_subscription_id = provider_subscription_id[:255]
+        subscription.current_period_start = current_period_start
+        subscription.current_period_end = current_period_end
+        if billing_name:
+            subscription.billing_name = billing_name[:255]
+        if billing_email:
+            subscription.billing_email = billing_email[:255]
+        subscription.save()
+
+        amount = product["amount"]
+        invoice = BillingInvoice.objects.create(
+            invoice_number=next_invoice_number(),
+            workspace=workspace,
+            amount=amount,
+            currency=PRICING_CATALOG["currency"],
+            status="PAID",
+            title=product["title"],
+            line_items=[
+                {
+                    "product_id": product_id,
+                    "description": product["title"],
+                    "quantity": 1,
+                    "unit_price": str(amount),
+                    "total": str(amount),
+                }
+            ],
+            payment_method=payment_method[:100],
+            payment_reference=payment_reference[:255],
+            billing_name=(billing_name or subscription.billing_name or workspace.name)[:255],
+            billing_email=(billing_email or subscription.billing_email or getattr(user, "email", ""))[:255],
+            paid_at=timezone.now(),
+        )
+        return invoice, subscription, account
+
+
+def process_billing_event(payload: Dict[str, Any], raw_body: bytes):
+    """Apply a signed payment event exactly once."""
+    provider = str(payload.get("provider") or "generic").strip().lower()[:30]
+    event_id = str(payload.get("event_id") or "").strip()
+    event_type = str(payload.get("event_type") or "").strip().lower()
+    workspace_id = payload.get("workspace_id")
+    if not event_id or not event_type or not workspace_id:
+        raise ValueError("Billing event_id, event_type, and workspace_id are required.")
+    if event_type not in {"payment.succeeded", "subscription.renewed", "subscription.cancelled"}:
+        raise ValueError("Unsupported billing event type.")
+
+    fingerprint = hashlib.sha256(raw_body).hexdigest()
+    with transaction.atomic():
+        # Serialize billing events per workspace before checking event identity so
+        # two simultaneous deliveries cannot both pass the not-yet-seen check.
+        workspace = Workspace.objects.select_for_update().get(pk=workspace_id)
+        existing = (
+            BillingWebhookEvent.objects.select_for_update()
+            .select_related("invoice")
+            .filter(provider=provider, provider_event_id=event_id)
+            .first()
+        )
+        if existing is not None:
+            if existing.payload_fingerprint != fingerprint:
+                raise ValueError("Billing event identifier was reused with a different payload.")
+            return existing.invoice, False
+
+        event = BillingWebhookEvent.objects.create(
+            provider=provider,
+            provider_event_id=event_id,
+            event_type=event_type,
+            payload_fingerprint=fingerprint,
+        )
+        if event_type == "subscription.cancelled":
+            subscription, _ = get_or_create_workspace_billing(workspace)
+            subscription = WorkspaceSubscription.objects.select_for_update().get(pk=subscription.pk)
+            immediate = str(payload.get("cancellation_effective") or "period_end") == "immediate"
+            subscription.cancel_at_period_end = not immediate
+            if immediate:
+                subscription.tier = WorkspaceTier.FREE
+                subscription.extra_connections = 0
+                subscription.has_engage_addon = False
+                subscription.is_active = False
+            subscription.save()
+            return None, True
+
+        invoice, _, _ = process_billing_product(
+            workspace=workspace,
+            product_id=str(payload.get("product_id") or ""),
+            billing_name=str(payload.get("billing_name") or ""),
+            billing_email=str(payload.get("billing_email") or ""),
+            payment_method=str(payload.get("payment_method") or provider),
+            payment_reference=str(payload.get("payment_reference") or event_id),
+            provider=provider,
+            provider_customer_id=str(payload.get("customer_id") or ""),
+            provider_subscription_id=str(payload.get("subscription_id") or ""),
+            current_period_start=payload.get("current_period_start"),
+            current_period_end=payload.get("current_period_end"),
+        )
+        event.invoice = invoice
+        event.save(update_fields=["invoice"])
+        return invoice, True
+
+
 def generate_invoice_html(invoice: BillingInvoice) -> str:
     """Generate a clean, printable HTML invoice for download/viewing."""
     line_items_html = ""
     for item in invoice.line_items:
-        desc = item.get("description", "Service")
-        amt = item.get("amount", "0.00")
+        desc = escape(str(item.get("description", "Service")))
+        amt = escape(str(item.get("amount", item.get("total", "0.00"))))
         line_items_html += f"""
         <tr>
           <td style="padding: 12px 16px; border-bottom: 1px solid #f0ecf6; font-size: 14px; color: #25243b;">{desc}</td>
@@ -369,12 +688,19 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
         """
 
     formatted_date = invoice.paid_at.strftime("%B %d, %Y") if invoice.paid_at else invoice.created_at.strftime("%B %d, %Y")
+    invoice_number = escape(str(invoice.invoice_number))
+    billing_name = escape(str(invoice.billing_name or invoice.workspace.name))
+    billing_email = escape(str(invoice.billing_email or "Customer Account"))
+    workspace_name = escape(str(invoice.workspace.name))
+    payment_method = escape(str(invoice.payment_method))
+    currency = escape(str(invoice.currency))
+    amount = escape(str(invoice.amount))
 
     return f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Invoice {invoice.invoice_number}</title>
+  <title>Invoice {invoice_number}</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -502,22 +828,22 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
       </div>
       <div style="text-align: right;">
         <div class="badge">PAID</div>
-        <div style="font-size: 18px; font-weight: 850; margin-top: 8px;">{invoice.invoice_number}</div>
+        <div style="font-size: 18px; font-weight: 850; margin-top: 8px;">{invoice_number}</div>
       </div>
     </div>
 
     <div class="meta-grid">
       <div class="meta-box">
         <h4>Billed To</h4>
-        <p><strong>{invoice.billing_name or invoice.workspace.name}</strong></p>
-        <p>{invoice.billing_email or "Customer Account"}</p>
-        <p>Workspace: {invoice.workspace.name}</p>
+        <p><strong>{billing_name}</strong></p>
+        <p>{billing_email}</p>
+        <p>Workspace: {workspace_name}</p>
       </div>
       <div class="meta-box" style="text-align: right;">
         <h4>Payment Info</h4>
         <p>Date: {formatted_date}</p>
-        <p>Method: {invoice.payment_method}</p>
-        <p>Currency: {invoice.currency}</p>
+        <p>Method: {payment_method}</p>
+        <p>Currency: {currency}</p>
       </div>
     </div>
 
@@ -535,8 +861,8 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
 
     <div class="total-box">
       <div class="total-row">
-        <span>Total Paid ({invoice.currency}):</span>
-        <strong>${invoice.amount}</strong>
+        <span>Total Paid ({currency}):</span>
+        <strong>${amount}</strong>
       </div>
     </div>
 

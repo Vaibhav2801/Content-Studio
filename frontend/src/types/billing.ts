@@ -27,6 +27,7 @@ export interface SubscriptionOverview {
   tier: WorkspaceTier
   role_label: string
   is_admin: boolean
+  can_manage_billing: boolean
   connections: {
     used: number
     limit: number
@@ -48,19 +49,50 @@ export interface SubscriptionOverview {
 }
 
 export interface CheckoutPayload {
-  action: 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
-  tier?: 'STARTER' | 'ADVANCE'
-  booster_credits?: number
-  extra_connections?: number
-  has_engage?: boolean
+  product_id: BillingProductId
   billing_name?: string
   billing_email?: string
-  payment_method?: string
+}
+
+export type BillingProductId =
+  | 'plan_starter_monthly'
+  | 'plan_advance_monthly'
+  | 'booster_50'
+  | 'booster_150'
+  | 'booster_350'
+  | 'connection_1_monthly'
+  | 'engage_monthly'
+
+export interface PricingPlan {
+  id: 'free' | 'starter' | 'advance'
+  name: string
+  product_id: BillingProductId | null
+  price: number
+  credits: number
+  connections: number
+  engage: boolean
+}
+
+export interface PricingAddon {
+  product_id: BillingProductId
+  kind: 'booster' | 'connection' | 'engage'
+  amount: string
+  credits?: number
+  connections?: number
+  title: string
+}
+
+export interface PricingCatalog {
+  currency: 'USD'
+  credit_costs: { draft: number; image: number; image_regeneration: number }
+  plans: PricingPlan[]
+  addons: PricingAddon[]
+  simulated_checkout_enabled: boolean
 }
 
 export interface CheckoutResponse {
   success: boolean
-  message: string
+  message?: string
   invoice: BillingInvoice
   tier: WorkspaceTier
   credit_balance: number

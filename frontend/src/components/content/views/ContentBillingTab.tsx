@@ -15,8 +15,10 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { billingApi, BillingApiError } from '../../../api/billingApi'
+import { usePricingCatalog } from '../../../hooks/usePricingCatalog'
 import type {
   BillingInvoice,
+  BillingProductId,
   CheckoutPayload,
   SubscriptionOverview,
 } from '../../../types/billing'
@@ -26,18 +28,20 @@ interface Props {
   onPlanChanged?: () => void
 }
 
+type CheckoutAction = 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
+
 export function ContentBillingTab({ onPlanChanged }: Props) {
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<SubscriptionOverview | null>(null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const { catalog } = usePricingCatalog()
 
   // Checkout modal state
   const [showCheckout, setShowCheckout] = useState(false)
-  const [checkoutAction, setCheckoutAction] = useState<CheckoutPayload['action']>('UPGRADE_PLAN')
+  const [checkoutAction, setCheckoutAction] = useState<CheckoutAction>('UPGRADE_PLAN')
   const [targetTier, setTargetTier] = useState<'STARTER' | 'ADVANCE'>('STARTER')
   const [boosterCredits, setBoosterCredits] = useState<number>(50)
-  const [extraConnections, setExtraConnections] = useState<number>(1)
   const [billingName, setBillingName] = useState('')
   const [billingEmail, setBillingEmail] = useState('')
   const [checkoutBusy, setCheckoutBusy] = useState(false)
@@ -61,6 +65,10 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
   }, [loadSubscription])
 
   const openUpgradeModal = (tier: 'STARTER' | 'ADVANCE') => {
+    if (!catalog?.simulated_checkout_enabled) {
+      setSuccessMessage('Secure payment checkout is not configured yet. No plan change was made.')
+      return
+    }
     setCheckoutAction('UPGRADE_PLAN')
     setTargetTier(tier)
     setShowCheckout(true)
@@ -69,6 +77,10 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
   }
 
   const openBoosterModal = (credits: number) => {
+    if (!catalog?.simulated_checkout_enabled) {
+      setSuccessMessage('Secure payment checkout is not configured yet. No credits were purchased.')
+      return
+    }
     setCheckoutAction('BUY_BOOSTER')
     setBoosterCredits(credits)
     setShowCheckout(true)
@@ -77,14 +89,21 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
   }
 
   const openConnectionModal = () => {
+    if (!catalog?.simulated_checkout_enabled) {
+      setSuccessMessage('Secure payment checkout is not configured yet. No add-on was purchased.')
+      return
+    }
     setCheckoutAction('ADD_CONNECTIONS')
-    setExtraConnections(1)
     setShowCheckout(true)
     setCheckoutError('')
     setNewInvoice(null)
   }
 
   const openEngageModal = () => {
+    if (!catalog?.simulated_checkout_enabled) {
+      setSuccessMessage('Secure payment checkout is not configured yet. No add-on was purchased.')
+      return
+    }
     setCheckoutAction('ADD_ENGAGE')
     setShowCheckout(true)
     setCheckoutError('')
@@ -97,26 +116,25 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
     setCheckoutError('')
 
     try {
+      let productId: BillingProductId
+      if (checkoutAction === 'UPGRADE_PLAN') {
+        productId = targetTier === 'STARTER' ? 'plan_starter_monthly' : 'plan_advance_monthly'
+      } else if (checkoutAction === 'BUY_BOOSTER') {
+        productId = `booster_${boosterCredits}` as BillingProductId
+      } else if (checkoutAction === 'ADD_CONNECTIONS') {
+        productId = 'connection_1_monthly'
+      } else {
+        productId = 'engage_monthly'
+      }
       const payload: CheckoutPayload = {
-        action: checkoutAction,
+        product_id: productId,
         billing_name: billingName.trim() || undefined,
         billing_email: billingEmail.trim() || undefined,
-        payment_method: 'Credit Card (Stripe Checkout)',
-      }
-
-      if (checkoutAction === 'UPGRADE_PLAN') {
-        payload.tier = targetTier
-      } else if (checkoutAction === 'BUY_BOOSTER') {
-        payload.booster_credits = boosterCredits
-      } else if (checkoutAction === 'ADD_CONNECTIONS') {
-        payload.extra_connections = extraConnections
-      } else if (checkoutAction === 'ADD_ENGAGE') {
-        payload.has_engage = true
       }
 
       const res = await billingApi.checkout(payload)
       setNewInvoice(res.invoice)
-      setSuccessMessage(res.message)
+      setSuccessMessage(res.message ?? 'Billing change completed.')
       await loadSubscription()
       if (onPlanChanged) onPlanChanged()
     } catch (err) {
@@ -153,10 +171,19 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
   const isAdvance = tier === 'ADVANCE'
   const isStarter = tier === 'STARTER'
   const isFree = tier === 'FREE'
+  const freePlan = catalog?.plans.find((plan) => plan.id === 'free')
+  const starterPlan = catalog?.plans.find((plan) => plan.id === 'starter')
+  const advancePlan = catalog?.plans.find((plan) => plan.id === 'advance')
+  const currentPlan = isAdvance ? advancePlan : isStarter ? starterPlan : freePlan
+  const connectionAddon = catalog?.addons.find((addon) => addon.product_id === 'connection_1_monthly')
+  const engageAddon = catalog?.addons.find((addon) => addon.product_id === 'engage_monthly')
+  const boosterAddons = catalog?.addons.filter((addon) => addon.kind === 'booster') ?? []
+  const checkoutPlan = targetTier === 'ADVANCE' ? advancePlan : starterPlan
+  const checkoutBooster = boosterAddons.find((addon) => addon.credits === boosterCredits)
 
   // Credit calculation
   const creditBalance = overview.credits.balance
-  const creditAllocated = overview.credits.total_allocated || 50
+  const creditAllocated = overview.credits.total_allocated || currentPlan?.credits || 1
   const creditPercent = overview.credits.unlimited
     ? 100
     : Math.min(100, Math.round((creditBalance / creditAllocated) * 100))
@@ -186,11 +213,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
             <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
               {isAdmin
                 ? 'System Admin Workspace · Unrestricted Privileges'
-                : isAdvance
-                ? '$39/month · Billed Monthly'
-                : isStarter
-                ? '$20/month · Billed Monthly'
-                : '$0/month · Free Sandbox Account'}
+                : `$${currentPlan?.price ?? '...'}/month · ${isFree ? 'Free Sandbox Account' : 'Billed Monthly'}`}
             </span>
           </div>
           <h2>
@@ -206,10 +229,10 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
             {isAdmin
               ? 'No restrictions on social connections, AI creation credits, or automated engagement copilot.'
               : isAdvance
-              ? 'Multi-channel scaling with 150 AI credits/mo, full Engage feature suite, and unlimited scheduling.'
+              ? `Multi-channel scaling with ${advancePlan?.credits ?? '...'} AI credits/mo, full Engage feature suite, and unlimited scheduling.`
               : isStarter
-              ? '1 social connection, 50 AI credits/mo, unlimited scheduling. Easily scale up anytime.'
-              : 'Explore Content Studio drafting with 15 AI credits. Upgrade to connect social channels and schedule live posts.'}
+              ? `${starterPlan?.connections ?? '...'} social connection, ${starterPlan?.credits ?? '...'} AI credits/mo, unlimited scheduling. Easily scale up anytime.`
+              : `Explore Content Studio drafting with ${freePlan?.credits ?? '...'} AI credits. Upgrade to connect social channels and schedule live posts.`}
           </p>
         </div>
 
@@ -222,14 +245,14 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                   className="metric-action-btn primary"
                   onClick={() => openUpgradeModal('STARTER')}
                 >
-                  Upgrade to Starter ($20/mo)
+                  Upgrade to Starter (${starterPlan?.price ?? '...'}/mo)
                 </button>
                 <button
                   type="button"
                   className="metric-action-btn"
                   onClick={() => openUpgradeModal('ADVANCE')}
                 >
-                  Upgrade to Advance ($39/mo)
+                  Upgrade to Advance (${advancePlan?.price ?? '...'}/mo)
                 </button>
               </>
             )}
@@ -239,7 +262,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                 className="metric-action-btn primary"
                 onClick={() => openUpgradeModal('ADVANCE')}
               >
-                <Zap size={15} /> Upgrade to Advance ($39/mo)
+                <Zap size={15} /> Upgrade to Advance (${advancePlan?.price ?? '...'}/mo)
               </button>
             )}
             {isAdvance && (
@@ -287,7 +310,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
           </div>
 
           <p className="metric-footnote">
-            ⚡ <strong>2 credits</strong> per text draft · 🎨 <strong>3 credits</strong> with AI image · 🔄 <strong>1 credit</strong> image regeneration.
+            ⚡ <strong>{overview.credits.cost_per_draft} credits</strong> per text draft · 🎨 <strong>{overview.credits.cost_per_draft + overview.credits.cost_per_image} credits</strong> with AI image · 🔄 <strong>{catalog?.credit_costs.image_regeneration ?? overview.credits.cost_per_image} credit</strong> image regeneration.
           </p>
 
           {!isAdmin && (
@@ -344,7 +367,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
           <p className="metric-footnote">
             {overview.connections.limit === 0
               ? 'Free plan is sandbox mode with 0 live connections. Upgrade to connect LinkedIn/Instagram.'
-              : `${overview.connections.limit} account slot${overview.connections.limit > 1 ? 's' : ''} available. Extra connections are $5/month each.`}
+              : `${overview.connections.limit} account slot${overview.connections.limit > 1 ? 's' : ''} available. Extra connections are $${connectionAddon?.amount ?? '...'}/month each.`}
           </p>
 
           {!isAdmin && (
@@ -353,7 +376,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
               className="metric-action-btn"
               onClick={isFree ? () => openUpgradeModal('STARTER') : openConnectionModal}
             >
-              <Plus size={14} /> {isFree ? 'Unlock Connections' : 'Add Connection ($5/mo)'}
+              <Plus size={14} /> {isFree ? 'Unlock Connections' : `Add Connection ($${connectionAddon?.amount ?? '...'}/mo)`}
             </button>
           )}
         </div>
@@ -430,7 +453,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
               className="metric-action-btn primary"
               onClick={isStarter ? openEngageModal : () => openUpgradeModal('ADVANCE')}
             >
-              <Unlock size={14} /> {isStarter ? 'Add Engage ($15/mo)' : 'Upgrade to Unlock Engage'}
+              <Unlock size={14} /> {isStarter ? `Add Engage ($${engageAddon?.amount ?? '...'}/mo)` : 'Upgrade to Unlock Engage'}
             </button>
           )}
 
@@ -462,56 +485,22 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
           </div>
 
           <div className="boosters-pill-row">
-            <div className="booster-item-card">
-              <div className="booster-item-top">
-                <span className="booster-credits-amount">50 Credits</span>
-                <span className="booster-price-tag">$10</span>
+            {boosterAddons.map((addon, index) => (
+              <div className="booster-item-card" style={index === 1 ? { borderColor: '#ddd6fe' } : undefined} key={addon.product_id}>
+                <div className="booster-item-top">
+                  <span className="booster-credits-amount">{addon.credits} Credits</span>
+                  <span className="booster-price-tag">${addon.amount}</span>
+                </div>
+                <p className="booster-item-desc">{addon.title}. Credits remain available while the account is active.</p>
+                <button
+                  type="button"
+                  className={`metric-action-btn ${index === 1 ? 'primary' : ''}`}
+                  onClick={() => openBoosterModal(addon.credits ?? 0)}
+                >
+                  <Zap size={14} /> Buy {addon.credits} Credits (${addon.amount})
+                </button>
               </div>
-              <p className="booster-item-desc">
-                Ideal for quick sprint campaigns and generating supplemental posts.
-              </p>
-              <button
-                type="button"
-                className="metric-action-btn"
-                onClick={() => openBoosterModal(50)}
-              >
-                <Zap size={14} /> Buy 50 Credits ($10)
-              </button>
-            </div>
-
-            <div className="booster-item-card" style={{ borderColor: '#ddd6fe' }}>
-              <div className="booster-item-top">
-                <span className="booster-credits-amount">150 Credits</span>
-                <span className="booster-price-tag">$25</span>
-              </div>
-              <p className="booster-item-desc">
-                Great value for frequent campaigns and active image regeneration.
-              </p>
-              <button
-                type="button"
-                className="metric-action-btn primary"
-                onClick={() => openBoosterModal(150)}
-              >
-                <Zap size={14} /> Buy 150 Credits ($25)
-              </button>
-            </div>
-
-            <div className="booster-item-card">
-              <div className="booster-item-top">
-                <span className="booster-credits-amount">350 Credits</span>
-                <span className="booster-price-tag">$50</span>
-              </div>
-              <p className="booster-item-desc">
-                Maximum volume pack for intensive publishing and high visual creation.
-              </p>
-              <button
-                type="button"
-                className="metric-action-btn"
-                onClick={() => openBoosterModal(350)}
-              >
-                <Zap size={14} /> Buy 350 Credits ($50)
-              </button>
-            </div>
+            ))}
           </div>
         </section>
       )}
@@ -643,7 +632,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                     <div className="checkout-summary-box">
                       <div className="summary-row">
                         <span>Plan Tier:</span>
-                        <strong>{targetTier === 'ADVANCE' ? 'Advance ($39/mo)' : 'Starter ($20/mo)'}</strong>
+                        <strong>{checkoutPlan?.name} (${checkoutPlan?.price ?? '...'}/mo)</strong>
                       </div>
                       <div className="summary-row">
                         <span>Billing Cycle:</span>
@@ -651,19 +640,19 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Included AI Credits:</span>
-                        <span>{targetTier === 'ADVANCE' ? '150 credits/mo' : '50 credits/mo'}</span>
+                        <span>{checkoutPlan?.credits ?? '...'} credits/mo</span>
                       </div>
                       <div className="summary-row">
                         <span>Social Connections:</span>
-                        <span>1 connection included</span>
+                        <span>{checkoutPlan?.connections ?? '...'} connection included</span>
                       </div>
                       <div className="summary-row">
                         <span>Engage Feature:</span>
-                        <span>{targetTier === 'ADVANCE' ? 'Included & Unlocked' : 'Locked ($15/mo add-on)'}</span>
+                        <span>{checkoutPlan?.engage ? 'Included & Unlocked' : `Locked ($${engageAddon?.amount ?? '...'}/mo add-on)`}</span>
                       </div>
                       <div className="summary-row total">
                         <span>Total Due Today:</span>
-                        <span>{targetTier === 'ADVANCE' ? '$39.00' : '$20.00'}</span>
+                        <span>${checkoutPlan?.price ?? '...'}</span>
                       </div>
                     </div>
                   )}
@@ -681,7 +670,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                       <div className="summary-row total">
                         <span>Total Due Today:</span>
                         <span>
-                          {boosterCredits === 50 ? '$10.00' : boosterCredits === 150 ? '$25.00' : '$50.00'}
+                          ${checkoutBooster?.amount ?? '...'}
                         </span>
                       </div>
                     </div>
@@ -695,11 +684,11 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Rate:</span>
-                        <span>$5.00 / month</span>
+                        <span>${connectionAddon?.amount ?? '...'} / month</span>
                       </div>
                       <div className="summary-row total">
                         <span>Total Due Today:</span>
-                        <span>$5.00</span>
+                        <span>${connectionAddon?.amount ?? '...'}</span>
                       </div>
                     </div>
                   )}
@@ -712,11 +701,11 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Rate:</span>
-                        <span>$15.00 / month</span>
+                        <span>${engageAddon?.amount ?? '...'} / month</span>
                       </div>
                       <div className="summary-row total">
                         <span>Total Due Today:</span>
-                        <span>$15.00</span>
+                        <span>${engageAddon?.amount ?? '...'}</span>
                       </div>
                     </div>
                   )}
@@ -743,7 +732,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#6b7280' }}>
                     <CreditCard size={16} />
-                    <span>Secure simulated checkout · Immediate invoice generation</span>
+                    <span>Staff test checkout · Production purchases require a signed payment-provider webhook</span>
                   </div>
                 </div>
 

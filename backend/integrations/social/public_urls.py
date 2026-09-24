@@ -56,6 +56,7 @@ from integrations.social.engagement_views import (
     EngagementTestTriggerAPIView,
 )
 from integrations.social.billing_views import (
+    BillingCatalogAPIView,
     BillingCheckoutAPIView,
     BillingInvoiceDownloadAPIView,
     BillingInvoiceListAPIView,
@@ -136,6 +137,7 @@ urlpatterns = [
         name="social-variant-approve",
     ),
     # Billing, Subscriptions & Invoices
+    path("billing/catalog/", BillingCatalogAPIView.as_view(), name="social-billing-catalog"),
     path("billing/subscription/", SubscriptionOverviewAPIView.as_view(), name="social-billing-subscription"),
     path("billing/checkout/", BillingCheckoutAPIView.as_view(), name="social-billing-checkout"),
     path("billing/invoices/", BillingInvoiceListAPIView.as_view(), name="social-billing-invoices"),

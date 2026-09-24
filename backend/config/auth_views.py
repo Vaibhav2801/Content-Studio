@@ -35,12 +35,6 @@ def _session_data(user):
         .filter(user=user, is_active=True)
         .first()
     )
-    if membership is None:
-        membership = (
-            WorkspaceMembership.objects.select_related("workspace")
-            .filter(user=user)
-            .first()
-        )
     memberships = list(
         WorkspaceMembership.objects.select_related("workspace")
         .filter(user=user)

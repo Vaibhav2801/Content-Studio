@@ -3,6 +3,7 @@ import type {
   BillingInvoice,
   CheckoutPayload,
   CheckoutResponse,
+  PricingCatalog,
   SubscriptionOverview,
 } from '../types/billing'
 
@@ -41,6 +42,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const billingApi = {
+  getCatalog: () => request<PricingCatalog>('/billing/catalog/'),
   getSubscription: () => request<SubscriptionOverview>('/billing/subscription/'),
   checkout: (payload: CheckoutPayload) =>
     request<CheckoutResponse>('/billing/checkout/', {

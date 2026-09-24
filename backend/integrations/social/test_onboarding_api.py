@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from integrations.linkedin.models import LinkedInAutomationSettings, LinkedInPost
-from integrations.social.models import BrandProfile, ConnectionState, ContentStudioOnboarding, SocialConnection, SocialNetwork, SocialProvider
+from integrations.social.models import BrandProfile, ConnectionState, ContentStudioOnboarding, SocialConnection, SocialNetwork, SocialProvider, WorkspaceSubscription, WorkspaceTier
 from integrations.social.publishing.adapters import TARGET_CAPABILITIES
 from integrations.social.publishing.fakes import FakeUploadPostProvider
 from integrations.social.publishing.errors import ProviderPermanentFailureError, ProviderValidationError
@@ -29,6 +29,7 @@ class ContentStudioOnboardingApiTests(TestCase):
             role=WorkspaceMembership.OWNER,
             is_active=True,
         )
+        WorkspaceSubscription.objects.create(workspace=self.workspace, tier=WorkspaceTier.STARTER)
         self.client.force_login(self.user)
         self.fake_account = SocialAccount(
             provider_profile_id="profile-1",

@@ -27,7 +27,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { socialComposerApi } from '../../../api/socialComposer'
 import { makeDemoPost, socialComposerMockOptions } from '../../../api/socialComposerMock'
-import type { ComposerOptions, SocialNetwork, SocialPost, SocialVariant } from '../../../types/socialComposer'
+import type { ComposerOptions, GenerationControls, SocialNetwork, SocialPost, SocialVariant } from '../../../types/socialComposer'
 import { useOptionalAuth } from '../AuthContext'
 import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
@@ -87,9 +87,9 @@ export function ContentSeriesView() {
   // Controls & Cadence (Step 2)
   const [intervalDays, setIntervalDays] = useState(7)
   const [scheduledFor, setScheduledFor] = useState(firstDate)
-  const [tone, setTone] = useState('Professional')
-  const [goal, setGoal] = useState('Awareness')
-  const [length, setLength] = useState('Medium')
+  const [tone, setTone] = useState<GenerationControls['tone']>('Professional')
+  const [goal, setGoal] = useState<GenerationControls['goal']>('Awareness')
+  const [length, setLength] = useState<GenerationControls['length']>('Medium')
   const [includeImage, setIncludeImage] = useState(false)
   const [selectedSourceId, setSelectedSourceId] = useState('')
 
@@ -329,7 +329,11 @@ export function ContentSeriesView() {
     )
   }
 
-  const handleItemChange = (index: number, field: keyof SeriesPostItem, value: any) => {
+  const handleItemChange = <Field extends keyof SeriesPostItem>(
+    index: number,
+    field: Field,
+    value: SeriesPostItem[Field],
+  ) => {
     setPostItems((current) => {
       const copy = [...current]
       if (copy[index]) {
@@ -412,9 +416,9 @@ export function ContentSeriesView() {
           networks,
           connection_ids: connectionIds,
           controls: {
-            tone: tone as any,
-            goal: goal as any,
-            length: length as any,
+            tone,
+            goal,
+            length,
             include_image: includeImage || networks.includes('INSTAGRAM'),
           },
           creative_brief: {
@@ -564,8 +568,8 @@ export function ContentSeriesView() {
           idx === postIndex
             ? {
                 ...p,
-                state: 'APPROVED' as any,
-                variants: p.variants.map((v) => ({ ...v, status: 'APPROVED' as any })),
+                state: 'APPROVED',
+                variants: p.variants.map((v) => ({ ...v, status: 'APPROVED' })),
               }
             : p
         )
@@ -595,8 +599,8 @@ export function ContentSeriesView() {
           idx === postIndex
             ? {
                 ...p,
-                state: 'SCHEDULED' as any,
-                variants: p.variants.map((v) => ({ ...v, status: 'SCHEDULED' as any })),
+                state: 'SCHEDULED',
+                variants: p.variants.map((v) => ({ ...v, status: 'SCHEDULED' })),
               }
             : p
         )
@@ -633,10 +637,10 @@ export function ContentSeriesView() {
       setPosts((prev) =>
         prev.map((p) => ({
           ...p,
-          state: p.state === 'SCHEDULED' ? 'SCHEDULED' : ('APPROVED' as any),
+          state: p.state === 'SCHEDULED' ? 'SCHEDULED' : 'APPROVED',
           variants: p.variants.map((v) => ({
             ...v,
-            status: v.status === 'SCHEDULED' ? 'SCHEDULED' : ('APPROVED' as any),
+            status: v.status === 'SCHEDULED' ? 'SCHEDULED' : 'APPROVED',
           })),
         }))
       )
@@ -665,8 +669,8 @@ export function ContentSeriesView() {
       setPosts((prev) =>
         prev.map((p) => ({
           ...p,
-          state: 'SCHEDULED' as any,
-          variants: p.variants.map((v) => ({ ...v, status: 'SCHEDULED' as any })),
+          state: 'SCHEDULED',
+          variants: p.variants.map((v) => ({ ...v, status: 'SCHEDULED' })),
         }))
       )
       setBatchActionNotice(`Entire series of ${posts.length} posts has been scheduled!`)
@@ -1020,8 +1024,8 @@ export function ContentSeriesView() {
               <div className="series-controls-grid">
                 <label className="li-field">
                   <span>Tone</span>
-                  <select value={tone} onChange={(e) => setTone(e.target.value)}>
-                    {(options?.generation_controls.tones ?? ['Professional', 'Friendly', 'Bold', 'Educational', 'Casual']).map(
+                  <select value={tone} onChange={(e) => setTone(e.target.value as GenerationControls['tone'])}>
+                    {(options?.generation_controls.tones ?? ['Professional', 'Friendly', 'Bold', 'Educational']).map(
                       (t) => (
                         <option key={t} value={t}>
                           {t}
@@ -1033,7 +1037,7 @@ export function ContentSeriesView() {
 
                 <label className="li-field">
                   <span>Goal</span>
-                  <select value={goal} onChange={(e) => setGoal(e.target.value)}>
+                  <select value={goal} onChange={(e) => setGoal(e.target.value as GenerationControls['goal'])}>
                     {(options?.generation_controls.goals ?? ['Awareness', 'Engagement', 'Education', 'Leads']).map(
                       (g) => (
                         <option key={g} value={g}>
@@ -1046,7 +1050,7 @@ export function ContentSeriesView() {
 
                 <label className="li-field">
                   <span>Length</span>
-                  <select value={length} onChange={(e) => setLength(e.target.value)}>
+                  <select value={length} onChange={(e) => setLength(e.target.value as GenerationControls['length'])}>
                     {(options?.generation_controls.lengths ?? ['Short', 'Medium', 'Long']).map((l) => (
                       <option key={l} value={l}>
                         {l}

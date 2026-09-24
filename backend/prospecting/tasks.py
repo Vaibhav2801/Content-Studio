@@ -352,7 +352,7 @@ def discover_campaign_async(run_id: str, enrich_leads: bool = False):
                         f"Objective: {spec.objective.value}\n"
                         'Return only JSON: {"search_queries":["category one","category two"]}.'
                     )
-                    logger.debug("SEARCH_PLANNER_PROMPT prompt=%r", planner_prompt)
+                    logger.debug("SEARCH_PLANNER_PROMPT prompt_chars=%s", len(planner_prompt))
                     res = router.generate(
                         prompt=planner_prompt,
                         system_prompt="You are a helpful search optimization planner. Respond in raw JSON.",
@@ -433,7 +433,7 @@ def discover_campaign_async(run_id: str, enrich_leads: bool = False):
                         f"Input: {search_keyword}\n"
                         'Return only JSON: {"keywords":["category one","category two"]}.'
                     )
-                    logger.debug("SEARCH_OPTIMIZER_PROMPT prompt=%r", prompt)
+                    logger.debug("SEARCH_OPTIMIZER_PROMPT prompt_chars=%s", len(prompt))
                     res = router.generate(
                         prompt=prompt,
                         system_prompt="You are a helpful keyword extraction assistant. Respond in raw JSON.",

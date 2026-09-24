@@ -1,20 +1,22 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './components/content/AuthContext'
-import { AuthPage } from './pages/AuthPage'
-import { LandingPage } from './pages/LandingPage'
-import { PricingPage } from './pages/PricingPage'
-import { ContentStudioPage } from './pages/ContentStudioPage'
-import { ContentHomeView } from './components/content/views/ContentHomeView'
-import { ContentCreateView } from './components/content/views/ContentCreateView'
-import { ContentSeriesView } from './components/content/views/ContentSeriesView'
-import { ContentApprovalsView } from './components/content/views/ContentApprovalsView'
-import { ContentCalendarView } from './components/content/views/ContentCalendarView'
-import { ContentLibraryView } from './components/content/views/ContentLibraryView'
-import { ContentConnectionsView } from './components/content/views/ContentConnectionsView'
-import { ContentSettingsView } from './components/content/views/ContentSettingsView'
-import { ContentOnboardingView } from './components/content/views/ContentOnboardingView'
-import { ContentAnalyticsView } from './components/content/views/ContentAnalyticsView'
-import { EngagementHubView } from './components/content/views/EngagementHubView'
+
+const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
+const LandingPage = lazy(() => import('./pages/LandingPage').then((module) => ({ default: module.LandingPage })))
+const PricingPage = lazy(() => import('./pages/PricingPage').then((module) => ({ default: module.PricingPage })))
+const ContentStudioPage = lazy(() => import('./pages/ContentStudioPage').then((module) => ({ default: module.ContentStudioPage })))
+const ContentHomeView = lazy(() => import('./components/content/views/ContentHomeView').then((module) => ({ default: module.ContentHomeView })))
+const ContentCreateView = lazy(() => import('./components/content/views/ContentCreateView').then((module) => ({ default: module.ContentCreateView })))
+const ContentSeriesView = lazy(() => import('./components/content/views/ContentSeriesView').then((module) => ({ default: module.ContentSeriesView })))
+const ContentApprovalsView = lazy(() => import('./components/content/views/ContentApprovalsView').then((module) => ({ default: module.ContentApprovalsView })))
+const ContentCalendarView = lazy(() => import('./components/content/views/ContentCalendarView').then((module) => ({ default: module.ContentCalendarView })))
+const ContentLibraryView = lazy(() => import('./components/content/views/ContentLibraryView').then((module) => ({ default: module.ContentLibraryView })))
+const ContentConnectionsView = lazy(() => import('./components/content/views/ContentConnectionsView').then((module) => ({ default: module.ContentConnectionsView })))
+const ContentSettingsView = lazy(() => import('./components/content/views/ContentSettingsView').then((module) => ({ default: module.ContentSettingsView })))
+const ContentOnboardingView = lazy(() => import('./components/content/views/ContentOnboardingView').then((module) => ({ default: module.ContentOnboardingView })))
+const ContentAnalyticsView = lazy(() => import('./components/content/views/ContentAnalyticsView').then((module) => ({ default: module.ContentAnalyticsView })))
+const EngagementHubView = lazy(() => import('./components/content/views/EngagementHubView').then((module) => ({ default: module.EngagementHubView })))
 
 function ProtectedStudio() {
   const { user, ready, error, reload } = useAuth()
@@ -29,6 +31,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <Suspense fallback={<div className="auth-gate" role="status">Loading…</div>}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
@@ -49,6 +52,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       </AuthProvider>
     </BrowserRouter>
   )

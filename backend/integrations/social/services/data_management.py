@@ -39,6 +39,7 @@ def _membership_for(user, workspace):
     membership = WorkspaceMembership.objects.filter(
         user=user,
         workspace=workspace,
+        is_active=True,
     ).first()
     if membership is None:
         raise PermissionDenied("You do not have access to this workspace.")

@@ -315,6 +315,7 @@ class SocialPublisherAdminService:
         allowed = WorkspaceMembership.objects.filter(
             user=actor,
             workspace=workspace,
+            is_active=True,
             role__in=[WorkspaceMembership.OWNER, WorkspaceMembership.ADMIN],
         ).exists()
         if not allowed:

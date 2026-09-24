@@ -23,6 +23,8 @@ from integrations.social.models import (
     SocialConnection,
     SocialNetwork,
     SocialProvider,
+    WorkspaceSubscription,
+    WorkspaceTier,
 )
 from prospecting.models import Workspace, WorkspaceMembership
 
@@ -37,6 +39,7 @@ class EngagementApiTests(TestCase):
         self.other_workspace = Workspace.objects.create(name="Other engagement workspace")
         WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.OWNER, is_active=True)
         WorkspaceMembership.objects.create(workspace=self.other_workspace, user=self.other_user, role=WorkspaceMembership.OWNER, is_active=True)
+        WorkspaceSubscription.objects.create(workspace=self.workspace, tier=WorkspaceTier.ADVANCE)
         self.instagram = SocialConnection.objects.create(
             workspace=self.workspace,
             network=SocialNetwork.INSTAGRAM,
@@ -494,4 +497,3 @@ class EngagementApiTests(TestCase):
             self.assertEqual(created.final_text, "Instant auto-reply without manual approval!")
             self.assertEqual(created.provider_message_id, "provider-msg-999")
             self.assertIsNotNone(created.sent_at)
-

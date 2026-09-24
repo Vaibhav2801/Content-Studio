@@ -13,7 +13,10 @@ def development_bootstrap_enabled():
 def resolve_active_workspace(request):
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
-        memberships = WorkspaceMembership.objects.select_related("workspace").filter(user=user)
+        memberships = WorkspaceMembership.objects.select_related("workspace").filter(
+            user=user,
+            is_active=True,
+        )
         requested_workspace_id = request.headers.get("X-Workspace-ID", "").strip()
         if requested_workspace_id:
             try:
@@ -24,13 +27,10 @@ def resolve_active_workspace(request):
                 raise PermissionDenied("You do not have access to the requested workspace.")
             return membership.workspace
 
-        active_membership = memberships.filter(is_active=True).first()
+        active_membership = memberships.first()
         if active_membership is not None:
             return active_membership.workspace
 
-        memberships_without_active = list(memberships[:2])
-        if len(memberships_without_active) == 1:
-            return memberships_without_active[0].workspace
         raise PermissionDenied("Select an active workspace before using content automation.")
 
     if development_bootstrap_enabled():
