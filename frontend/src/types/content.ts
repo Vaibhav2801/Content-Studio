@@ -76,9 +76,9 @@ export const CONTENT_STUDIO_NAV: ContentStudioNavItem[] = [
   { section: 'series', label: 'Post series', path: '/content/series', description: 'Create and schedule a sequence of posts.' },
   { section: 'approvals', label: 'Approvals', path: '/content/approvals', description: 'Review posts before they publish.' },
   { section: 'calendar', label: 'Calendar', path: '/content/calendar', description: 'See your publishing schedule.' },
-  { section: 'library', label: 'Content Library', path: '/content/library', description: 'Reuse saved ideas and source material.' },
+  { section: 'library', label: 'Content Library', path: '/content/library', description: 'Manage saved content, sources, and brand guidance.' },
   { section: 'engage', label: 'Engage', path: '/content/engage', description: 'Review replies, run approved automations, and follow up with leads.' },
   { section: 'connections', label: 'Connections', path: '/content/connections', description: 'Check connected social accounts.' },
   { section: 'analytics', label: 'Analytics', path: '/content/analytics', description: 'Compare results and find practical improvements.' },
-  { section: 'settings', label: 'Settings', path: '/content/settings', description: 'Set your brand, schedule, and approvals.' },
+  { section: 'settings', label: 'Settings', path: '/content/settings', description: 'Manage your plan, credits, and invoices.' },
 ]

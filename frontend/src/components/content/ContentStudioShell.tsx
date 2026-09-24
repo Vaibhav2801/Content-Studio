@@ -11,11 +11,13 @@ import {
   Link2,
   MessageCircleMore,
   Menu,
+  Palette,
   Plus,
   Settings2,
   LogOut,
   Sparkles,
   LoaderCircle,
+  UserRound,
   X,
   Zap,
   type LucideIcon,
@@ -49,14 +51,13 @@ const navigationGroups: { label: string; sections: ContentStudioSection[] }[] = 
   { label: 'Workspace', sections: ['home', 'calendar', 'library'] },
   { label: 'Publishing', sections: ['create', 'series', 'approvals'] },
   { label: 'Engagement', sections: ['engage'] },
-  { label: 'Manage', sections: ['connections', 'analytics', 'settings'] },
+  { label: 'Manage', sections: ['connections', 'analytics'] },
 ]
 
 export function ContentStudioShell() {
   const {
     dashboard,
     onboarding,
-    settingsDraft,
     notice,
     noticeError,
     dismissNotice,
@@ -73,7 +74,9 @@ export function ContentStudioShell() {
   const [workspaceNameDraft, setWorkspaceNameDraft] = useState('')
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [workspaceError, setWorkspaceError] = useState('')
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const feedbackTimers = useRef(new WeakMap<HTMLElement, number>())
+  const profileMenuRef = useRef<HTMLDivElement>(null)
 
   const showClickFeedback = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!(event.target instanceof Element)) return
@@ -97,7 +100,26 @@ export function ContentStudioShell() {
   const pageDescription = isOnboarding ? 'A few steps to get ready for your first post.' : current.description
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 
-  useEffect(() => setSidebarOpen(false), [location.pathname])
+  useEffect(() => {
+    setSidebarOpen(false)
+    setProfileMenuOpen(false)
+  }, [location.pathname, location.search])
+
+  useEffect(() => {
+    if (!profileMenuOpen) return
+    const closeProfileMenu = (event: PointerEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setProfileMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', closeProfileMenu)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeProfileMenu)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [profileMenuOpen])
 
   const activateWorkspace = async (workspaceId: string) => {
     if (!auth || workspaceBusy || workspaceId === auth.workspace?.id) return
@@ -142,6 +164,10 @@ export function ContentStudioShell() {
   const failedCount = summary?.failures.length ?? dashboard.posts.filter((post) => post.status === 'FAILED').length
   const reviewCount = summary?.needs_approval.length ?? dashboard.posts.filter((post) => post.status === 'DRAFT').length
   const needsAttention = failedCount > 0 || Boolean(summary?.connections_needing_attention) || (onboarding.connection.health === 'NEEDS_ATTENTION' && onboarding.connection.status !== 'DISCONNECTED')
+  const activeMembership = auth?.workspaces.find((workspace) => workspace.id === auth.workspace?.id)
+  const roleLabel = activeMembership?.role
+    ? activeMembership.role.charAt(0).toUpperCase() + activeMembership.role.slice(1).toLowerCase()
+    : 'Member'
 
   return (
     <div className="content-studio studio-app-shell" onClickCapture={showClickFeedback}>
@@ -157,7 +183,7 @@ export function ContentStudioShell() {
         </div>
 
         <div className="studio-workspace-switcher">
-          <button className="studio-workspace-card" type="button" aria-expanded={workspaceMenuOpen} onClick={() => setWorkspaceMenuOpen((open) => !open)}>
+          <button className="studio-workspace-card" type="button" aria-expanded={workspaceMenuOpen} onClick={() => { setProfileMenuOpen(false); setWorkspaceMenuOpen((open) => !open) }}>
             <span className="studio-workspace-avatar">{workspaceName.slice(0, 1).toUpperCase()}</span>
             <span><small>WORKSPACE</small><strong>{workspaceName}</strong></span>
             <ChevronDown size={16} />
@@ -168,11 +194,9 @@ export function ContentStudioShell() {
             <label><span>New workspace</span><input value={workspaceNameDraft} maxLength={255} placeholder="Business name" onChange={(event) => setWorkspaceNameDraft(event.target.value)} /></label>
             <button className="studio-workspace-create" type="button" disabled={workspaceBusy || !workspaceNameDraft.trim()} onClick={() => void createWorkspace()}>{workspaceBusy ? 'Working…' : <><Plus size={14} /> Create workspace</>}</button>
             {workspaceError && <small className="studio-workspace-error" role="alert">{workspaceError}</small>}
-            <Link to="/content/settings" onClick={() => setWorkspaceMenuOpen(false)}>Manage current workspace settings</Link>
+            <Link to="/content/settings" onClick={() => setWorkspaceMenuOpen(false)}>Plan and billing settings</Link>
           </div>}
         </div>
-
-        <Link className="studio-sidebar-create" to="/content/create"><Plus size={17} /> Create post <span>↗</span></Link>
 
         <nav className="studio-sidebar-nav" aria-label="Content Studio sections">
           {navigationGroups.map((group) => (
@@ -194,14 +218,46 @@ export function ContentStudioShell() {
         </nav>
 
         <div className="studio-sidebar-bottom">
-          <Link className="studio-health-card" to={needsAttention ? '/content/connections' : '/content/calendar'}>
-            <span className={`studio-health-icon ${needsAttention ? 'warning' : ''}`}>{needsAttention ? <CircleAlert size={17} /> : <CircleCheck size={17} />}</span>
-            <span><strong>{needsAttention ? 'Needs attention' : settingsDraft.is_active ? 'Publishing is on' : 'Ready when you are'}</strong><small>{needsAttention ? 'Review your connections' : settingsDraft.is_active ? 'Your schedule is active' : 'Plan your next post'}</small></span>
-            <ChevronRight size={15} />
-          </Link>
-          {auth?.user && <div className="studio-account"><span>{auth.user.name.slice(0, 1).toUpperCase()}</span><div><strong>{auth.user.name}</strong><small>{auth.user.email}</small></div></div>}
-          {auth?.user && <button className="studio-signout" type="button" onClick={() => { void auth.signOut().catch(() => setSignoutError('Could not sign out. Please try again.')) }}><LogOut size={16} /><span>Sign out</span></button>}
-          <span className="studio-sidebar-footnote">A calmer way to keep content moving.</span>
+          {auth?.user && <div className="studio-profile" ref={profileMenuRef}>
+            {profileMenuOpen && <div className="studio-profile-menu" role="menu" aria-label="Profile and settings">
+              <div className="studio-profile-summary">
+                <span className="studio-profile-avatar large">{auth.user.name.slice(0, 1).toUpperCase()}</span>
+                <div><strong>{auth.user.name}</strong><small>{auth.user.email}</small></div>
+              </div>
+              <div className="studio-profile-workspace">
+                <span>Current workspace</span>
+                <strong>{workspaceName}</strong>
+                <small>{roleLabel}</small>
+              </div>
+              <div className="studio-profile-actions">
+                <Link to="/content/settings" role="menuitem">
+                  <Settings2 size={17} />
+                  <span><strong>Settings</strong><small>Plan, credits, and invoices</small></span>
+                  <ChevronRight size={14} />
+                </Link>
+                <Link to="/content/library?panel=brand" role="menuitem">
+                  <Palette size={17} />
+                  <span><strong>Brand &amp; publishing</strong><small>Voice, schedule, and approvals</small></span>
+                  <ChevronRight size={14} />
+                </Link>
+              </div>
+              <button className="studio-profile-signout" role="menuitem" type="button" onClick={() => { setProfileMenuOpen(false); void auth.signOut().catch(() => setSignoutError('Could not sign out. Please try again.')) }}>
+                <LogOut size={16} /> Sign out
+              </button>
+            </div>}
+            <button
+              className="studio-profile-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              aria-label="Open profile menu"
+              onClick={() => { setWorkspaceMenuOpen(false); setProfileMenuOpen((open) => !open) }}
+            >
+              <span className="studio-profile-avatar">{auth.user.name.slice(0, 1).toUpperCase()}</span>
+              <span className="studio-profile-copy"><strong>{auth.user.name}</strong><small>{auth.user.email}</small></span>
+              <UserRound size={16} />
+            </button>
+          </div>}
         </div>
       </aside>
 

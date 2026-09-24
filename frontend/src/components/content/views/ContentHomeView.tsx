@@ -85,7 +85,7 @@ export function ContentHomeView() {
       </div>
       <div className="studio-publishing-actions">
         <button className={`switch ${settingsDraft.is_active ? 'on' : ''}`} type="button" disabled={busy === "automation"} aria-busy={busy === "automation"} onClick={() => void toggleAutomation()} aria-label="Toggle scheduled publishing" aria-pressed={settingsDraft.is_active}><i /></button>
-        <Link className="li-quiet-button" to="/content/settings"><Settings2 size={16} /> Schedule settings</Link>
+        <Link className="li-quiet-button" to="/content/library?panel=brand"><Settings2 size={16} /> Brand &amp; publishing</Link>
       </div>
     </div>
 

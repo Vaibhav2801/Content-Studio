@@ -98,10 +98,10 @@ const CLIENT_KNOWLEDGE_BASE: Record<string, {
   },
   brand_brain: {
     name: 'Brand Brain & Knowledge Hub',
-    route: '/content/settings',
+    route: '/content/library?panel=brand',
     keywords: ['brand', 'brain', 'voice', 'tone', 'sources', 'knowledge', 'story interview', 'interview', 'guidelines'],
     details: '**Brand Brain & Knowledge Hub** keeps your AI content authentic to your company\'s tone and facts.\n\n- **Voice & Personas**: Configure tone guidelines, target personas, and words to avoid.\n- **Content Sources**: Upload PDFs, links, or notes to ground AI drafts in your own data.\n- **Story Interview**: Complete guided Q&As to turn founder stories and milestones into high-converting posts.',
-    actions: [{ label: 'Open Brand Brain', route: '/content/settings' }],
+    actions: [{ label: 'Open Brand Brain', route: '/content/library?panel=brand' }],
   },
 }
 
@@ -110,7 +110,7 @@ function getClientFallbackReply(query: string, currentPath: string): AssistantCh
 
   if (q === 'hi' || q === 'hello' || q === 'help' || q.includes('what can you do')) {
     return {
-      reply: '👋 **Hello! I am your Content Studio AI Assistant.**\n\nI can help you navigate, use, and master any feature across the platform:\n\n- ✍️ **[Post Composer](/content/create)**: Draft multi-platform posts with AI variant generation & image creation.\n- 📚 **[Content Series](/content/series)**: Create multi-part thematic campaigns.\n- ✅ **[Approvals](/content/approvals)**: Manage team reviews, batch approvals, and quality governance.\n- 📅 **[Content Calendar](/content/calendar)**: Visualize and reschedule scheduled posts across networks.\n- 🔗 **[Connections](/content/connections)**: Connect social accounts (LinkedIn, Instagram, X, Facebook, etc.).\n- 📊 **[Analytics](/content/analytics)**: Track impressions, reach, engagement rate, and AI optimization suggestions.\n- 🧠 **[Brand Brain](/content/settings)**: Keep content aligned with your tone, personas, and source files.\n- 💬 **[Engagement Hub](/content/engage)**: Monitor comments, reviews, and automated replies.\n\nClick any topic below or ask me any question!',
+      reply: '👋 **Hello! I am your Content Studio AI Assistant.**\n\nI can help you navigate, use, and master any feature across the platform:\n\n- ✍️ **[Post Composer](/content/create)**: Draft multi-platform posts with AI variant generation & image creation.\n- 📚 **[Content Series](/content/series)**: Create multi-part thematic campaigns.\n- ✅ **[Approvals](/content/approvals)**: Manage team reviews, batch approvals, and quality governance.\n- 📅 **[Content Calendar](/content/calendar)**: Visualize and reschedule scheduled posts across networks.\n- 🔗 **[Connections](/content/connections)**: Connect social accounts (LinkedIn, Instagram, X, Facebook, etc.).\n- 📊 **[Analytics](/content/analytics)**: Track impressions, reach, engagement rate, and AI optimization suggestions.\n- 🧠 **[Brand Brain](/content/library?panel=brand)**: Keep content aligned with your tone, personas, and source files.\n- 💬 **[Engagement Hub](/content/engage)**: Monitor comments, reviews, and automated replies.\n\nClick any topic below or ask me any question!',
       suggestions: DEFAULT_QUICK_SUGGESTIONS,
       actions: [
         { label: 'Create Post', route: '/content/create' },

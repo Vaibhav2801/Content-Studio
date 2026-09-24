@@ -57,13 +57,15 @@ describe('Content Studio', () => {
     vi.spyOn(socialComposerApi, 'submitForReview').mockImplementation(async () => ({ ...makeDemoPost('Review', 'Ready to review', ['LINKEDIN']), state: 'NEEDS_REVIEW' }))
   })
 
-  it('shows all major sections and keeps the New post action on Home only', async () => {
+  it('shows the compact sidebar and keeps creation actions in one place', async () => {
     renderStudio()
     expect(await screen.findByRole('heading', { name: 'Content Studio' })).toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Content Studio sections' })
-    for (const label of ['Home', 'Create', 'Approvals', 'Calendar', 'Content Library', 'Connections', 'Analytics', 'Settings']) {
+    for (const label of ['Home', 'Create', 'Approvals', 'Calendar', 'Content Library', 'Connections', 'Analytics']) {
       expect(navigation).toHaveTextContent(label)
     }
+    expect(navigation).not.toHaveTextContent('Settings')
+    expect(screen.queryByRole('link', { name: /^Create post/i })).not.toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /new post/i })).toHaveLength(1)
     expect(screen.getByRole('link', { name: /new post/i })).toHaveAttribute('href', '/content/create?new=1')
     cleanup()
@@ -200,13 +202,17 @@ describe('Content Studio', () => {
     expect(screen.queryByRole('button', { name: 'Common question' })).not.toBeInTheDocument()
   })
 
-  it('navigates directly to Calendar and Settings', async () => {
+  it('navigates directly to Calendar, billing Settings, and Brand in the Library', async () => {
     renderStudio('/content/create')
     await screen.findByText('Start with what you have')
     fireEvent.click(screen.getByRole('link', { name: /^calendar$/i }))
     expect(screen.getByRole('heading', { name: 'Calendar' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: /^settings$/i }))
-    expect(screen.getByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: /Open Content Studio settings/i }))
+    expect(screen.getByRole('heading', { name: 'Plan & Invoices' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Brand and business' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: /^content library$/i }))
+    fireEvent.click(await screen.findByRole('link', { name: /Brand & Publishing/i }))
+    expect(await screen.findByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('LumaDesk')).toBeInTheDocument()
     const advanced = screen.getByText('Advanced workspace settings').closest('details')
     expect(advanced).toBeInTheDocument()

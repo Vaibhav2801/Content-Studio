@@ -33,21 +33,24 @@ describe('Content knowledge features', () => {
     vi.spyOn(contentKnowledgeApi, 'story').mockResolvedValue(structuredClone(story))
   })
 
-  it('keeps source tools in the Library and the single Brand profile in Settings', async () => {
+  it('keeps source tools and the single Brand profile in the Library', async () => {
     renderStudio('/content/library')
     await screen.findByRole('heading', { name: 'Content Library' })
-    for (const label of ['Sources', 'Story Interview']) expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /^Brand/i })).not.toBeInTheDocument()
+    for (const label of ['Sources', 'Story Interview', 'Brand & Publishing']) expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
     cleanup()
     renderStudio('/content/settings')
     await screen.findByRole('heading', { name: 'Settings' })
-    expect(screen.getByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Plan & Invoices' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Brand and business' })).not.toBeInTheDocument()
+    cleanup()
+    renderStudio('/content/library?panel=brand')
+    expect(await screen.findByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Content style' })).toBeInTheDocument()
   })
 
   it('shows the Brand version and keeps edit suggestions pending until confirmation', async () => {
     vi.spyOn(contentKnowledgeApi, 'decideSuggestion').mockResolvedValue({ ...brand, version: 3, voice_rules: ['Prefer concise posts.'], suggestions: [] })
-    renderStudio('/content/settings')
+    renderStudio('/content/library?panel=brand')
     expect(await screen.findByText('Version 2')).toBeInTheDocument()
     fireEvent.click(screen.getByText(/More brand guidance/i))
     expect(screen.getByText(/Not applied · noticed in 3 draft edits/i)).toBeInTheDocument()
@@ -79,7 +82,7 @@ describe('Content knowledge features', () => {
     expect((await screen.findAllByText(/Added to Sources/i)).length).toBeGreaterThan(0)
   })
 
-  it('keeps workspace export and confirmed deletion in Advanced settings', async () => {
+  it('keeps workspace export and confirmed deletion with Brand and Publishing', async () => {
     const exportData = vi.spyOn(contentStudioApi, 'exportData').mockResolvedValue({
       format: 'content-studio-export-v1',
       workspace: { id: 'workspace-1', name: 'Example workspace' },
@@ -89,8 +92,8 @@ describe('Content knowledge features', () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:export') })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
-    renderStudio('/content/settings')
-    await screen.findByRole('heading', { name: 'Settings' })
+    renderStudio('/content/library?panel=brand')
+    await screen.findByRole('heading', { name: 'Brand & Publishing' })
     fireEvent.click(screen.getByText('Advanced workspace settings'))
     fireEvent.click(screen.getByRole('button', { name: /Download data/i }))
     await waitFor(() => expect(exportData).toHaveBeenCalled())

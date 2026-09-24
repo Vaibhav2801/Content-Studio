@@ -10,6 +10,7 @@ import { KnowledgeHubLinks } from '../KnowledgeHubLinks'
 import { ContentSourcesPanel } from '../knowledge/ContentSourcesPanel'
 import { StoryInterviewPanel } from '../knowledge/StoryInterviewPanel'
 import { customerSafeMessage } from '../contentUtils'
+import { ContentBrandPublishingView } from './ContentBrandPublishingView'
 
 const statuses = [
   ['', 'All'], ['DRAFT', 'Drafts'], ['SCHEDULED', 'Scheduled'], ['PUBLISHED', 'Published'], ['FAILED', 'Failed'], ['CANCELLED', 'Cancelled'],
@@ -20,7 +21,7 @@ export function ContentLibraryView() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const requestedPanel = searchParams.get('panel')
-  const panel = requestedPanel === 'sources' || requestedPanel === 'story' ? requestedPanel : null
+  const panel = requestedPanel === 'sources' || requestedPanel === 'story' || requestedPanel === 'brand' ? requestedPanel : null
   const [filters, setFilters] = useState<LibraryFilters>(() => ({ status: searchParams.get('status') ?? '' }))
   const [posts, setPosts] = useState<LibraryPost[] | null>(null)
   const [details, setDetails] = useState('')
@@ -84,6 +85,7 @@ export function ContentLibraryView() {
     <KnowledgeHubLinks base="/content/library" />
     {panel === 'sources' && <ContentSourcesPanel />}
     {panel === 'story' && <StoryInterviewPanel />}
+    {panel === 'brand' && <ContentBrandPublishingView />}
     {!panel && error && <div className="li-banner error" role="alert">{error}</div>}
     {!panel && notice && <div className="li-banner success" role="status">{notice}</div>}
     {!panel && <>
