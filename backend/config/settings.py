@@ -626,6 +626,11 @@ SOCIAL_QUALITY_LLM_ENABLED = os.environ.get(
 
 # Entitlements are granted only by signed provider webhooks in production.
 BILLING_SIMULATED_CHECKOUT_ENABLED = _env_bool("BILLING_SIMULATED_CHECKOUT_ENABLED", False)
+BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS = {
+    email.strip().lower()
+    for email in os.environ.get("BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS", "").split(",")
+    if email.strip()
+}
 BILLING_WEBHOOK_SECRET = os.environ.get("BILLING_WEBHOOK_SECRET", "").strip()
 
 # ── Remote Celery Worker Keep-Alive & Wake Configuration ─────────────────────

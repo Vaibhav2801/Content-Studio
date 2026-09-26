@@ -67,12 +67,28 @@ class BillingApiTests(TestCase):
     def test_catalog_is_authoritative_and_public(self):
         response = self.client.get(reverse("social-billing-catalog"))
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIn("Cookie", response["Vary"])
         self.assertEqual(response.data["credit_costs"], {"draft": 2, "image": 1, "image_regeneration": 1})
         self.assertEqual(
             {plan["product_id"] for plan in response.data["plans"] if plan["product_id"]},
             {"plan_starter_monthly", "plan_advance_monthly"},
         )
         self.assertFalse(response.data["simulated_checkout_enabled"])
+
+    @override_settings(
+        BILLING_SIMULATED_CHECKOUT_ENABLED=True,
+        BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS={"owner@example.com"},
+    )
+    def test_catalog_exposes_simulator_only_to_an_allowlisted_account(self):
+        anonymous = self.client.get(reverse("social-billing-catalog"))
+        self.assertFalse(anonymous.data["simulated_checkout_enabled"])
+        self.client.force_authenticate(self.member)
+        member = self.client.get(reverse("social-billing-catalog"))
+        self.assertFalse(member.data["simulated_checkout_enabled"])
+        self.client.force_authenticate(self.owner)
+        owner = self.client.get(reverse("social-billing-catalog"))
+        self.assertTrue(owner.data["simulated_checkout_enabled"])
 
     def test_simulator_is_disabled_by_default_and_rejects_arbitrary_products(self):
         self.client.force_authenticate(self.staff)
@@ -83,14 +99,17 @@ class BillingApiTests(TestCase):
         self.assertEqual(arbitrary.status_code, 400)
         self.assertFalse(BillingInvoice.objects.exists())
 
-    @override_settings(BILLING_SIMULATED_CHECKOUT_ENABLED=True)
-    def test_simulator_requires_staff_and_uses_fixed_product_values(self):
-        self.client.force_authenticate(self.owner)
+    @override_settings(
+        BILLING_SIMULATED_CHECKOUT_ENABLED=True,
+        BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS={"owner@example.com"},
+    )
+    def test_simulator_requires_allowlisted_billing_manager_and_uses_fixed_product_values(self):
+        self.client.force_authenticate(self.member)
         self.assertEqual(
             self.client.post(reverse("social-billing-checkout"), {"product_id": "booster_350"}).status_code,
             403,
         )
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.owner)
         response = self.client.post(reverse("social-billing-checkout"), {"product_id": "booster_50"})
         self.assertEqual(response.status_code, 200)
         invoice = BillingInvoice.objects.get()

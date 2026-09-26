@@ -93,6 +93,19 @@ describe('Content knowledge features', () => {
     expect(screen.queryByRole('heading', { name: 'Free Plan' })).not.toBeInTheDocument()
   })
 
+  it('shows unavailable checkout as a warning notification instead of an inline success banner', async () => {
+    renderStudio('/content/settings?tab=plan')
+    await screen.findByRole('heading', { name: 'Free Plan' })
+
+    fireEvent.click(screen.getByRole('button', { name: /Upgrade to Starter/i }))
+
+    const notification = await screen.findByRole('alert')
+    expect(notification).toHaveAttribute('data-tone', 'warning')
+    expect(notification).toHaveTextContent('Checkout unavailable')
+    expect(notification).toHaveTextContent('No plan change was made')
+    expect(document.querySelector('.billing-tab-container > .li-banner.success')).not.toBeInTheDocument()
+  })
+
   it('adds sources and labels processing state plainly', async () => {
     vi.spyOn(contentKnowledgeApi, 'createSource').mockResolvedValue({ ...source, id: 'source-2', label: 'Interview transcript' })
     renderStudio('/content/library?panel=sources')

@@ -19,7 +19,9 @@ services:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: BILLING_SIMULATED_CHECKOUT_ENABLED
-        value: "False"
+        sync: false
+      - key: BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS
+        sync: false
       - key: BILLING_WEBHOOK_SECRET
         generateValue: true
       - key: WORKER_WAKE_TOKEN

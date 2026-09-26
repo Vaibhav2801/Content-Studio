@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { billingApi } from '../../api/billingApi'
 import { contentStudioApi } from '../../api/contentStudio'
 import { contentStudioMockHome } from '../../api/contentStudioMock'
@@ -33,6 +33,7 @@ import { CONTENT_STUDIO_NAV, type ContentStudioSection } from '../../types/conte
 import { useContentStudio } from './ContentStudioContext'
 import { useOptionalAuth } from './AuthContext'
 import { AskAIButton } from './ai/AskAIFloatingButton'
+import { useToast } from '../notifications/useToast'
 
 const icons: Record<ContentStudioSection, LucideIcon> = {
   home: Home,
@@ -66,10 +67,10 @@ export function ContentStudioShell() {
     generationNotice,
     dismissGenerationNotice,
   } = useContentStudio()
+  const { showToast } = useToast()
   const auth = useOptionalAuth()
   const [summary, setSummary] = useState<HomeSummary | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [signoutError, setSignoutError] = useState('')
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
   const [workspaceNameDraft, setWorkspaceNameDraft] = useState('')
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
@@ -94,6 +95,7 @@ export function ContentStudioShell() {
     feedbackTimers.current.set(control, timer)
   }
   const location = useLocation()
+  const navigate = useNavigate()
   const current = CONTENT_STUDIO_NAV.find((item) => item.path === location.pathname) ?? CONTENT_STUDIO_NAV[0]
   const isOnboarding = location.pathname === '/content/onboarding'
   const pageLabel = isOnboarding ? 'Set up Visiofy Studio' : current.label === 'Home' ? 'Visiofy Studio' : current.label
@@ -104,6 +106,34 @@ export function ContentStudioShell() {
     setSidebarOpen(false)
     setProfileMenuOpen(false)
   }, [location.pathname, location.search])
+
+  useEffect(() => {
+    if (!notice) return
+    const informational = /cancelled|unavailable|later/i.test(notice)
+    showToast({
+      tone: noticeError ? 'error' : informational ? 'info' : 'success',
+      title: noticeError ? 'Something went wrong' : informational ? 'Please note' : 'Done',
+      message: notice,
+      dedupeKey: 'studio-action-notice',
+    })
+    dismissNotice()
+  }, [dismissNotice, notice, noticeError, showToast])
+
+  useEffect(() => {
+    if (!generationNotice) return
+    showToast({
+      tone: generationNotice.isError ? 'error' : 'success',
+      title: generationNotice.isError ? 'Post generation failed' : 'Post ready to review',
+      message: generationNotice.message,
+      duration: 10000,
+      dedupeKey: 'studio-generation-notice',
+      action: generationNotice.postId ? {
+        label: generationNotice.isError ? 'View draft and retry' : 'Review in Composer',
+        onClick: () => navigate(`/content/create?draft=${generationNotice.postId}`),
+      } : undefined,
+    })
+    dismissGenerationNotice()
+  }, [dismissGenerationNotice, generationNotice, navigate, showToast])
 
   useEffect(() => {
     if (!profileMenuOpen) return
@@ -241,7 +271,7 @@ export function ContentStudioShell() {
                   <ChevronRight size={14} />
                 </Link>
               </div>
-              <button className="studio-profile-signout" role="menuitem" type="button" onClick={() => { setProfileMenuOpen(false); void auth.signOut().catch(() => setSignoutError('Could not sign out. Please try again.')) }}>
+              <button className="studio-profile-signout" role="menuitem" type="button" onClick={() => { setProfileMenuOpen(false); void auth.signOut().catch(() => showToast({ tone: 'error', title: 'Sign out failed', message: 'Could not sign out. Please try again.', dedupeKey: 'studio-signout-error' })) }}>
                 <LogOut size={16} /> Sign out
               </button>
             </div>}
@@ -392,25 +422,6 @@ export function ContentStudioShell() {
             {needsAttention && current.section === 'home' && <Link className="content-attention" to="/content/connections"><CircleAlert size={17} /> Needs attention <ChevronRight size={15} /></Link>}
           </div>
           {isDemo && <div className="li-banner neutral"><Sparkles size={17} /><span>Demo data is on. Changes stay in this preview.</span></div>}
-          {signoutError && <div className="li-banner error" role="alert">{signoutError}<button type="button" onClick={() => setSignoutError('')} aria-label="Dismiss sign-out error"><X size={16} /></button></div>}
-          {notice && <div className={`li-banner ${noticeError ? 'error' : 'success'}`} role={noticeError ? 'alert' : 'status'}><span>{notice}</span><button onClick={dismissNotice} aria-label="Dismiss message"><X size={16} /></button></div>}
-          {generationNotice && (
-            <div className={`li-banner ${generationNotice.isError ? 'error' : 'success'}`} role={generationNotice.isError ? 'alert' : 'status'}>
-              <Sparkles size={17} />
-              <span>{generationNotice.message}</span>
-              {generationNotice.postId && (
-                <Link
-                  className="button button-dark"
-                  style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: '0.85rem' }}
-                  to={`/content/create?draft=${generationNotice.postId}`}
-                  onClick={dismissGenerationNotice}
-                >
-                  {generationNotice.isError ? 'View Draft & Retry' : 'Review in Composer'}
-                </Link>
-              )}
-              <button onClick={dismissGenerationNotice} aria-label="Dismiss notification"><X size={16} /></button>
-            </div>
-          )}
           {location.pathname !== '/content/create' &&
             Object.values(activeGenerations)
               .filter((item) => item.status === 'GENERATING')

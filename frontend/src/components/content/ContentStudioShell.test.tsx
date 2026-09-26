@@ -35,6 +35,7 @@ vi.mock('./AuthContext', () => ({
 }))
 
 import { ContentStudioShell } from './ContentStudioShell'
+import { ToastProvider } from '../notifications/ToastProvider'
 
 describe('Visiofy Studio sidebar', () => {
   afterEach(() => {
@@ -45,11 +46,13 @@ describe('Visiofy Studio sidebar', () => {
   it('uses one Create destination and puts account actions in the profile menu', async () => {
     render(
       <MemoryRouter initialEntries={['/content']}>
-        <Routes>
-          <Route path="content" element={<ContentStudioShell />}>
-            <Route index element={<div>Workspace overview</div>} />
-          </Route>
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="content" element={<ContentStudioShell />}>
+              <Route index element={<div>Workspace overview</div>} />
+            </Route>
+          </Routes>
+        </ToastProvider>
       </MemoryRouter>,
     )
 

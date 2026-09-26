@@ -66,14 +66,27 @@ def _require_billing_manager(workspace, user) -> None:
         raise PermissionDenied("Only an active workspace owner or administrator can manage billing.")
 
 
+def _can_use_simulated_checkout(user) -> bool:
+    if not settings.BILLING_SIMULATED_CHECKOUT_ENABLED:
+        return False
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_staff", False):
+        return True
+    email = str(getattr(user, "email", "") or "").strip().lower()
+    return bool(email and email in settings.BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS)
+
+
 class BillingCatalogAPIView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = []
 
     def get(self, request):
         catalog = public_pricing_catalog()
-        catalog["simulated_checkout_enabled"] = bool(settings.BILLING_SIMULATED_CHECKOUT_ENABLED)
-        return Response(catalog)
+        catalog["simulated_checkout_enabled"] = _can_use_simulated_checkout(request.user)
+        response = Response(catalog)
+        response["Cache-Control"] = "private, no-store"
+        response["Vary"] = "Cookie"
+        return response
 
 
 class SubscriptionOverviewAPIView(SocialWorkspaceScopedAPIView):
@@ -119,20 +132,22 @@ class SubscriptionOverviewAPIView(SocialWorkspaceScopedAPIView):
 
 
 class BillingCheckoutAPIView(SocialWorkspaceScopedAPIView):
-    """Staff-only local checkout simulator; real entitlements arrive by webhook."""
+    """Allowlisted test checkout simulator; real entitlements arrive by webhook."""
 
     def post(self, request):
         workspace = self.workspace(request)
         _require_billing_manager(workspace, request.user)
-        if not settings.BILLING_SIMULATED_CHECKOUT_ENABLED or not request.user.is_staff:
+        if not settings.BILLING_SIMULATED_CHECKOUT_ENABLED:
             raise PermissionDenied("Simulated checkout is disabled.")
+        if not _can_use_simulated_checkout(request.user):
+            raise PermissionDenied("This account is not allowed to use simulated checkout.")
         serializer = SimulatedCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         invoice, subscription, account = process_billing_product(
             workspace=workspace, product_id=data["product_id"],
             billing_name=data.get("billing_name", ""), billing_email=data.get("billing_email", ""),
-            payment_method="Staff checkout simulator", payment_reference=f"sim_{uuid.uuid4().hex}",
+            payment_method="Test checkout simulator", payment_reference=f"sim_{uuid.uuid4().hex}",
             provider="simulator", user=request.user,
         )
         return Response({"success": True,

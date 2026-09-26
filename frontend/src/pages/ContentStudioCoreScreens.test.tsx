@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contentOnboardingApi } from '../api/contentOnboarding'
+import { billingApi } from '../api/billingApi'
 import { contentStudioApi } from '../api/contentStudio'
 import { contentStudioMockAnalytics, contentStudioMockApprovals, contentStudioMockCalendar, contentStudioMockConnections, contentStudioMockHome, contentStudioMockLibrary } from '../api/contentStudioMock'
 import { linkedinApi } from '../api/linkedin'
@@ -13,6 +14,7 @@ import { ContentConnectionsView } from '../components/content/views/ContentConne
 import { ContentHomeView } from '../components/content/views/ContentHomeView'
 import { ContentLibraryView } from '../components/content/views/ContentLibraryView'
 import type { ApprovalGroups, HomeSummary, StudioConnection } from '../types/contentStudio'
+import type { SubscriptionOverview } from '../types/billing'
 import { ContentStudioPage } from './ContentStudioPage'
 
 function renderScreen(path: string) {
@@ -243,6 +245,35 @@ describe('Visiofy Studio core screens', () => {
     await waitFor(() => expect(contentOnboardingApi.startConnection).toHaveBeenCalledTimes(1))
     expect(open).toHaveBeenCalledWith('https://social.example/connect', '_self')
     expect(screen.getByText(/continue creating drafts without a connection/i)).toBeInTheDocument()
+  })
+
+  it('shows a temporary warning toast when the connection plan limit is reached', async () => {
+    const freePlan: SubscriptionOverview = {
+      tier: 'FREE',
+      role_label: 'Free',
+      is_admin: false,
+      can_manage_billing: true,
+      connections: { used: 0, limit: 0, unlimited: false, extra_purchased: 0 },
+      credits: { balance: 15, total_allocated: 15, total_used: 0, unlimited: false, cost_per_draft: 2, cost_per_image: 1 },
+      engage_entitled: false,
+      scheduling_unlimited: true,
+      transactions: [],
+      invoices: [],
+    }
+    vi.spyOn(billingApi, 'getSubscription').mockResolvedValue(freePlan)
+    vi.mocked(contentStudioApi.connections).mockResolvedValue([])
+    renderScreen('/content/connections')
+
+    await screen.findByText('Free Plan')
+    const emptyState = screen.getByText('No social accounts yet').closest('.card') as HTMLElement
+    fireEvent.click(within(emptyState).getByRole('button', { name: /Connect LinkedIn/i }))
+
+    const warning = await screen.findByRole('alert')
+    expect(warning).toHaveAttribute('data-tone', 'warning')
+    expect(warning).toHaveTextContent('Connection limit reached')
+    expect(warning).toHaveTextContent('Your Free plan allows 0 connected accounts')
+    expect(screen.getByRole('button', { name: 'View plans and invoices' })).toBeInTheDocument()
+    expect(contentOnboardingApi.startConnection).not.toHaveBeenCalled()
   })
 
   it('shows connection progress only on the social network button that was clicked', async () => {

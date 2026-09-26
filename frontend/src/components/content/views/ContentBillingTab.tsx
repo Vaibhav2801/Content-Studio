@@ -22,6 +22,7 @@ import type {
   CheckoutPayload,
   SubscriptionOverview,
 } from '../../../types/billing'
+import { useToast } from '../../notifications/useToast'
 import './ContentBillingTab.css'
 
 interface Props {
@@ -32,10 +33,10 @@ interface Props {
 type CheckoutAction = 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
 
 export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<SubscriptionOverview | null>(null)
   const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const { catalog } = usePricingCatalog()
 
   // Checkout modal state
@@ -55,11 +56,18 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
       const data = await billingApi.getSubscription()
       setOverview(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load subscription details.')
+      const message = err instanceof Error ? err.message : 'Could not load subscription details.'
+      setError(message)
+      showToast({
+        tone: 'error',
+        title: 'Subscription details unavailable',
+        message,
+        dedupeKey: 'billing-load-error',
+      })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => {
     void loadSubscription()
@@ -67,7 +75,13 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openUpgradeModal = (tier: 'STARTER' | 'ADVANCE') => {
     if (!catalog?.simulated_checkout_enabled) {
-      setSuccessMessage('Secure payment checkout is not configured yet. No plan change was made.')
+      showToast({
+        tone: 'warning',
+        title: 'Checkout unavailable',
+        message: 'Secure payment checkout is not configured yet. No plan change was made.',
+        duration: 8000,
+        dedupeKey: 'billing-checkout-unavailable',
+      })
       return
     }
     setCheckoutAction('UPGRADE_PLAN')
@@ -79,7 +93,13 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openBoosterModal = (credits: number) => {
     if (!catalog?.simulated_checkout_enabled) {
-      setSuccessMessage('Secure payment checkout is not configured yet. No credits were purchased.')
+      showToast({
+        tone: 'warning',
+        title: 'Checkout unavailable',
+        message: 'Secure payment checkout is not configured yet. No credits were purchased.',
+        duration: 8000,
+        dedupeKey: 'billing-checkout-unavailable',
+      })
       return
     }
     setCheckoutAction('BUY_BOOSTER')
@@ -91,7 +111,13 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openConnectionModal = () => {
     if (!catalog?.simulated_checkout_enabled) {
-      setSuccessMessage('Secure payment checkout is not configured yet. No add-on was purchased.')
+      showToast({
+        tone: 'warning',
+        title: 'Checkout unavailable',
+        message: 'Secure payment checkout is not configured yet. No connection add-on was purchased.',
+        duration: 8000,
+        dedupeKey: 'billing-checkout-unavailable',
+      })
       return
     }
     setCheckoutAction('ADD_CONNECTIONS')
@@ -102,7 +128,13 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openEngageModal = () => {
     if (!catalog?.simulated_checkout_enabled) {
-      setSuccessMessage('Secure payment checkout is not configured yet. No add-on was purchased.')
+      showToast({
+        tone: 'warning',
+        title: 'Checkout unavailable',
+        message: 'Secure payment checkout is not configured yet. No Engage add-on was purchased.',
+        duration: 8000,
+        dedupeKey: 'billing-checkout-unavailable',
+      })
       return
     }
     setCheckoutAction('ADD_ENGAGE')
@@ -135,15 +167,29 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
       const res = await billingApi.checkout(payload)
       setNewInvoice(res.invoice)
-      setSuccessMessage(res.message ?? 'Billing change completed.')
+      showToast({
+        tone: 'success',
+        title: 'Billing change completed',
+        message: res.message ?? 'Your plan and usage details have been updated.',
+        dedupeKey: 'billing-checkout-success',
+      })
       await loadSubscription()
       if (onPlanChanged) onPlanChanged()
     } catch (err) {
+      const message = err instanceof BillingApiError
+        ? err.message
+        : 'Payment checkout could not be processed. Please try again.'
       if (err instanceof BillingApiError) {
-        setCheckoutError(err.message)
+        setCheckoutError(message)
       } else {
-        setCheckoutError('Payment checkout could not be processed. Please try again.')
+        setCheckoutError(message)
       }
+      showToast({
+        tone: 'error',
+        title: 'Checkout failed',
+        message,
+        dedupeKey: 'billing-checkout-error',
+      })
     } finally {
       setCheckoutBusy(false)
     }
@@ -191,16 +237,6 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   return (
     <div className="billing-tab-container">
-      {successMessage && (
-        <div className="li-banner success">
-          <CheckCircle2 size={18} />
-          <span>{successMessage}</span>
-          <button type="button" onClick={() => setSuccessMessage('')} aria-label="Dismiss">
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
       {error && <div className="li-banner error">{error}</div>}
 
       {view === 'overview' && <>
@@ -654,7 +690,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <span>{checkoutPlan?.engage ? 'Included & Unlocked' : `Locked ($${engageAddon?.amount ?? '...'}/mo add-on)`}</span>
                       </div>
                       <div className="summary-row total">
-                        <span>Total Due Today:</span>
+                        <span>Test amount (no charge):</span>
                         <span>${checkoutPlan?.price ?? '...'}</span>
                       </div>
                     </div>
@@ -671,7 +707,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <span>Never Expires</span>
                       </div>
                       <div className="summary-row total">
-                        <span>Total Due Today:</span>
+                        <span>Test amount (no charge):</span>
                         <span>
                           ${checkoutBooster?.amount ?? '...'}
                         </span>
@@ -690,7 +726,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <span>${connectionAddon?.amount ?? '...'} / month</span>
                       </div>
                       <div className="summary-row total">
-                        <span>Total Due Today:</span>
+                        <span>Test amount (no charge):</span>
                         <span>${connectionAddon?.amount ?? '...'}</span>
                       </div>
                     </div>
@@ -707,7 +743,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <span>${engageAddon?.amount ?? '...'} / month</span>
                       </div>
                       <div className="summary-row total">
-                        <span>Total Due Today:</span>
+                        <span>Test amount (no charge):</span>
                         <span>${engageAddon?.amount ?? '...'}</span>
                       </div>
                     </div>
@@ -735,7 +771,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#6b7280' }}>
                     <CreditCard size={16} />
-                    <span>Staff test checkout · Production purchases require a signed payment-provider webhook</span>
+                    <span>Allowlisted test checkout · No real payment will be taken</span>
                   </div>
                 </div>
 
@@ -758,7 +794,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <LoaderCircle className="spin" size={15} /> Processing…
                       </>
                     ) : (
-                      'Confirm & Pay'
+                      'Confirm test payment'
                     )}
                   </button>
                 </footer>

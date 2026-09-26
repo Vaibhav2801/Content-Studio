@@ -9,12 +9,14 @@ import type { SubscriptionOverview } from '../../../types/billing'
 import type { StudioConnection } from '../../../types/contentStudio'
 import { useContentStudio } from '../ContentStudioContext'
 import { customerSafeMessage } from '../contentUtils'
+import { useToast } from '../../notifications/useToast'
 
 const networkIcons: Record<string, LucideIcon> = { LINKEDIN: Linkedin, INSTAGRAM: Instagram, X: Link2 }
 type ConnectButton = 'empty-linkedin' | 'options-linkedin' | 'options-instagram'
 
 export function ContentConnectionsView() {
   const studio = useContentStudio()
+  const { showToast } = useToast()
   const { isDemo, onboarding, busy: studioBusy, connectLinkedIn } = studio
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -113,7 +115,12 @@ export function ContentConnectionsView() {
       return true
     } catch (actionError) {
       managerTab?.close()
-      setError(customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : action === 'PREPARE_REMOVE' ? 'Could not open the account manager.' : action === 'REMOVE' ? 'Could not remove this social account.' : 'Could not disconnect this social account.'))
+      showToast({
+        tone: 'error',
+        title: 'Account action failed',
+        message: customerSafeMessage(actionError instanceof Error ? actionError.message : undefined, action === 'RECONNECT' ? 'The social account connection step could not start.' : action === 'PREPARE_REMOVE' ? 'Could not open the account manager.' : action === 'REMOVE' ? 'Could not remove this social account.' : 'Could not disconnect this social account.'),
+        dedupeKey: `connection-${action.toLowerCase()}-error`,
+      })
       return false
     }
     finally { setBusy('') }
@@ -126,9 +133,17 @@ export function ContentConnectionsView() {
       !overview.connections.unlimited &&
       (connections?.length || 0) >= overview.connections.limit
     ) {
-      setError(
-        `Connection limit reached for your plan (${overview.connections.limit} accounts). Upgrade your plan or add an extra connection ($5/mo) in Plan & Invoices.`
-      )
+      showToast({
+        tone: 'warning',
+        title: 'Connection limit reached',
+        message: `Your ${overview.role_label} plan allows ${overview.connections.limit} connected ${overview.connections.limit === 1 ? 'account' : 'accounts'}. Upgrade your plan or add an extra connection in Plan & Invoices.`,
+        duration: 8000,
+        dedupeKey: 'connection-plan-limit',
+        action: {
+          label: 'View plans and invoices',
+          onClick: () => navigate('/content/settings?tab=plan'),
+        },
+      })
       return
     }
     setConnectingButton(button)

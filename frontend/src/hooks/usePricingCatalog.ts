@@ -2,22 +2,17 @@ import { useEffect, useState } from 'react'
 import { billingApi } from '../api/billingApi'
 import type { PricingCatalog } from '../types/billing'
 
-let cachedCatalog: PricingCatalog | null = null
 let pendingCatalog: Promise<PricingCatalog> | null = null
 
 function loadCatalog() {
-  if (cachedCatalog) return Promise.resolve(cachedCatalog)
-  pendingCatalog ??= billingApi.getCatalog().then((catalog) => {
-    cachedCatalog = catalog
-    return catalog
-  }).finally(() => {
+  pendingCatalog ??= billingApi.getCatalog().finally(() => {
     pendingCatalog = null
   })
   return pendingCatalog
 }
 
 export function usePricingCatalog() {
-  const [catalog, setCatalog] = useState<PricingCatalog | null>(cachedCatalog)
+  const [catalog, setCatalog] = useState<PricingCatalog | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
