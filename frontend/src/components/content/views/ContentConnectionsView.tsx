@@ -1,4 +1,4 @@
-import { CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, RefreshCw, ShieldAlert, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Instagram, Linkedin, Link2, LoaderCircle, Plus, RefreshCw, ShieldCheck, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { billingApi } from '../../../api/billingApi'
@@ -190,7 +190,7 @@ export function ContentConnectionsView() {
 
         {!overview.connections.unlimited && (
           <Link
-            to="/content/settings?tab=billing"
+            to="/content/settings?tab=plan"
             className="button button-outline"
             style={{ fontSize: '0.82rem', padding: '6px 14px', textDecoration: 'none' }}
           >
@@ -202,26 +202,62 @@ export function ContentConnectionsView() {
       </div>
     )}
 
-    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Content Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || connectionInProgress} aria-busy={connectingButton === 'empty-linkedin'} onClick={() => void connect('empty-linkedin', 'LINKEDIN')}>{connectingButton === 'empty-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
-    <div className="card content-connect-options">
-      <div className="connect-options-header">
-        <h2>Connect another account</h2>
-        <p>Choose a personal LinkedIn profile or Company Page, or connect an Instagram Business or Creator account.</p>
+    {!connections ? <div className="li-loading" role="status">Loading social accounts…</div> : connections.length === 0 ? <div className="card"><div className="li-empty"><Link2 size={30} /><strong>No social accounts yet</strong><p>Connect LinkedIn or Instagram to publish from Visiofy Studio. You can also continue creating drafts without a connection.</p><button className="button button-dark" type="button" disabled={isDemo || connectionInProgress} aria-busy={connectingButton === 'empty-linkedin'} onClick={() => void connect('empty-linkedin', 'LINKEDIN')}>{connectingButton === 'empty-linkedin' ? <LoaderCircle className="spin" size={16} /> : <Link2 size={16} />} Connect LinkedIn</button></div></div> : <div className="connection-card-grid">{connections.map((connection) => <ConnectionCard connection={connection} busy={busy.startsWith(connection.id) ? busy : ""} onAction={act} key={connection.id} />)}</div>}
+    <div className="card redesigned-connect-options">
+      <div className="connect-options-head">
+        <div className="connect-options-title">
+          <span className="connect-options-icon" aria-hidden="true"><Plus size={20} /></span>
+          <div>
+            <span className="connect-options-eyebrow">ADD A CHANNEL</span>
+            <h2>Connect another account</h2>
+            <p>Bring another social profile into your publishing workspace.</p>
+          </div>
+        </div>
       </div>
-      <div className="connect-options-button-group">
-        <button className="button button-dark connect-platform-btn linkedin" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={connectingButton === 'options-linkedin'} onClick={() => void connect('options-linkedin', 'LINKEDIN')}>
-          {connectingButton === 'options-linkedin' ? <LoaderCircle className="spin" size={18} /> : <Linkedin size={18} />} Connect LinkedIn
-        </button>
-        <button className="button button-dark connect-platform-btn instagram" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={connectingButton === 'options-instagram'} onClick={() => void connect('options-instagram', 'INSTAGRAM')}>
-          {connectingButton === 'options-instagram' ? <LoaderCircle className="spin" size={18} /> : <Instagram size={18} />} Connect Instagram
-        </button>
+
+      <div className="connect-platform-cards">
+        <article className="connect-platform-card linkedin">
+          <div className="platform-card-header">
+            <span className="platform-brand-icon linkedin" aria-hidden="true"><Linkedin size={21} /></span>
+            <div className="platform-card-meta">
+              <strong>LinkedIn</strong>
+              <small>Profile or Company Page</small>
+            </div>
+          </div>
+          <p className="platform-card-desc">Publish professional content to your personal profile or a Company Page you manage.</p>
+          <button className="button connect-platform-action linkedin" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'LINKEDIN' && item.enabled)} aria-busy={connectingButton === 'options-linkedin'} onClick={() => void connect('options-linkedin', 'LINKEDIN')}>
+            {connectingButton === 'options-linkedin' ? <LoaderCircle className="spin" size={17} /> : <Linkedin size={17} />}
+            <span>Connect LinkedIn</span>
+            {connectingButton !== 'options-linkedin' && <ArrowRight className="connect-action-arrow" size={16} />}
+          </button>
+        </article>
+
+        <article className="connect-platform-card instagram">
+          <div className="platform-card-header">
+            <span className="platform-brand-icon instagram" aria-hidden="true"><Instagram size={21} /></span>
+            <div className="platform-card-meta">
+              <strong>Instagram</strong>
+              <small>Business or Creator account</small>
+            </div>
+          </div>
+          <p className="platform-card-desc">Plan and publish visual content through an eligible professional Instagram account.</p>
+          {!onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled) && (
+            <small className="platform-unavailable-hint">Available after your publishing provider is configured.</small>
+          )}
+          <button className="button connect-platform-action instagram" type="button" disabled={isDemo || connectionInProgress || !onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled)} aria-busy={connectingButton === 'options-instagram'} onClick={() => void connect('options-instagram', 'INSTAGRAM')}>
+            {connectingButton === 'options-instagram' ? <LoaderCircle className="spin" size={17} /> : <Instagram size={17} />}
+            <span>Connect Instagram</span>
+            {connectingButton !== 'options-instagram' && <ArrowRight className="connect-action-arrow" size={16} />}
+          </button>
+        </article>
       </div>
-      {!onboarding.networks.some((item) => item.network === 'INSTAGRAM' && item.enabled) && (
-        <small className="connect-options-disabled-hint">Instagram connection is unavailable until the selected publishing provider is configured and healthy.</small>
-      )}
-      <div className="connect-security-badge">
-        <ShieldAlert size={14} />
-        <span>Enterprise 256-bit OAuth authentication. Content Studio never sees or stores your password.</span>
+
+      <div className="connect-security-note">
+        <span className="connect-security-icon" aria-hidden="true"><ShieldCheck size={18} /></span>
+        <div>
+          <strong>Your credentials stay private</strong>
+          <span>Connections use secure OAuth. Visiofy Studio never sees or stores your password.</span>
+        </div>
       </div>
     </div>
   </section>
@@ -260,7 +296,7 @@ function ConnectionCard({ connection, busy, onAction }: { connection: StudioConn
     </div>
     <footer>{confirming ? <div className="connection-disconnect-confirm" role="alertdialog" aria-labelledby={`connection-${connection.id}-title`} aria-describedby={`connection-${connection.id}-description`}>
       <strong id={`connection-${connection.id}-title`}>{confirming === 'REMOVE' ? 'Remove' : 'Disconnect'} {connection.display_name || connection.network_label}?</strong>
-      <p id={`connection-${connection.id}-description`}>{confirming === 'REMOVE' ? providerManaged ? 'Open Upload Post in a new tab and disconnect this account there. Return to this page and verify removal; Content Studio will remove the card only after Upload Post confirms the account is gone. Drafts and published posts stay.' : 'This account will be removed from Content Studio and Zernio, freeing its connected-account slot. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Content Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
+      <p id={`connection-${connection.id}-description`}>{confirming === 'REMOVE' ? providerManaged ? 'Open Upload Post in a new tab and disconnect this account there. Return to this page and verify removal; Visiofy Studio will remove the card only after Upload Post confirms the account is gone. Drafts and published posts stay.' : 'This account will be removed from Visiofy Studio and Zernio, freeing its connected-account slot. Scheduled posts will need a new connection. Drafts and published posts stay.' : 'Visiofy Studio will stop publishing to this account, and scheduled posts will move to Needs attention. Drafts and published posts stay. Revoke the platform grant separately in your social account settings if needed.'}</p>
       <div><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => { sessionStorage.removeItem('pending_account_removal'); setConfirming(null) }}>Keep connected</button>{confirming === 'REMOVE' && providerManaged ? <><button className="li-quiet-button" type="button" disabled={Boolean(busy)} onClick={() => void onAction(connection, 'PREPARE_REMOVE')}>Open account manager</button><button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} Verify removal</button></> : <button className="content-danger-button" type="button" disabled={Boolean(busy)} aria-busy={pending} onClick={() => void confirmAction()}>{pending ? <LoaderCircle className="spin" size={15} /> : <Unlink size={15} />} {confirming === 'REMOVE' ? 'Remove account' : 'Disconnect account'}</button>}</div>
     </div> : <div className="connection-card-actions">
       {disconnected ? <button className="button button-dark" type="button" disabled={Boolean(busy)} aria-busy={busy === `${connection.id}-RECONNECT`} onClick={() => void onAction(connection, 'RECONNECT')}>{busy === `${connection.id}-RECONNECT` ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Reconnect</button> : <button className="li-text-button" type="button" disabled={Boolean(busy)} onClick={() => setConfirming('DISCONNECT')}><Unlink size={15} /> Disconnect</button>}

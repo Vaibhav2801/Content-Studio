@@ -14,7 +14,7 @@
   color: #ffffff;
   font-family: var(--font-geist-sans, 'DM Sans', sans-serif);
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   box-shadow: 0 2px 8px rgba(105, 87, 235, 0.32);
   cursor: pointer;
@@ -69,7 +69,7 @@
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.25);
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -143,7 +143,7 @@
 
 .ask-ai-header-titles strong {
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: #ffffff;
 }
@@ -203,7 +203,7 @@
 
 .ask-ai-context-banner strong {
   color: #5544d6;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Quick suggestions chips */
@@ -234,7 +234,7 @@
   background: #ffffff;
   color: #4b4f69;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -280,7 +280,7 @@
   height: 26px;
   border-radius: 8px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ask-ai-message-row.assistant .ask-ai-msg-avatar {
@@ -323,7 +323,7 @@
 .ask-ai-bubble h3 {
   margin: 0 0 4px;
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 600;
   color: #1e2040;
 }
 
@@ -345,7 +345,7 @@
 }
 
 .ask-ai-bubble strong {
-  font-weight: 700;
+  font-weight: 600;
   color: inherit;
 }
 
@@ -369,7 +369,7 @@
   align-items: center;
   gap: 3px;
   color: #6957eb;
-  font-weight: 650;
+  font-weight: 550;
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
@@ -404,7 +404,7 @@
   background: #f5f3ff;
   color: #5b47db;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }

@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(result)
       setError('')
     } catch {
-      setError('Could not connect to Content Studio. Check the server and try again.')
+      setError('Could not connect to Visiofy Studio. Check the server and try again.')
     } finally {
       setReady(true)
     }

@@ -69,7 +69,7 @@ section[id] {
 
 .landing-announcement strong {
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .sparkle-pulse {
@@ -82,7 +82,7 @@ section[id] {
   align-items: center;
   gap: 4px;
   color: #caaeff;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: underline;
   transition: color 0.15s ease;
 }
@@ -151,14 +151,14 @@ section[id] {
 
 .brand-text strong {
   font-size: 19px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: #211c3e;
 }
 
 .brand-text small {
   font-size: 8.5px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0.18em;
   color: var(--visiofy-primary);
   margin-top: 2px;
@@ -174,7 +174,7 @@ section[id] {
 .landing-signin {
   color: var(--visiofy-text-muted);
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
   text-decoration: none;
   transition: color 0.15s ease;
 }
@@ -200,7 +200,7 @@ section[id] {
   border-radius: 10px;
   background: var(--visiofy-primary);
   color: #ffffff;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 4px 14px rgba(99, 85, 216, 0.25);
@@ -246,7 +246,7 @@ section[id] {
   gap: 8px;
   color: var(--visiofy-primary);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
@@ -268,7 +268,7 @@ section[id] {
   margin: 20px 0 18px;
   font-size: clamp(44px, 4.6vw, 68px);
   line-height: 1.08;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.065em;
   color: #171333;
 }
@@ -309,7 +309,7 @@ section[id] {
   gap: 6px;
   color: var(--visiofy-primary);
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
   transition: transform 0.15s ease;
 }
@@ -335,7 +335,7 @@ section[id] {
   border-radius: 20px;
   color: var(--visiofy-text-muted);
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 550;
   box-shadow: 0 2px 6px rgba(45, 35, 80, 0.04);
 }
 
@@ -381,7 +381,7 @@ section[id] {
   gap: 6px;
   color: #3b3558;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -395,7 +395,7 @@ section[id] {
   color: var(--visiofy-primary);
   border-radius: 4px;
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0.05em;
 }
 
@@ -435,7 +435,7 @@ section[id] {
   border-radius: 7px;
   color: #7f7b95;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -467,7 +467,7 @@ section[id] {
   background: #ecfdf5;
   color: #065f46;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0.02em;
 }
 
@@ -496,7 +496,7 @@ section[id] {
   background: transparent;
   color: #6c6786;
   font-size: 10.5px;
-  font-weight: 750;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -532,7 +532,7 @@ section[id] {
   background: #6355d8;
   color: white;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .mockup-avatar.ig-gradient {
@@ -565,7 +565,7 @@ section[id] {
   display: block;
   margin-top: 4px;
   color: var(--visiofy-primary);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 10px;
 }
 
@@ -576,7 +576,7 @@ section[id] {
   border-top: 1px solid #f3f0f9;
   font-size: 10px;
   color: #7b7794;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .mockup-ig-graphic {
@@ -616,7 +616,7 @@ section[id] {
 .ig-graphic-art h4 {
   margin: 0;
   font-size: 13.5px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -642,7 +642,7 @@ section[id] {
   gap: 5px;
   color: #059669;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .schedule-btn {
@@ -654,7 +654,7 @@ section[id] {
   background: var(--visiofy-primary);
   color: #ffffff;
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .landing-floating-card {
@@ -699,7 +699,7 @@ section[id] {
 .landing-floating-card small {
   display: block;
   font-size: 8.5px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0.1em;
   color: #8c88a2;
 }
@@ -707,7 +707,7 @@ section[id] {
 .landing-floating-card strong {
   display: block;
   font-size: 11.5px;
-  font-weight: 800;
+  font-weight: 650;
   color: #211c3a;
 }
 
@@ -728,7 +728,7 @@ section[id] {
 .strip-title {
   color: #9f9baa;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.18em;
   text-align: center;
 }
@@ -747,7 +747,7 @@ section[id] {
   gap: 8px;
   color: #4b4666;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .strip-item svg {
@@ -845,14 +845,14 @@ section[id] {
 .outcome-audience {
   color: #8c88a4;
   font-size: 10.5px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.12em;
 }
 
 .outcome-card h3 {
   margin: 0 0 10px;
   font-size: 19px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: #1a1636;
 }
@@ -878,7 +878,7 @@ section[id] {
   gap: 8px;
   color: #4b4666;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .outcome-points svg {
@@ -935,14 +935,14 @@ section[id] {
 .feature-tag {
   color: #9e9aa8;
   font-size: 8.5px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.12em;
 }
 
 .feature-box h3 {
   margin: 0 0 8px;
   font-size: 17px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: #1f1b39;
 }
@@ -966,7 +966,7 @@ section[id] {
 .feature-sublist span {
   font-size: 10.5px;
   color: #797593;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 /* ==========================================================================
@@ -990,7 +990,7 @@ section[id] {
 .landing-workflow-header h2 {
   margin: 12px 0 10px;
   font-size: clamp(32px, 3.5vw, 44px);
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.05em;
   color: #1a1638;
 }
@@ -1023,7 +1023,7 @@ section[id] {
   color: #4b4667;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(8px);
@@ -1045,7 +1045,7 @@ section[id] {
 
 .workflow-tab-num {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   opacity: 0.85;
 }
 
@@ -1082,7 +1082,7 @@ section[id] {
   background: var(--visiofy-primary-light);
   color: var(--visiofy-primary);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.08em;
   margin-bottom: 14px;
 }
@@ -1090,7 +1090,7 @@ section[id] {
 .workflow-slide-title {
   margin: 0 0 8px;
   font-size: clamp(24px, 2.4vw, 32px);
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: #1a1638;
 }
@@ -1098,7 +1098,7 @@ section[id] {
 .workflow-slide-subtitle {
   margin: 0 0 14px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--visiofy-primary);
   line-height: 1.45;
 }
@@ -1158,7 +1158,7 @@ section[id] {
   color: #312b4e;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1224,7 +1224,7 @@ section[id] {
 
 .mockup-header-bar strong {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   color: #1e1939;
   flex: 1;
 }
@@ -1241,7 +1241,7 @@ section[id] {
 
 .mockup-pill-badge {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
   padding: 3px 9px;
   border-radius: 12px;
   background: #f1edfb;
@@ -1260,7 +1260,7 @@ section[id] {
 .mockup-forbidden-box small {
   display: block;
   font-size: 9.5px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: #8c86a3;
   margin-bottom: 6px;
@@ -1276,7 +1276,7 @@ section[id] {
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 600;
   background: #ede8f8;
   color: #3b3260;
 }
@@ -1297,7 +1297,7 @@ section[id] {
 .mockup-forbidden-box p {
   margin: 0;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: #c53030;
 }
 
@@ -1346,7 +1346,7 @@ section[id] {
   align-items: center;
   gap: 5px;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   color: var(--visiofy-primary);
   margin-bottom: 4px;
 }
@@ -1361,7 +1361,7 @@ section[id] {
 .bubble-reply {
   font-size: 10.5px;
   color: #065f46;
-  font-weight: 750;
+  font-weight: 600;
   background: #ecfdf5;
   padding: 4px 8px;
   border-radius: 4px;
@@ -1400,7 +1400,7 @@ section[id] {
   align-items: center;
   gap: 5px;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   color: #6d6787;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -1409,7 +1409,7 @@ section[id] {
 .pane-lead {
   margin: 0 0 4px;
   font-size: 11.5px;
-  font-weight: 750;
+  font-weight: 600;
   color: #1a1638;
   line-height: 1.35;
 }
@@ -1430,7 +1430,7 @@ section[id] {
 .pane-hashtags {
   font-size: 10px;
   color: var(--visiofy-primary);
-  font-weight: 700;
+  font-weight: 600;
   margin-top: auto;
 }
 
@@ -1445,7 +1445,7 @@ section[id] {
   border-radius: 6px;
   color: #ffffff;
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 600;
   margin-bottom: 6px;
 }
 
@@ -1481,7 +1481,7 @@ section[id] {
 
 .campaign-status {
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   color: #065f46;
   background: #ecfdf5;
   padding: 3px 8px;
@@ -1505,7 +1505,7 @@ section[id] {
 
 .node-num {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   color: var(--visiofy-primary);
   width: 22px;
   height: 22px;
@@ -1534,7 +1534,7 @@ section[id] {
 
 .node-state.done {
   font-size: 9.5px;
-  font-weight: 800;
+  font-weight: 650;
   padding: 2px 7px;
   border-radius: 8px;
   background: #ecfdf5;
@@ -1589,7 +1589,7 @@ section[id] {
   border: 1px solid #ebe5f6;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: #2b254a;
 }
 
@@ -1638,7 +1638,7 @@ section[id] {
   background: linear-gradient(135deg, #7c6cf0, #4f3ec2);
   color: #ffffff;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -1663,7 +1663,7 @@ section[id] {
 
 .lead-tag.high {
   font-size: 9.5px;
-  font-weight: 850;
+  font-weight: 700;
   color: #b45309;
   background: #fef3c7;
   padding: 2px 7px;
@@ -1689,7 +1689,7 @@ section[id] {
   align-items: center;
   gap: 5px;
   font-size: 10.5px;
-  font-weight: 850;
+  font-weight: 700;
   color: var(--visiofy-primary);
   margin-bottom: 6px;
 }
@@ -1710,7 +1710,7 @@ section[id] {
   padding: 5px 10px;
   border-radius: 6px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -1770,13 +1770,13 @@ section[id] {
   background: var(--visiofy-primary);
   color: #ffffff;
   font-size: 9px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.1em;
 }
 
 .landing-plan-name {
   font-size: 20px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: #1c1837;
 }
@@ -1932,7 +1932,7 @@ section[id] {
 .faq-question h4 {
   margin: 0;
   font-size: 15.5px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -0.02em;
   color: #1e1a38;
 }
@@ -1997,7 +1997,7 @@ section[id] {
 
 .support-form label span {
   font-size: 12.5px;
-  font-weight: 750;
+  font-weight: 600;
   color: #241f43;
 }
 
@@ -2041,7 +2041,7 @@ section[id] {
   width: 100%;
   min-height: 48px;
   font-size: 14.5px;
-  font-weight: 750;
+  font-weight: 600;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(99, 85, 216, 0.25);
   transition: transform 0.16s ease, box-shadow 0.16s ease;
@@ -2056,6 +2056,19 @@ section[id] {
   text-align: center;
   color: #8c87a5;
   font-size: 12px;
+}
+
+.support-form-error {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .support-success-box {
@@ -2080,7 +2093,7 @@ section[id] {
 .support-success-box h4 {
   margin: 0 0 8px;
   font-size: 20px;
-  font-weight: 850;
+  font-weight: 700;
   color: #1a1638;
 }
 
@@ -2148,7 +2161,7 @@ section[id] {
 
 .landing-secondary.light-theme {
   color: #d1c8fa;
-  font-weight: 750;
+  font-weight: 600;
   font-size: 14px;
 }
 
@@ -2193,7 +2206,7 @@ section[id] {
   color: #065f46;
   border-radius: 20px;
   font-size: 10.5px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .status-dot-pulse {
@@ -2213,7 +2226,7 @@ section[id] {
   margin: 0 0 6px;
   color: #211c3c;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .footer-nav-col a {

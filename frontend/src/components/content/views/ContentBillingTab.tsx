@@ -26,11 +26,12 @@ import './ContentBillingTab.css'
 
 interface Props {
   onPlanChanged?: () => void
+  view?: 'overview' | 'invoices'
 }
 
 type CheckoutAction = 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
 
-export function ContentBillingTab({ onPlanChanged }: Props) {
+export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<SubscriptionOverview | null>(null)
   const [error, setError] = useState('')
@@ -202,6 +203,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
 
       {error && <div className="li-banner error">{error}</div>}
 
+      {view === 'overview' && <>
       {/* Plan Hero Banner */}
       <section className="billing-hero-card">
         <div className="billing-hero-info">
@@ -232,7 +234,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
               ? `Multi-channel scaling with ${advancePlan?.credits ?? '...'} AI credits/mo, full Engage feature suite, and unlimited scheduling.`
               : isStarter
               ? `${starterPlan?.connections ?? '...'} social connection, ${starterPlan?.credits ?? '...'} AI credits/mo, unlimited scheduling. Easily scale up anytime.`
-              : `Explore Content Studio drafting with ${freePlan?.credits ?? '...'} AI credits. Upgrade to connect social channels and schedule live posts.`}
+              : `Explore Visiofy Studio drafting with ${freePlan?.credits ?? '...'} AI credits. Upgrade to connect social channels and schedule live posts.`}
           </p>
         </div>
 
@@ -504,9 +506,10 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
           </div>
         </section>
       )}
+      </>}
 
       {/* Invoices & Receipts Section */}
-      <section className="billing-invoices-card">
+      {view === 'invoices' && <section className="billing-invoices-card">
         <div className="billing-boosters-header">
           <div>
             <h3>Billing Invoices & Receipts</h3>
@@ -568,7 +571,7 @@ export function ContentBillingTab({ onPlanChanged }: Props) {
             </table>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Checkout Modal */}
       {showCheckout && (

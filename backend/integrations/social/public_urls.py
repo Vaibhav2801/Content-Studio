@@ -55,6 +55,7 @@ from integrations.social.engagement_views import (
     EngagementReviewDetailAPIView,
     EngagementTestTriggerAPIView,
 )
+from integrations.social.support_views import SupportRequestAPIView
 from integrations.social.billing_views import (
     BillingCatalogAPIView,
     BillingCheckoutAPIView,
@@ -65,6 +66,7 @@ from integrations.social.billing_views import (
 
 
 urlpatterns = [
+    path("support/", SupportRequestAPIView.as_view(), name="social-support-request"),
     path("media/<uuid:asset_id>/", SocialPublicMediaAPIView.as_view(), name="social-media-public"),
     path("brand-brain/", BrandBrainAPIView.as_view(), name="social-brand-brain"),
     path("brand-brain/suggestions/<uuid:suggestion_id>/", BrandVoiceSuggestionAPIView.as_view(), name="social-brand-voice-suggestion"),

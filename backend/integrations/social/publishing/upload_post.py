@@ -169,7 +169,7 @@ class UploadPostProvider(PublishingProvider):
                 "show_calendar": False,
                 "connect_title": "Social account connection",
                 "connect_description": "Connect the social account used for publishing.",
-                "redirect_button_text": "Return to Content Studio",
+                "redirect_button_text": "Return to Visiofy Studio",
             },
             allowed_statuses={200},
         )

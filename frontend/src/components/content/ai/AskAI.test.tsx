@@ -66,7 +66,7 @@ describe('Ask AI Floating Assistant', () => {
     fireEvent.click(screen.getByRole('button', { name: /Open Ask AI Assistant/i }))
 
     // Type query
-    const input = screen.getByLabelText(/Ask a question about Content Studio/i)
+    const input = screen.getByLabelText(/Ask a question about Visiofy Studio/i)
     fireEvent.change(input, { target: { value: 'How does the composer work?' } })
 
     const sendBtn = screen.getByRole('button', { name: /Send message/i })
@@ -117,7 +117,7 @@ describe('Ask AI Floating Assistant', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Open Ask AI Assistant/i }))
 
-    const input = screen.getByLabelText(/Ask a question about Content Studio/i)
+    const input = screen.getByLabelText(/Ask a question about Visiofy Studio/i)
     fireEvent.change(input, { target: { value: 'Test message' } })
     fireEvent.click(screen.getByRole('button', { name: /Send message/i }))
 

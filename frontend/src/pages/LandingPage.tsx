@@ -32,6 +32,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
 import { usePricingCatalog } from '../hooks/usePricingCatalog'
+import { supportApi } from '../api/supportApi'
 import './LandingPage.css'
 
 const planPresentation = {
@@ -141,25 +142,26 @@ export function LandingPage() {
   })
   const [supportSubmitted, setSupportSubmitted] = useState(false)
   const [supportBusy, setSupportBusy] = useState(false)
+  const [supportError, setSupportError] = useState('')
 
-  const handleSupportSubmit = (e: React.FormEvent) => {
+  const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!supportForm.name.trim() || !supportForm.email.trim() || !supportForm.message.trim()) return
     setSupportBusy(true)
-
-    const subject = encodeURIComponent(`[Visiofy Studio Support] ${supportForm.category} from ${supportForm.name.trim()}`)
-    const body = encodeURIComponent(
-      `Name: ${supportForm.name.trim()}\nEmail: ${supportForm.email.trim()}\nTopic: ${supportForm.category}\n\nQuestion / Message:\n${supportForm.message.trim()}\n\n---\nSent from Visiofy Studio Support Form`
-    )
-    const mailtoUrl = `mailto:visiofytech@gmail.com?subject=${subject}&body=${body}`
-
-    // Trigger user mail client to send to visiofytech@gmail.com
-    window.open(mailtoUrl, '_blank')
-
-    setTimeout(() => {
-      setSupportBusy(false)
+    setSupportError('')
+    try {
+      await supportApi.submit({
+        name: supportForm.name.trim(),
+        email: supportForm.email.trim(),
+        category: supportForm.category,
+        message: supportForm.message.trim(),
+      })
       setSupportSubmitted(true)
-    }, 400)
+    } catch (error) {
+      setSupportError(error instanceof Error ? error.message : 'Unable to send your message. Please try again.')
+    } finally {
+      setSupportBusy(false)
+    }
   }
 
   const handleResetSupport = () => {
@@ -170,6 +172,7 @@ export function LandingPage() {
       message: '',
     })
     setSupportSubmitted(false)
+    setSupportError('')
   }
 
   const faqs = [
@@ -1173,10 +1176,10 @@ export function LandingPage() {
                   <div className="success-icon-wrap">
                     <Check size={28} />
                   </div>
-                  <h4>Message Initiated!</h4>
+                  <h4>Message sent!</h4>
                   <p>
-                    Thank you, <strong>{supportForm.name}</strong>. Your message to{' '}
-                    <strong>visiofytech@gmail.com</strong> has been initiated via your mail client.
+                    Thank you, <strong>{supportForm.name}</strong>. Your message was delivered to{' '}
+                    <strong>visiofytech@gmail.com</strong>.
                   </p>
                   <p className="success-subtext">
                     You can also email us directly at{' '}
@@ -1239,8 +1242,9 @@ export function LandingPage() {
                   </label>
 
                   <div className="support-form-actions">
+                    {supportError && <p className="support-form-error" role="alert">{supportError}</p>}
                     <button type="submit" className="landing-primary support-submit-btn" disabled={supportBusy}>
-                      {supportBusy ? 'Preparing...' : 'Send Message to visiofytech@gmail.com'} <Send size={15} />
+                      {supportBusy ? 'Sending...' : 'Send Message to visiofytech@gmail.com'} <Send size={15} />
                     </button>
                     <small className="support-form-hint">
                       Delivered directly to visiofytech@gmail.com

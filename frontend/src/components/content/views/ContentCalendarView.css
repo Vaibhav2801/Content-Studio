@@ -54,7 +54,7 @@
 
 .content-studio .calendar-stat-count {
   font-size: 1.35rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
   line-height: 1.15;
 }
@@ -62,7 +62,7 @@
 .content-studio .calendar-stat-label {
   font-size: 0.72rem;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -130,7 +130,7 @@
   background: transparent;
   color: #4f46e5;
   font-size: 0.82rem;
-  font-weight: 650;
+  font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -150,7 +150,7 @@
   border-radius: 7px;
   color: #334155;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .content-studio .calendar-date-input-wrapper input[type="date"] {
@@ -177,7 +177,7 @@
   background: transparent;
   color: #64748b;
   font-size: 0.82rem;
-  font-weight: 650;
+  font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -197,7 +197,7 @@
   background: #f8fafc;
   color: #64748b;
   font-size: 0.74rem;
-  font-weight: 500;
+  font-weight: 400;
   border: 1px solid #e2e8f0;
 }
 
@@ -229,7 +229,7 @@
   background: #ffffff;
   color: #475569;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -349,7 +349,7 @@
 
 .content-studio .calendar-day-name {
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -357,7 +357,7 @@
 
 .content-studio .calendar-day-num {
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
   display: inline-grid;
   place-items: center;
@@ -374,7 +374,7 @@
 
 .content-studio .calendar-today-badge {
   font-size: 0.65rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   color: #4338ca;
   background: #e0e7ff;
@@ -394,7 +394,7 @@
   background: #f1f5f9;
   color: #64748b;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .content-studio .calendar-drop-day.is-today .calendar-day-count {
@@ -432,7 +432,7 @@
   background: transparent;
   color: #94a3b8;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
@@ -483,7 +483,7 @@
   padding: 2px 7px;
   border-radius: 6px;
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .content-studio .calendar-network-chip.linkedin {
@@ -508,7 +508,7 @@
   gap: 3px;
   color: #64748b;
   font-size: 0.71rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Card Body - Topic & Optional Thumbnail */
@@ -544,7 +544,7 @@
 /* Topic Title - NEVER CUT OFF ABRUPTLY */
 .content-studio .calendar-card-title {
   font-size: 0.82rem !important;
-  font-weight: 650 !important;
+  font-weight: 550 !important;
   color: #0f172a !important;
   line-height: 1.38 !important;
   white-space: normal !important;
@@ -580,7 +580,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   font-size: 0.66rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 
@@ -676,7 +676,7 @@
 .content-studio .calendar-modal-header h3 {
   margin: 0 0 6px;
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
   line-height: 1.35;
 }
@@ -749,7 +749,7 @@
   background: #eef2ff;
   color: #4338ca;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .content-studio .calendar-modal-meta-grid {
@@ -770,7 +770,7 @@
 
 .content-studio .calendar-modal-meta-item span {
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   color: #94a3b8;
   text-transform: uppercase;
 }
@@ -778,7 +778,7 @@
 .content-studio .calendar-modal-meta-item strong {
   font-size: 0.84rem;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .content-studio .calendar-modal-reschedule {
@@ -793,7 +793,7 @@
 
 .content-studio .calendar-modal-reschedule label {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #3730a3;
   display: flex;
   align-items: center;
@@ -864,7 +864,7 @@
 .content-studio .calendar-list-header h3 {
   margin: 0 0 2px !important;
   font-size: 1rem !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   color: #0f172a !important;
 }
 
@@ -880,7 +880,7 @@
   background: #f1f5f9;
   color: #475569;
   font-size: 0.74rem;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .content-studio .schedule-list {
@@ -924,7 +924,7 @@
   display: grid;
   place-items: center;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 650;
   flex-shrink: 0;
 }
 
@@ -961,7 +961,7 @@
 
 .content-studio .schedule-row strong {
   font-size: 0.88rem !important;
-  font-weight: 650 !important;
+  font-weight: 550 !important;
   color: #0f172a !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -1013,7 +1013,7 @@
   background: #ffffff !important;
   color: #334155 !important;
   font-size: 0.8rem !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
 }
@@ -1035,7 +1035,7 @@
   background: #0f172a !important;
   color: #ffffff !important;
   font-size: 0.8rem !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
 }

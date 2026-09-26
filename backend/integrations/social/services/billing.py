@@ -514,7 +514,7 @@ def _unsafe_legacy_process_checkout(
             amount=total_amount,
             currency="USD",
             status="PAID",
-            title=invoice_title or "Content Studio Service Checkout",
+            title=invoice_title or "Visiofy Studio Service Checkout",
             line_items=line_items,
             payment_method=payment_method,
             billing_name=billing_name or subscription.billing_name or workspace.name,
@@ -823,8 +823,8 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
   <div class="invoice-card">
     <div class="header">
       <div>
-        <div class="brand">✦ content studio</div>
-        <div style="font-size: 13px; color: #726e85; margin-top: 4px;">Content Studio Platform Inc.</div>
+        <div class="brand">✦ Visiofy Studio</div>
+        <div style="font-size: 13px; color: #726e85; margin-top: 4px;">Visiofy Studio Platform Inc.</div>
       </div>
       <div style="text-align: right;">
         <div class="badge">PAID</div>
@@ -867,7 +867,7 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
     </div>
 
     <div class="footer-note">
-      Thank you for building your audience with Content Studio. For support or enterprise billing questions, contact support@contentstudio.com.
+      Thank you for building your audience with Visiofy Studio. For support or enterprise billing questions, contact support@contentstudio.com.
     </div>
   </div>
 </body>

@@ -218,7 +218,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       setOnboarding(null)
       setSettingsDraft(null)
       setIsDemo(false)
-      setLoadError(customerSafeMessage(error instanceof Error ? error.message : undefined, 'Could not load Content Studio.'))
+      setLoadError(customerSafeMessage(error instanceof Error ? error.message : undefined, 'Could not load Visiofy Studio.'))
     }
   }
 
@@ -315,7 +315,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       const saved = isDemo ? settingsDraft : await linkedinApi.saveSettings(settingsDraft)
       setDashboard((current) => current ? { ...current, settings: saved } : current)
       setSettingsDraft(saved)
-      setNotice(isDemo ? 'Demo settings updated for this visit.' : 'Content Studio settings saved.')
+      setNotice(isDemo ? 'Demo settings updated for this visit.' : 'Visiofy Studio settings saved.')
       return true
     } catch (error) { fail(error, 'Could not save settings.'); return false }
     finally { setBusy('') }
@@ -444,7 +444,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   }
 
   if (loadError) return <div className="li-loading" role="alert">{loadError}<button className="button button-dark" type="button" onClick={() => void load()}>Try again</button></div>
-  if (!dashboard || !settingsDraft || !onboarding) return <div className="li-loading" role="status">Loading Content Studio…</div>
+  if (!dashboard || !settingsDraft || !onboarding) return <div className="li-loading" role="status">Loading Visiofy Studio…</div>
 
   return <ContentStudioContext.Provider value={{
     dashboard, onboarding, settingsDraft, selected, selectedId, selectedBriefId, context, contextLabel, saveContext,

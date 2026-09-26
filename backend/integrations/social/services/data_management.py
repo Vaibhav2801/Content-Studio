@@ -58,7 +58,7 @@ def require_workspace_admin(user, workspace):
 def require_workspace_owner(user, workspace):
     membership = _membership_for(user, workspace)
     if membership and membership.role != WorkspaceMembership.OWNER:
-        raise PermissionDenied("Only the workspace owner can delete Content Studio data.")
+        raise PermissionDenied("Only the workspace owner can delete Visiofy Studio data.")
 
 
 def _iso(value):
@@ -252,7 +252,7 @@ def delete_workspace_content(*, workspace, actor):
         status__in=ACTIVE_DELETE_BLOCKERS,
     ).exists():
         raise ValidationError(
-            "Wait for posts currently being published to finish before deleting Content Studio data."
+            "Wait for posts currently being published to finish before deleting Visiofy Studio data."
         )
     counts = {
         "posts": SocialPost.objects.filter(workspace=workspace).count(),

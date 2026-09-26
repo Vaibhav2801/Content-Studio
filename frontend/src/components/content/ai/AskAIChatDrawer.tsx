@@ -34,7 +34,7 @@ const INITIAL_GREETING: ChatMessage = {
   id: 'greeting',
   role: 'assistant',
   content:
-    '👋 **Hello! I am your Content Studio AI Assistant.**\n\nAsk me anything about creating posts, setting up social connections, using Brand Brain, managing approvals, reviewing analytics, or navigating the platform!',
+    '👋 **Hello! I am your Visiofy Studio AI Assistant.**\n\nAsk me anything about creating posts, setting up social connections, using Brand Brain, managing approvals, reviewing analytics, or navigating the platform!',
   timestamp: Date.now(),
   suggestions: DEFAULT_QUICK_SUGGESTIONS,
   actions: [
@@ -69,7 +69,7 @@ export function AskAIChatDrawer({ isOpen, onClose }: AskAIChatDrawerProps) {
   const currentPageName =
     location.pathname === '/content/onboarding'
       ? 'Setup & Onboarding'
-      : currentNav?.label || 'Content Studio'
+      : currentNav?.label || 'Visiofy Studio'
 
   // Persist messages in session storage
   useEffect(() => {
@@ -426,7 +426,7 @@ export function AskAIChatDrawer({ isOpen, onClose }: AskAIChatDrawerProps) {
             onKeyDown={handleKeyDown}
             placeholder={`Ask about ${currentPageName} or any feature…`}
             className="ask-ai-textarea"
-            aria-label="Ask a question about Content Studio"
+            aria-label="Ask a question about Visiofy Studio"
           />
           <button
             type="submit"

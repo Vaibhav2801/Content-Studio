@@ -59,7 +59,7 @@
 
 .engage-safety-copy strong {
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
   color: #143d28;
 }
 
@@ -95,7 +95,7 @@
   background: transparent;
   color: #5d6379;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.18s ease;
@@ -110,7 +110,7 @@
 .engage-tab-btn[aria-current="page"] {
   color: #5140d4;
   background: #ffffff;
-  font-weight: 650;
+  font-weight: 550;
   box-shadow: 0 2px 8px rgba(81, 64, 212, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
@@ -125,7 +125,7 @@
   background: #ece8ff;
   color: #5b47e0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
@@ -147,7 +147,7 @@
   color: #1d4d33;
   box-shadow: 0 12px 36px rgba(24, 26, 53, 0.14);
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   animation: page-in 0.25s ease-out;
 }
 
@@ -190,7 +190,7 @@
   background: #fdf2f0;
   color: #9c2e21;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -225,7 +225,7 @@
   background: #ede9fe;
   color: #6366f1;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -239,7 +239,7 @@
   margin: 0 0 8px;
   color: #0f172a;
   font-size: clamp(24px, 2.2vw, 28px);
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
@@ -316,7 +316,7 @@
 
 .metric-value {
   font-size: 20px;
-  font-weight: 750;
+  font-weight: 600;
   color: #0f172a;
   line-height: 1.15;
 }
@@ -324,7 +324,7 @@
 .metric-label {
   font-size: 11.5px;
   color: #64748b;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* --------------------------------------------------------------------------
@@ -369,7 +369,7 @@
   background: transparent;
   color: #64748b;
   font-size: 12.5px;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.16s ease;
 }
@@ -382,7 +382,7 @@
 .engage-pill-btn.active {
   background: #ffffff;
   color: #4f46e5;
-  font-weight: 650;
+  font-weight: 550;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
@@ -397,7 +397,7 @@
   background: #e0e7ff;
   color: #4338ca;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .engage-pill-btn.active .pill-count {
@@ -464,7 +464,7 @@
   background: #ffffff;
   color: #334155;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 400;
   appearance: none;
   cursor: pointer;
   text-overflow: ellipsis;
@@ -607,7 +607,7 @@
   height: 42px;
   border-radius: 12px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: #ffffff;
   flex-shrink: 0;
 }
@@ -659,14 +659,14 @@
 .card-author-name {
   color: #0f172a;
   font-size: 14.5px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
 }
 
 .card-author-handle {
   color: #64748b;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .card-meta-line {
@@ -685,7 +685,7 @@
   background: #f1f5f9;
   color: #475569;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -719,7 +719,7 @@
   padding: 3px 9px;
   border-radius: 8px;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .card-kind-badge.kind-story-reply {
@@ -762,7 +762,7 @@
   background: #fee2e2;
   color: #b91c1c;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Inbound Chat Bubble */
@@ -780,7 +780,7 @@
 
 .inbound-source-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #64748b;
@@ -801,7 +801,7 @@
   font-size: 13.5px;
   line-height: 1.5;
   word-break: break-word;
-  font-weight: 450;
+  font-weight: 400;
 }
 
 /* Visual Connector between Inbound and AI */
@@ -827,7 +827,7 @@
   background: #f1f5f9;
   color: #64748b;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -869,7 +869,7 @@
 
 .ai-header-title {
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: #4f46e5;
 }
 
@@ -882,14 +882,14 @@
 .ai-char-count {
   font-size: 11px;
   color: #94a3b8;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .ai-status-tag {
   padding: 2px 7px;
   border-radius: 999px;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ai-status-tag.ready {
@@ -939,7 +939,7 @@
 
 .quick-toolbar-label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: #64748b;
   margin-right: 2px;
 }
@@ -954,7 +954,7 @@
   background: #ffffff;
   color: #475569;
   font-size: 11.5px;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1007,7 +1007,7 @@
   background: #ffffff;
   color: #334155;
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   appearance: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1036,7 +1036,7 @@
   background: #ffffff;
   color: #64748b;
   font-size: 11.5px;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1065,7 +1065,7 @@
   background: transparent;
   color: #64748b;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1082,7 +1082,7 @@
   background: #ffffff;
   color: #475569;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1108,7 +1108,7 @@
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #ffffff;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
   transition: all 0.16s ease;
@@ -1173,7 +1173,7 @@
 .engage-empty-state h3 {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -1191,7 +1191,7 @@
   background: #ffffff;
   color: #4338ca;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1237,7 +1237,7 @@
 .quick-form-header strong {
   display: block;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: #201a4f;
 }
 
@@ -1259,7 +1259,7 @@
   flex-direction: column;
   gap: 6px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: #444062;
 }
 
@@ -1277,7 +1277,7 @@
   background: #ffffff;
   color: #20243c;
   font-size: 13px;
-  font-weight: 450;
+  font-weight: 400;
   outline: 0;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -1316,7 +1316,7 @@
 .campaign-audience-picker legend {
   padding: 0 6px;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 550;
   color: #4a456c;
 }
 
@@ -1361,7 +1361,7 @@
 
 .contact-checkbox-info strong {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #24223d;
 }
 
@@ -1411,7 +1411,7 @@
 .automation-kind-card strong {
   color: #23273e;
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .automation-kind-card span {
@@ -1472,7 +1472,7 @@
 .automation-type-tag {
   color: #6350e0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1481,7 +1481,7 @@
   margin: 0;
   color: #1e2238;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .automation-guard-note {
@@ -1511,12 +1511,12 @@
 
 .detail-key {
   color: #82889e;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .detail-val {
   color: #3b4056;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .automation-owner {
@@ -1529,7 +1529,7 @@
 
 .automation-runs-count {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: #383e54;
 }
 
@@ -1541,7 +1541,7 @@
 .automation-error-tag {
   font-size: 11.5px;
   color: #c93b29;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .automation-state,
@@ -1549,7 +1549,7 @@
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 550;
   white-space: nowrap;
 }
 
@@ -1613,7 +1613,7 @@
 
 .campaign-guardrail strong {
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
   color: #154228;
 }
 
@@ -1663,7 +1663,7 @@
   margin: 0;
   color: #1e2238;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .campaign-audience-label {
@@ -1699,7 +1699,7 @@
   background: #ebe7ff;
   color: #5d48e2;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   margin-top: 1px;
 }
 
@@ -1713,7 +1713,7 @@
 .timeline-step-body strong {
   color: #2b3047;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   word-break: break-word;
 }
@@ -1745,7 +1745,7 @@
 
 .meta-value {
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
   color: #24283f;
 }
 
@@ -1763,7 +1763,7 @@
   width: 100%;
   min-height: 38px;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 /* --------------------------------------------------------------------------
@@ -1789,13 +1789,13 @@
 .metric-title {
   color: #697086;
   font-size: 12.5px;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .metric-number {
   color: #1a1e33;
   font-size: 28px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
@@ -1834,7 +1834,7 @@
   margin: 0 0 4px;
   color: #1e2238;
   font-size: 15.5px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .analytics-card-header p {
@@ -1863,7 +1863,7 @@
 .engage-bar-label {
   color: #3f4459;
   font-size: 12.5px;
-  font-weight: 550;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1886,7 +1886,7 @@
 .engage-bar-count {
   color: #1e2238;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
   text-align: right;
 }
 
@@ -1917,7 +1917,7 @@
   background: #ede8ff;
   color: #5c47e2;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -1932,7 +1932,7 @@
 .team-member-info strong {
   color: #22263d;
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .team-waiting-tag {
@@ -1943,7 +1943,7 @@
 .team-role-tag {
   color: #63697e;
   font-size: 11.5px;
-  font-weight: 550;
+  font-weight: 500;
   padding: 2px 7px;
   border-radius: 6px;
   background: #f3f4f8;
@@ -1969,7 +1969,7 @@
   background: #eef8f2;
   color: #216a3f;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .linkedin-limit {
@@ -1999,7 +1999,7 @@
 .linkedin-limit-col strong {
   color: #27394c;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .linkedin-limit-col p {
@@ -2033,7 +2033,7 @@
   margin: 0 0 3px;
   color: #1e2238;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .copilot-comments-header p {
@@ -2052,7 +2052,7 @@
   background: #ebe7ff;
   color: #5b47e2;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .copilot-cards-list {
@@ -2085,7 +2085,7 @@
   background: #fff3d8;
   color: #8c5d00;
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .copilot-blockquote {
@@ -2111,7 +2111,7 @@
   gap: 6px;
   color: #614de0;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .copilot-draft-field textarea {
@@ -2147,7 +2147,7 @@
   background: #ffffff;
   color: #3b4157;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* Manual Follow-up Sticky Panel */
@@ -2185,7 +2185,7 @@
   margin: 0;
   color: #1e2238;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .manual-followup-header p {
@@ -2216,7 +2216,7 @@
   flex: 1;
   min-height: 38px;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 550;
   text-align: center;
   justify-content: center;
 }
@@ -2269,7 +2269,7 @@
   margin: 0 0 6px;
   color: #272c43;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .engage-empty p {

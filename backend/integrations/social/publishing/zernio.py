@@ -68,7 +68,7 @@ ZERNIO_CAPABILITIES = ProviderCapabilities(
 
 
 def zernio_platform_slug(network):
-    """Translate Content Studio network names to Zernio API platform values."""
+    """Translate Visiofy Studio network names to Zernio API platform values."""
     return "twitter" if network == PublishingNetwork.X else network.value.lower()
 
 LINKEDIN_TEXT_LIMIT = 3000
@@ -666,7 +666,7 @@ class ZernioProvider(PublishingProvider):
             "/v1/profiles",
             json={
                 "name": profile_name,
-                "description": "Content Studio customer workspace",
+                "description": "Visiofy Studio customer workspace",
             },
             headers={"Idempotency-Key": str(workspace_id)},
             allowed_statuses={201, 409},

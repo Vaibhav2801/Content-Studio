@@ -25,7 +25,7 @@ class ContentStudioAssistantTests(TestCase):
     def test_service_returns_default_welcome_when_empty(self):
         service = ContentStudioAssistantService()
         response = service.respond([])
-        self.assertIn("Content Studio AI Assistant", response["reply"])
+        self.assertIn("Visiofy Studio AI Assistant", response["reply"])
         self.assertTrue(len(response["suggestions"]) > 0)
         self.assertTrue(len(response["actions"]) > 0)
 

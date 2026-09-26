@@ -2,6 +2,9 @@
 .env
 backend/.env
 frontend/.env
+.codex-tmp
+docs
+outputs
 
 # Python
 backend/venv/

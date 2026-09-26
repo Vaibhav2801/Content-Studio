@@ -670,7 +670,7 @@ export function ContentBrandPublishingView() {
       <details className="card content-advanced">
         <summary>Advanced workspace settings</summary>
         <div>
-          <p>Fine-tune how far ahead Content Studio prepares posts.</p>
+          <p>Fine-tune how far ahead Visiofy Studio prepares posts.</p>
           <div className="li-form-grid compact">
             <label className="li-field">
               <span>Posts each week</span>
@@ -695,7 +695,7 @@ export function ContentBrandPublishingView() {
           </div>
 
           <section className="content-data-controls" aria-labelledby="content-data-title">
-            <h3 id="content-data-title">Your Content Studio data</h3>
+            <h3 id="content-data-title">Your Visiofy Studio data</h3>
             <p>Download a copy, or permanently remove posts, sources, connections, and settings from this workspace.</p>
             <div className="content-data-actions">
               <button
@@ -718,7 +718,7 @@ export function ContentBrandPublishingView() {
                     setDataMessage('Your download is ready.')
                   } catch (error) {
                     setDataError(true)
-                    setDataMessage(error instanceof Error ? error.message : 'Could not export Content Studio data.')
+                    setDataMessage(error instanceof Error ? error.message : 'Could not export Visiofy Studio data.')
                   } finally { setDataBusy('') }
                 }}
               >
@@ -728,28 +728,28 @@ export function ContentBrandPublishingView() {
 
             <div className="content-delete-control">
               <label className="li-field">
-                <span>To delete, type DELETE CONTENT STUDIO</span>
+                <span>To delete, type DELETE VISIOFY STUDIO</span>
                 <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" />
               </label>
               <button
                 type="button"
                 className="content-danger-button"
-                disabled={Boolean(dataBusy) || confirmation !== 'DELETE CONTENT STUDIO' || isDemo}
+                disabled={Boolean(dataBusy) || confirmation !== 'DELETE VISIOFY STUDIO' || isDemo}
                 aria-busy={dataBusy === 'delete'}
                 onClick={async () => {
                   setDataBusy('delete'); setDataMessage(''); setDataError(false)
                   try {
                     await contentStudioApi.deleteData(confirmation)
                     setConfirmation('')
-                    setDataMessage('Content Studio data was deleted from this workspace.')
+                    setDataMessage('Visiofy Studio data was deleted from this workspace.')
                     await reload()
                   } catch (error) {
                     setDataError(true)
-                    setDataMessage(error instanceof Error ? error.message : 'Could not delete Content Studio data.')
+                    setDataMessage(error instanceof Error ? error.message : 'Could not delete Visiofy Studio data.')
                   } finally { setDataBusy('') }
                 }}
               >
-                {dataBusy === 'delete' ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />} Delete Content Studio data
+                {dataBusy === 'delete' ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />} Delete Visiofy Studio data
               </button>
             </div>
             {isDemo && <p>Data actions are unavailable in demo mode.</p>}

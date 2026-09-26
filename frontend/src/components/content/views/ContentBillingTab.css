@@ -42,7 +42,7 @@
   padding: 5px 14px;
   border-radius: 999px;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -73,7 +73,7 @@
 
 .billing-hero-info h2 {
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 650;
   color: #111827;
   margin: 0;
 }
@@ -154,7 +154,7 @@
 
 .metric-card-header .metric-title-group span {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   color: #9ca3af;
   letter-spacing: 0.04em;
@@ -173,7 +173,7 @@
 
 .metric-stat-display .big-number {
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 650;
   color: #111827;
   line-height: 1;
 }
@@ -218,7 +218,7 @@
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   border: 1px solid #e5e7eb;
@@ -262,7 +262,7 @@
 
 .billing-boosters-header h3 {
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #111827;
   margin: 0;
 }
@@ -305,13 +305,13 @@
 
 .booster-credits-amount {
   font-size: 1.35rem;
-  font-weight: 800;
+  font-weight: 650;
   color: #111827;
 }
 
 .booster-price-tag {
   font-size: 1.1rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #7c3aed;
 }
 
@@ -345,7 +345,7 @@
 
 .invoices-table th {
   padding: 12px 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #6b7280;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
@@ -360,7 +360,7 @@
 
 .invoice-number-tag {
   font-family: monospace;
-  font-weight: 600;
+  font-weight: 500;
   color: #4f46e5;
   background: #f5f3ff;
   padding: 3px 8px;
@@ -374,7 +374,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .invoice-status-pill.paid {
@@ -389,7 +389,7 @@
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
   color: #374151;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -436,7 +436,7 @@
 
 .checkout-modal-header h3 {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #111827;
   margin: 0;
 }
@@ -469,7 +469,7 @@
 
 .summary-row.total {
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 650;
   color: #111827;
   border-top: 1px solid #e5e7eb;
   padding-top: 8px;

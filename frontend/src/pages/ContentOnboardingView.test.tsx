@@ -24,7 +24,7 @@ function renderOnboarding(path = '/content') {
   return render(<MemoryRouter initialEntries={[path]}><Routes><Route path="content" element={<ContentStudioPage />}><Route index element={<ContentHomeView />} /><Route path="onboarding" element={<ContentOnboardingView />} /></Route></Routes></MemoryRouter>)
 }
 
-describe('Content Studio onboarding', () => {
+describe('Visiofy Studio onboarding', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
@@ -110,11 +110,11 @@ describe('Content Studio onboarding', () => {
     expect(vi.mocked(contentOnboardingApi.completeStep).mock.calls[0][1]).not.toHaveProperty('topics')
   })
 
-  it('does not show an incomplete setup checklist on Content Studio Home', async () => {
+  it('does not show an incomplete setup checklist on Visiofy Studio Home', async () => {
     vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({ current_step: 3, completed_steps: [1, 2] }))
     renderOnboarding()
     expect(await screen.findByRole('heading', { name: 'Good content starts here.' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Finish setting up Content Studio' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Finish setting up Visiofy Studio' })).not.toBeInTheDocument()
   })
 
   it('shows connected account name, type and health after success', async () => {

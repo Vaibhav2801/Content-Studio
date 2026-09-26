@@ -41,7 +41,7 @@ export function ContentHomeView() {
         const result = isDemo ? structuredClone(contentStudioMockHome) : await contentStudioApi.home()
         if (active) { setSummary(result); setError('') }
       } catch (loadError) {
-        if (active) setError(customerSafeMessage(loadError instanceof Error ? loadError.message : undefined, 'Could not load the Content Studio summary.'))
+        if (active) setError(customerSafeMessage(loadError instanceof Error ? loadError.message : undefined, 'Could not load the Visiofy Studio summary.'))
       } finally {
         window.clearTimeout(timeout)
       }
@@ -55,7 +55,7 @@ export function ContentHomeView() {
   const hasActivity = Boolean(summary && (summary.needs_approval.length || summary.upcoming.length || summary.recent_drafts?.length || failures.length))
   const totals = summary?.totals
 
-  return <section className="studio-screen studio-home" aria-label="Content Studio overview">
+  return <section className="studio-screen studio-home" aria-label="Visiofy Studio overview">
     <section className="studio-home-hero" aria-labelledby="studio-home-hero-title">
       <div className="studio-home-hero-copy">
         <span className="studio-home-eyebrow"><span /> YOUR PUBLISHING DESK</span>

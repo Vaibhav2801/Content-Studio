@@ -102,6 +102,29 @@ SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", False)
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
+# Direct Assistance email delivery. Production should provide SMTP credentials
+# through the deployment secret manager. Local development uses the console so
+# support submissions remain observable without sending real mail.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
+).strip()
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = _bounded_env_int("EMAIL_PORT", 587, 1, 65535)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "").strip()
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ValueError("EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be enabled.")
+EMAIL_TIMEOUT = _bounded_env_int("EMAIL_TIMEOUT", 10, 1, 60)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "Visiofy Studio <visiofytech@gmail.com>"
+).strip()
+SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "visiofytech@gmail.com").strip()
+
 
 # Application definition
 
@@ -145,8 +168,8 @@ ROOT_URLCONF = 'config.urls'
 
 # ── Django Unfold Admin UI Configuration ──────────────────────────────────────
 UNFOLD = {
-    "SITE_TITLE": "Content Studio",
-    "SITE_HEADER": "Content Studio Admin",
+    "SITE_TITLE": "Visiofy Studio",
+    "SITE_HEADER": "Visiofy Studio Admin",
     "SITE_SUBHEADER": "Content publishing and workspace management",
     "SITE_URL": "/",
     "SHOW_HISTORY": True,
@@ -496,8 +519,8 @@ CONTENT_AUTOMATION_ASSET_TOKEN_MAX_AGE_SECONDS = int(os.environ.get(
 ))
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Content Studio API',
-    'DESCRIPTION': 'Content Studio API documentation.',
+    'TITLE': 'Visiofy Studio API',
+    'DESCRIPTION': 'Visiofy Studio API documentation.',
     'VERSION': '3.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

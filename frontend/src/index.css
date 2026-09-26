@@ -52,7 +52,7 @@ button { color: inherit; }
   cursor: pointer;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
   transition: transform .16s, box-shadow .16s, background .16s;
 }
 .button:hover { transform: translateY(-1px); }

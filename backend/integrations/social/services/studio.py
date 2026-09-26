@@ -499,7 +499,7 @@ def reconnect_connection(connection, *, redirect_uri=""):
         provider = ProviderName(connection.provider)
         network = PublishingNetwork(connection.network)
     except ValueError as exc:
-        raise ValidationError({"detail": "This account cannot be reconnected from Content Studio."}) from exc
+        raise ValidationError({"detail": "This account cannot be reconnected from Visiofy Studio."}) from exc
     state = secrets.token_urlsafe(32)
     result = publishing_provider_registry.create(provider).get_connection_url(ConnectionUrlRequest(
         workspace_id=connection.workspace_id,

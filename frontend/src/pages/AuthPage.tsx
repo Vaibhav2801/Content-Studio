@@ -40,7 +40,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
 
   return <div className="auth-page">
     <aside className="auth-story">
-      <Link className="auth-brand" to="/"><span><Sparkles size={23} /></span><strong>content studio</strong></Link>
+      <Link className="auth-brand" to="/"><span><Sparkles size={23} /></span><strong>Visiofy Studio</strong></Link>
       <div className="auth-story-body">
         <div className="auth-eyebrow"><span /> YOUR CONTENT WORKSPACE</div>
         <h1>Make room for<br /><em>better ideas.</em></h1>
@@ -56,10 +56,10 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
     </aside>
     <main className="auth-main">
       <Link className="auth-home-link" to="/"><ArrowLeft size={16} /> Back to home</Link>
-      <Link className="auth-mobile-brand" to="/" aria-label="Content Studio home"><Sparkles size={20} /> content studio</Link>
+      <Link className="auth-mobile-brand" to="/" aria-label="Visiofy Studio home"><Sparkles size={20} /> Visiofy Studio</Link>
       <div className="auth-form-wrap">
         <span className="auth-form-kicker">{isSignup ? 'START YOUR WORKSPACE' : 'WELCOME BACK'}</span>
-        <h2>{isSignup ? 'Create your account' : 'Sign in to Content Studio'}</h2>
+        <h2>{isSignup ? 'Create your account' : 'Sign in to Visiofy Studio'}</h2>
         <p className="auth-form-intro">{isSignup ? 'A fresh space for your ideas, drafts, and connected channels.' : 'Pick up where your last great idea left off.'}</p>
         <form onSubmit={(event) => void submit(event)}>
           {isSignup && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex Morgan" required maxLength={150} /></label>}
@@ -69,7 +69,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-submit" type="submit" disabled={busy}>{busy ? 'One moment…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={18} /></button>
         </form>
-        <p className="auth-switch">{isSignup ? 'Already have an account?' : 'New to Content Studio?'} <Link to={isSignup ? '/signin' : '/signup'} state={location.state}>{isSignup ? 'Sign in' : 'Create an account'}</Link></p>
+        <p className="auth-switch">{isSignup ? 'Already have an account?' : 'New to Visiofy Studio?'} <Link to={isSignup ? '/signin' : '/signup'} state={location.state}>{isSignup ? 'Sign in' : 'Create an account'}</Link></p>
       </div>
       <span className="auth-main-foot">Your space to create with clarity.</span>
     </main>

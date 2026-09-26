@@ -96,7 +96,7 @@ export function ContentStudioShell() {
   const location = useLocation()
   const current = CONTENT_STUDIO_NAV.find((item) => item.path === location.pathname) ?? CONTENT_STUDIO_NAV[0]
   const isOnboarding = location.pathname === '/content/onboarding'
-  const pageLabel = isOnboarding ? 'Set up Content Studio' : current.label === 'Home' ? 'Content Studio' : current.label
+  const pageLabel = isOnboarding ? 'Set up Visiofy Studio' : current.label === 'Home' ? 'Visiofy Studio' : current.label
   const pageDescription = isOnboarding ? 'A few steps to get ready for your first post.' : current.description
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 
@@ -175,9 +175,9 @@ export function ContentStudioShell() {
       {sidebarOpen && <button className="studio-sidebar-scrim" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
       <aside className={`studio-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="studio-sidebar-top">
-          <Link className="studio-brand" to="/content" aria-label="Content Studio home">
+          <Link className="studio-brand" to="/content" aria-label="Visiofy Studio home">
             <span className="studio-brand-mark"><Sparkles size={20} strokeWidth={2.1} /></span>
-            <span className="studio-brand-copy"><strong>content studio</strong><small>CREATE · PUBLISH · GROW</small></span>
+            <span className="studio-brand-copy"><strong>Visiofy Studio</strong><small>CREATE · PUBLISH · GROW</small></span>
           </Link>
           <button className="studio-sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button>
         </div>
@@ -194,11 +194,11 @@ export function ContentStudioShell() {
             <label><span>New workspace</span><input value={workspaceNameDraft} maxLength={255} placeholder="Business name" onChange={(event) => setWorkspaceNameDraft(event.target.value)} /></label>
             <button className="studio-workspace-create" type="button" disabled={workspaceBusy || !workspaceNameDraft.trim()} onClick={() => void createWorkspace()}>{workspaceBusy ? 'Working…' : <><Plus size={14} /> Create workspace</>}</button>
             {workspaceError && <small className="studio-workspace-error" role="alert">{workspaceError}</small>}
-            <Link to="/content/settings" onClick={() => setWorkspaceMenuOpen(false)}>Plan and billing settings</Link>
+            <Link to="/content/settings?tab=plan" onClick={() => setWorkspaceMenuOpen(false)}>Plan and billing settings</Link>
           </div>}
         </div>
 
-        <nav className="studio-sidebar-nav" aria-label="Content Studio sections">
+        <nav className="studio-sidebar-nav" aria-label="Visiofy Studio sections">
           {navigationGroups.map((group) => (
             <div className="studio-nav-group" key={group.label}>
               <span className="studio-nav-heading">{group.label}</span>
@@ -371,7 +371,7 @@ export function ContentStudioShell() {
                     </p>
 
                     <Link
-                      to="/content/settings?tab=billing"
+                      to="/content/settings?tab=plan"
                       className="button button-dark"
                       style={{ textAlign: 'center', fontSize: '0.82rem', padding: '6px 12px' }}
                       onClick={() => setCreditMenuOpen(false)}
@@ -383,7 +383,7 @@ export function ContentStudioShell() {
               </div>
             )}
             <AskAIButton />
-            <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Content Studio settings"><Settings2 size={18} /></Link>
+            <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Visiofy Studio settings"><Settings2 size={18} /></Link>
           </div>
         </header>
         <main className="studio-main" id="studio-main">

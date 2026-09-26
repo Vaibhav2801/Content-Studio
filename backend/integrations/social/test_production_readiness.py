@@ -135,7 +135,7 @@ class ContentStudioProductionReadinessTests(TestCase):
         self.client.force_authenticate(self.member)
         denied = self.client.delete(
             reverse("social-data-delete"),
-            {"confirmation": "DELETE CONTENT STUDIO"},
+            {"confirmation": "DELETE VISIOFY STUDIO"},
             format="json",
         )
         self.assertEqual(denied.status_code, 403)
@@ -149,7 +149,7 @@ class ContentStudioProductionReadinessTests(TestCase):
         self.assertEqual(unconfirmed.status_code, 400)
         blocked = self.client.delete(
             reverse("social-data-delete"),
-            {"confirmation": "DELETE CONTENT STUDIO"},
+            {"confirmation": "DELETE VISIOFY STUDIO"},
             format="json",
         )
         self.assertEqual(blocked.status_code, 409)
@@ -159,7 +159,7 @@ class ContentStudioProductionReadinessTests(TestCase):
         job.save(update_fields=["status", "updated_at"])
         deleted = self.client.delete(
             reverse("social-data-delete"),
-            {"confirmation": "DELETE CONTENT STUDIO"},
+            {"confirmation": "DELETE VISIOFY STUDIO"},
             format="json",
         )
         self.assertEqual(deleted.status_code, 200)

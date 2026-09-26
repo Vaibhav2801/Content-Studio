@@ -44,7 +44,7 @@
   align-items: center;
   gap: 10px;
   font-size: 18px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: #1f1b2e;
   text-decoration: none;
@@ -72,7 +72,7 @@
 .pricing-signin {
   color: #6a667d;
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
   text-decoration: none;
   transition: color 0.15s ease;
 }
@@ -91,7 +91,7 @@
   background: #6352de;
   color: white;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
   transition: all 0.15s ease;
   box-shadow: 0 4px 14px rgba(99, 82, 222, 0.22);
@@ -122,14 +122,14 @@
   padding: 5px 14px;
   border-radius: 9999px;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
   margin-bottom: 18px;
   letter-spacing: 0.02em;
 }
 
 .pricing-hero h1 {
   font-size: clamp(34px, 4.3vw, 54px);
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.05em;
   line-height: 1.12;
   margin: 0 0 14px;
@@ -196,7 +196,7 @@
   background: #6352de;
   color: white;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   padding: 3px 11px;
   border-radius: 6px;
   letter-spacing: 0.06em;
@@ -205,7 +205,7 @@
 
 .plan-card-name {
   font-size: 21px;
-  font-weight: 850;
+  font-weight: 700;
   color: #1f1b2e;
   letter-spacing: -0.03em;
   margin-bottom: 5px;
@@ -228,7 +228,7 @@
 
 .plan-card-price strong {
   font-size: 46px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.05em;
   color: #1f1b2e;
   line-height: 1;
@@ -237,7 +237,7 @@
 .plan-card-price span {
   font-size: 13px;
   color: #7d7894;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .plan-card-btn {
@@ -249,7 +249,7 @@
   padding: 11.5px;
   border-radius: 11px;
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
   background: #f1edfb;
   color: #5543d4;
@@ -280,7 +280,7 @@
 
 .plan-card-specs-title {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   color: #8c889f;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -345,7 +345,7 @@
 
 .boosters-kicker {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   color: #6352de;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -354,7 +354,7 @@
 
 .boosters-header h3 {
   font-size: 20px;
-  font-weight: 850;
+  font-weight: 700;
   color: #1f1b2e;
   margin: 0 0 6px;
   letter-spacing: -0.03em;
@@ -391,7 +391,7 @@
 
 .booster-item-name {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   color: #726e85;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -400,7 +400,7 @@
 
 .booster-item-credits {
   font-size: 28px;
-  font-weight: 900;
+  font-weight: 700;
   color: #1f1b2e;
   letter-spacing: -0.04em;
   margin-bottom: 4px;
@@ -408,7 +408,7 @@
 
 .booster-item-price {
   font-size: 20px;
-  font-weight: 850;
+  font-weight: 700;
   color: #6352de;
   margin-bottom: 14px;
 }
@@ -421,7 +421,7 @@
   background: #eeeafe;
   color: #5543d4;
   font-size: 12.5px;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
   transition: all 0.15s ease;
 }
@@ -456,7 +456,7 @@
 
 .calc-title-header h2 {
   font-size: 24px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: #1f1b2e;
   margin: 0 0 8px;
@@ -511,7 +511,7 @@
 .calc-base-btn strong {
   display: block;
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .calc-base-btn span {
@@ -530,7 +530,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 600;
   color: #1f1b2e;
 }
 
@@ -538,7 +538,7 @@
   background: #eeeafe;
   color: #6352de;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   padding: 2px 10px;
   border-radius: 9999px;
 }
@@ -557,7 +557,7 @@
   background: #ffffff;
   color: #1f1b2e;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -578,7 +578,7 @@
   border: 1.5px solid #e1dcf0;
   background: #ffffff;
   font-size: 12.5px;
-  font-weight: 800;
+  font-weight: 650;
   color: #1f1b2e;
   outline: none;
   transition: border-color 0.15s ease;
@@ -597,7 +597,7 @@
 
 .calc-quick-pill {
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 6px;
   border: 1px solid #e8e4f4;
@@ -644,7 +644,7 @@
   justify-content: space-between;
   font-size: 11px;
   color: #8c88a0;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .calc-subnote {
@@ -664,7 +664,7 @@
   border-radius: 12px;
   color: #065f46;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .calc-unlimited-box svg {
@@ -687,7 +687,7 @@
 .calc-toggle-copy strong {
   display: block;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   color: #1f1b2e;
   margin-bottom: 2px;
 }
@@ -761,7 +761,7 @@
 
 .output-eyebrow {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: #a89bf2;
   text-transform: uppercase;
@@ -770,7 +770,7 @@
 
 .output-price-number {
   font-size: 48px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.05em;
   color: #ffffff;
   line-height: 1;
@@ -814,7 +814,7 @@
   background: #6352de;
   color: white;
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 650;
   text-decoration: none;
   transition: background 0.15s ease;
 }
@@ -872,7 +872,7 @@
 
 .feature-box-light h3 {
   font-size: 16px;
-  font-weight: 850;
+  font-weight: 700;
   color: #1f1b2e;
   margin: 0 0 6px;
 }
@@ -907,7 +907,7 @@
 
 .faq-card-light h4 {
   font-size: 14.5px;
-  font-weight: 800;
+  font-weight: 650;
   color: #1f1b2e;
   margin: 0 0 6px;
 }
@@ -931,7 +931,7 @@
 
 .cta-light-section h2 {
   font-size: clamp(28px, 3.5vw, 42px);
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: #ffffff;
   margin: 0 0 12px;
@@ -953,7 +953,7 @@
   background: #6352de;
   color: white;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
   text-decoration: none;
   transition: background 0.15s ease;
 }

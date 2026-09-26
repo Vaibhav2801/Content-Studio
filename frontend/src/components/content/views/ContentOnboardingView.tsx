@@ -148,7 +148,7 @@ export function ContentOnboardingView() {
     </div>}
 
     {current === 2 && <div className="card onboarding-panel">
-      <div className="onboarding-panel-head"><span>STEP 2</span><h2 id="onboarding-step-title">Tell us about the business</h2><p>This helps Content Studio write useful posts in the right voice.</p></div>
+      <div className="onboarding-panel-head"><span>STEP 2</span><h2 id="onboarding-step-title">Tell us about the business</h2><p>This helps Visiofy Studio write useful posts in the right voice.</p></div>
       <div className="onboarding-form-grid"><label className="li-field"><span>Business name</span><input value={business.name} onChange={(event) => setBusiness({ ...business, name: event.target.value })} /></label><label className="li-field"><span>Language</span><select value={business.language} onChange={(event) => setBusiness({ ...business, language: event.target.value })}><option>English</option><option>Hindi</option><option>Spanish</option><option>French</option></select></label><label className="li-field full"><span>What does the business do?</span><textarea value={business.description} onChange={(event) => setBusiness({ ...business, description: event.target.value })} /></label><label className="li-field full"><span>Who is the audience?</span><textarea value={business.audience} onChange={(event) => setBusiness({ ...business, audience: event.target.value })} /></label></div>
       <WizardActions onBack={goBack} onContinue={saveBusiness} />
     </div>}

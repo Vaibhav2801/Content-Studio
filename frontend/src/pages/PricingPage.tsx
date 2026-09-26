@@ -67,8 +67,8 @@ export function PricingPage() {
     <div className="pricing-page">
       {/* Navigation Header */}
       <header className="pricing-header">
-        <Link className="pricing-brand" to="/" aria-label="Content Studio home">
-          <span><Sparkles size={18} /></span> content studio
+        <Link className="pricing-brand" to="/" aria-label="Visiofy Studio home">
+          <span><Sparkles size={18} /></span> Visiofy Studio
         </Link>
         <nav aria-label="Main navigation">
           <Link to="/#features">Features</Link>
@@ -441,7 +441,7 @@ export function PricingPage() {
         {/* Feature Explanations ("What You Get") */}
         <section className="features-light-section">
           <div className="calc-title-header">
-            <h2>Everything you get with Content Studio</h2>
+            <h2>Everything you get with Visiofy Studio</h2>
             <p>Designed for consistent publishing, authentic brand voice, and inbound lead conversion.</p>
           </div>
 
@@ -548,7 +548,7 @@ export function PricingPage() {
         {/* Bottom CTA */}
         <section className="cta-light-section">
           <h2>Start publishing better content today</h2>
-          <p>Join creators and teams using Content Studio to run their content creation and publishing smoothly.</p>
+          <p>Join creators and teams using Visiofy Studio to run their content creation and publishing smoothly.</p>
           <Link to={primaryPath} className="cta-btn-main">
             {primaryLabel} <ArrowRight size={16} />
           </Link>
@@ -558,9 +558,9 @@ export function PricingPage() {
       {/* Footer */}
       <footer className="pricing-footer">
         <Link className="pricing-brand" to="/">
-          <span><Sparkles size={16} /></span> content studio
+          <span><Sparkles size={16} /></span> Visiofy Studio
         </Link>
-        <p>&copy; Content Studio Platform. Simple, calm content publishing.</p>
+        <p>&copy; Visiofy Studio Platform. Simple, calm content publishing.</p>
         <div>
           <Link to="/">Home</Link>
           <Link to="/#features">Features</Link>

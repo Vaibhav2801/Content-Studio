@@ -710,7 +710,7 @@ export function SocialComposer({ onPostChange }: Props) {
 
       <section className="card composer-setup" aria-labelledby="composer-start-title">
 
-        <div className="li-section-heading"><span>CREATE</span><h2 id="composer-start-title">Start with what you have</h2><p>Content Studio will shape a different draft for every selected network.</p></div>
+        <div className="li-section-heading"><span>CREATE</span><h2 id="composer-start-title">Start with what you have</h2><p>Visiofy Studio will shape a different draft for every selected network.</p></div>
 
         <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{([['manual', 'Write manually'], ['idea', 'Generate with AI'], ['source', 'Saved source'], ['draft', 'Existing draft']] as [StartMode, string][]).map(([value, label]) => <button type="button" role="tab" aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}>{label}</button>)}</div>
         <p className="composer-series-link">Need several posts? <Link to="/content/series">Create a series automatically from one brief</Link></p>

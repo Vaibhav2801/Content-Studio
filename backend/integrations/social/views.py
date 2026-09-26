@@ -1617,12 +1617,12 @@ class ContentStudioDataExportAPIView(SocialWorkspaceScopedAPIView):
 
 
 class ContentStudioDataDeletionAPIView(SocialWorkspaceScopedAPIView):
-    """Owner-only deletion of Content Studio data, with an explicit confirmation."""
+    """Owner-only deletion of Visiofy Studio data, with an explicit confirmation."""
 
     def delete(self, request):
-        if request.data.get("confirmation") != "DELETE CONTENT STUDIO":
+        if request.data.get("confirmation") != "DELETE VISIOFY STUDIO":
             return Response(
-                {"confirmation": ["Type DELETE CONTENT STUDIO to confirm deletion."]},
+                {"confirmation": ["Type DELETE VISIOFY STUDIO to confirm deletion."]},
                 status=400,
             )
         try:
@@ -1636,7 +1636,7 @@ class ContentStudioDataDeletionAPIView(SocialWorkspaceScopedAPIView):
 
 
 class ContentStudioAssistantAPIView(SocialWorkspaceScopedAPIView):
-    """Answers user queries regarding any feature or workflow of the Content Studio platform."""
+    """Answers user queries regarding any feature or workflow of the Visiofy Studio platform."""
 
     def post(self, request):
         messages = request.data.get("messages", [])

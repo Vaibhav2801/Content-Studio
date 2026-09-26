@@ -183,7 +183,7 @@ export function EngagementHubView() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
             <a
-              href="/content/settings?tab=billing"
+              href="/content/settings?tab=plan"
               className="button button-dark"
               style={{
                 padding: '12px 28px',

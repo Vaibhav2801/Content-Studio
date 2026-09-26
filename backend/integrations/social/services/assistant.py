@@ -1,8 +1,8 @@
 """
-Content Studio Assistant Service.
+Visiofy Studio Assistant Service.
 
 Provides an AI assistant capable of answering user questions about any feature,
-workflow, configuration, or best practice in Content Studio.
+workflow, configuration, or best practice in Visiofy Studio.
 Integrates with IntelligentRouter when LLM credentials are available, and provides
 a comprehensive fallback knowledge engine for offline / deterministic mode.
 """
@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Comprehensive knowledge base cataloging all Content Studio features, routes, and capabilities
+# Comprehensive knowledge base cataloging all Visiofy Studio features, routes, and capabilities
 PROJECT_FEATURES = {
     "composer": {
         "name": "Post Composer",
@@ -181,12 +181,12 @@ PROJECT_FEATURES = {
         "actions": [{"label": "Go to Onboarding", "route": "/content/onboarding"}],
     },
     "home": {
-        "name": "Content Studio Home",
+        "name": "Visiofy Studio Home",
         "route": "/content",
         "keywords": ["home", "dashboard", "overview", "summary", "status", "recent", "needs attention"],
         "description": "Central dashboard summarizing posts in review, upcoming schedule, failures, and account health.",
         "details": (
-            "The **Content Studio Home** (`/content`) provides an executive view of your publishing pipeline.\n\n"
+            "The **Visiofy Studio Home** (`/content`) provides an executive view of your publishing pipeline.\n\n"
             "- Track pending approvals, upcoming scheduled posts, and recent publish statuses.\n"
             "- View health alerts for any connections that need re-authorization.\n"
             "- Fast-track new posts with the 'Create post' action."
@@ -206,11 +206,11 @@ QUICK_SUGGESTIONS = [
 
 
 class ContentStudioAssistantService:
-    """Provides AI assistant responses about any Content Studio platform feature."""
+    """Provides AI assistant responses about any Visiofy Studio platform feature."""
 
     system_prompt = (
-        "You are the official Content Studio Platform AI Assistant. Your job is to help users understand, navigate, "
-        "and master all features of the Content Studio platform. Be helpful, concise, friendly, and structured. "
+        "You are the official Visiofy Studio Platform AI Assistant. Your job is to help users understand, navigate, "
+        "and master all features of the Visiofy Studio platform. Be helpful, concise, friendly, and structured. "
         "Use markdown formatting (headings, bullet points, bold text) and explicitly reference application routes "
         "like `/content/create`, `/content/calendar`, `/content/approvals`, `/content/connections`, `/content/settings`, "
         "`/content/series`, `/content/library`, `/content/engage`, and `/content/analytics` whenever relevant. "
@@ -243,7 +243,7 @@ class ContentStudioAssistantService:
 
         if not user_message:
             return {
-                "reply": "Hello! I'm your Content Studio AI Assistant. Ask me anything about creating posts, setting up social connections, using Brand Brain, managing approvals, reviewing analytics, or navigating the platform!",
+                "reply": "Hello! I'm your Visiofy Studio AI Assistant. Ask me anything about creating posts, setting up social connections, using Brand Brain, managing approvals, reviewing analytics, or navigating the platform!",
                 "suggestions": QUICK_SUGGESTIONS[:4],
                 "actions": [{"label": "Create Post", "route": "/content/create"}, {"label": "View Calendar", "route": "/content/calendar"}],
             }
@@ -279,7 +279,7 @@ class ContentStudioAssistantService:
         # Build context prompt
         feature_summary = "\n".join([f"- {f['name']} ({f['route']}): {f['description']}" for f in PROJECT_FEATURES.values()])
         context = (
-            f"Content Studio Features & Routes:\n{feature_summary}\n\n"
+            f"Visiofy Studio Features & Routes:\n{feature_summary}\n\n"
             f"User is currently on page: {current_path or '/content'}\n\n"
             "User conversation history:\n"
         )
@@ -287,7 +287,7 @@ class ContentStudioAssistantService:
             role = "User" if msg.get("role") == "user" else "Assistant"
             context += f"{role}: {msg.get('content', '')}\n"
 
-        context += "\nRespond as the Content Studio AI assistant. Provide clear, accurate instructions and reference routes."
+        context += "\nRespond as the Visiofy Studio AI assistant. Provide clear, accurate instructions and reference routes."
 
         try:
             result = router.generate(
@@ -361,8 +361,8 @@ class ContentStudioAssistantService:
         if query_lower in ["hi", "hello", "hey", "help", "what can you do?", "what can you do"]:
             return {
                 "reply": (
-                    "👋 **Hi! I'm your Content Studio AI Assistant.**\n\n"
-                    "I can guide you through every feature of the Content Studio platform:\n\n"
+                    "👋 **Hi! I'm your Visiofy Studio AI Assistant.**\n\n"
+                    "I can guide you through every feature of the Visiofy Studio platform:\n\n"
                     "- ✍️ **[Post Composer](/content/create)**: Draft multi-platform posts with AI variant generation & image creation.\n"
                     "- 📚 **[Content Series](/content/series)**: Create multi-part thematic campaigns on a cadence.\n"
                     "- ✅ **[Approvals](/content/approvals)**: Manage team reviews, batch approvals, and publishing governance.\n"
@@ -394,7 +394,7 @@ class ContentStudioAssistantService:
         return {
             "reply": (
                 f"I understand you're asking about **'{query}'**.\n\n"
-                "In Content Studio, you can manage your complete content lifecycle across these core areas:\n\n"
+                "In Visiofy Studio, you can manage your complete content lifecycle across these core areas:\n\n"
                 "- **Create & Publish**: Use the **[Post Composer](/content/create)** or **[Content Series](/content/series)** to craft tailored posts for LinkedIn, Instagram, X, Facebook, and more.\n"
                 "- **Review & Schedule**: Review drafts in **[Approvals](/content/approvals)** and check your timeline on the **[Content Calendar](/content/calendar)**.\n"
                 "- **Grow & Optimize**: Monitor performance in **[Analytics](/content/analytics)** and set your brand voice in **[Brand Brain](/content/settings)**.\n\n"

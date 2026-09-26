@@ -80,5 +80,5 @@ export const CONTENT_STUDIO_NAV: ContentStudioNavItem[] = [
   { section: 'engage', label: 'Engage', path: '/content/engage', description: 'Review replies, run approved automations, and follow up with leads.' },
   { section: 'connections', label: 'Connections', path: '/content/connections', description: 'Check connected social accounts.' },
   { section: 'analytics', label: 'Analytics', path: '/content/analytics', description: 'Compare results and find practical improvements.' },
-  { section: 'settings', label: 'Settings', path: '/content/settings', description: 'Manage your plan, credits, and invoices.' },
+  { section: 'settings', label: 'Settings', path: '/content/settings', description: 'Manage your profile, workspace, plan, and billing.' },
 ]

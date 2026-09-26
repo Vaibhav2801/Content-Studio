@@ -5,7 +5,7 @@ import { billingApi } from './api/billingApi'
 import type { PricingCatalog } from './types/billing'
 import App from './App'
 
-vi.mock('./pages/ContentStudioPage', () => ({ ContentStudioPage: () => <div>Private Content Studio</div> }))
+vi.mock('./pages/ContentStudioPage', () => ({ ContentStudioPage: () => <div>Private Visiofy Studio</div> }))
 
 const anonymous: AuthSession = { authenticated: false, user: null, workspace: null }
 const signedIn: AuthSession = {
@@ -25,7 +25,7 @@ const catalog: PricingCatalog = {
   addons: [],
 }
 
-describe('Content Studio authentication routes', () => {
+describe('Visiofy Studio authentication routes', () => {
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
   beforeEach(() => {
     window.history.replaceState({}, '', '/content')
@@ -47,7 +47,7 @@ describe('Content Studio authentication routes', () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: /Simple plans/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Dynamic Cost Manager/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Everything you get with Content Studio/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Everything you get with Visiofy Studio/i })).toBeInTheDocument()
     expect(screen.getByText(/Unlimited Post Scheduling is always included/i)).toBeInTheDocument()
     expect(window.location.pathname).toBe('/pricing')
   })
@@ -63,11 +63,11 @@ describe('Content Studio authentication routes', () => {
   it('redirects an anonymous visitor to sign in and opens the studio after login', async () => {
     const signin = vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'Sign in to Content Studio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in to Visiofy Studio' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'alex@example.com' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Private Content Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
     expect(signin).toHaveBeenCalledWith({ email: 'alex@example.com', password: 'AnEvenStrongerPassword42!' })
     expect(window.location.pathname).toBe('/content')
   })
@@ -83,7 +83,7 @@ describe('Content Studio authentication routes', () => {
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.change(screen.getByLabelText(/Workspace name/), { target: { value: 'Alex Studio' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
-    expect(await screen.findByText('Private Content Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
     expect(signup).toHaveBeenCalledWith({
       name: 'Alex Morgan', email: 'alex@example.com', password: 'AnEvenStrongerPassword42!', workspace_name: 'Alex Studio',
     })
@@ -94,17 +94,17 @@ describe('Content Studio authentication routes', () => {
     vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     window.history.replaceState({}, '', '/content/calendar')
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'Sign in to Content Studio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in to Visiofy Studio' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'alex@example.com' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Private Content Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/content/calendar')
   })
 
   it('restores a signed-in session on refresh', async () => {
     vi.spyOn(authApi, 'session').mockResolvedValue(signedIn)
     render(<App />)
-    expect(await screen.findByText('Private Content Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
   })
 })
