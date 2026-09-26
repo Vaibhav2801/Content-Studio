@@ -94,6 +94,18 @@ class BillingApiTests(TestCase):
         self.assertTrue(owner.data["simulated_checkout_enabled"])
         self.assertEqual(owner.data["simulated_checkout_status"], "enabled")
 
+    @override_settings(
+        BILLING_SIMULATED_CHECKOUT_ENABLED=True,
+        BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS={"*"},
+    )
+    def test_catalog_allows_any_authenticated_account_with_wildcard(self):
+        anonymous = self.client.get(reverse("social-billing-catalog"))
+        self.assertEqual(anonymous.data["simulated_checkout_status"], "authentication_required")
+        self.client.force_authenticate(self.member)
+        member = self.client.get(reverse("social-billing-catalog"))
+        self.assertTrue(member.data["simulated_checkout_enabled"])
+        self.assertEqual(member.data["simulated_checkout_status"], "enabled")
+
     def test_simulator_is_disabled_by_default_and_rejects_arbitrary_products(self):
         self.client.force_authenticate(self.staff)
         disabled = self.client.post(reverse("social-billing-checkout"), {"product_id": "plan_starter_monthly"})

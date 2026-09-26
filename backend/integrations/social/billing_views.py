@@ -73,6 +73,8 @@ def _simulated_checkout_status(user) -> str:
         return "authentication_required"
     if getattr(user, "is_staff", False):
         return "enabled"
+    if "*" in settings.BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS:
+        return "enabled"
     email = str(getattr(user, "email", "") or "").strip().lower()
     if email and email in settings.BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS:
         return "enabled"
