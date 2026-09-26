@@ -88,6 +88,7 @@ export interface PricingCatalog {
   plans: PricingPlan[]
   addons: PricingAddon[]
   simulated_checkout_enabled: boolean
+  simulated_checkout_status?: 'enabled' | 'disabled' | 'authentication_required' | 'email_not_allowlisted'
 }
 
 export interface CheckoutResponse {

@@ -75,6 +75,7 @@ class BillingApiTests(TestCase):
             {"plan_starter_monthly", "plan_advance_monthly"},
         )
         self.assertFalse(response.data["simulated_checkout_enabled"])
+        self.assertEqual(response.data["simulated_checkout_status"], "disabled")
 
     @override_settings(
         BILLING_SIMULATED_CHECKOUT_ENABLED=True,
@@ -83,12 +84,15 @@ class BillingApiTests(TestCase):
     def test_catalog_exposes_simulator_only_to_an_allowlisted_account(self):
         anonymous = self.client.get(reverse("social-billing-catalog"))
         self.assertFalse(anonymous.data["simulated_checkout_enabled"])
+        self.assertEqual(anonymous.data["simulated_checkout_status"], "authentication_required")
         self.client.force_authenticate(self.member)
         member = self.client.get(reverse("social-billing-catalog"))
         self.assertFalse(member.data["simulated_checkout_enabled"])
+        self.assertEqual(member.data["simulated_checkout_status"], "email_not_allowlisted")
         self.client.force_authenticate(self.owner)
         owner = self.client.get(reverse("social-billing-catalog"))
         self.assertTrue(owner.data["simulated_checkout_enabled"])
+        self.assertEqual(owner.data["simulated_checkout_status"], "enabled")
 
     def test_simulator_is_disabled_by_default_and_rejects_arbitrary_products(self):
         self.client.force_authenticate(self.staff)

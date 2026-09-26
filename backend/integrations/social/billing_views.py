@@ -66,15 +66,21 @@ def _require_billing_manager(workspace, user) -> None:
         raise PermissionDenied("Only an active workspace owner or administrator can manage billing.")
 
 
-def _can_use_simulated_checkout(user) -> bool:
+def _simulated_checkout_status(user) -> str:
     if not settings.BILLING_SIMULATED_CHECKOUT_ENABLED:
-        return False
+        return "disabled"
     if not user or not getattr(user, "is_authenticated", False):
-        return False
+        return "authentication_required"
     if getattr(user, "is_staff", False):
-        return True
+        return "enabled"
     email = str(getattr(user, "email", "") or "").strip().lower()
-    return bool(email and email in settings.BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS)
+    if email and email in settings.BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS:
+        return "enabled"
+    return "email_not_allowlisted"
+
+
+def _can_use_simulated_checkout(user) -> bool:
+    return _simulated_checkout_status(user) == "enabled"
 
 
 class BillingCatalogAPIView(APIView):
@@ -82,7 +88,9 @@ class BillingCatalogAPIView(APIView):
 
     def get(self, request):
         catalog = public_pricing_catalog()
-        catalog["simulated_checkout_enabled"] = _can_use_simulated_checkout(request.user)
+        checkout_status = _simulated_checkout_status(request.user)
+        catalog["simulated_checkout_enabled"] = checkout_status == "enabled"
+        catalog["simulated_checkout_status"] = checkout_status
         response = Response(catalog)
         response["Cache-Control"] = "private, no-store"
         response["Vary"] = "Cookie"

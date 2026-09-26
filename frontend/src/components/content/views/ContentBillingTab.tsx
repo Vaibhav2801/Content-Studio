@@ -73,15 +73,26 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
     void loadSubscription()
   }, [loadSubscription])
 
+  const showCheckoutUnavailable = (unchangedMessage: string) => {
+    const reason = catalog?.simulated_checkout_status === 'disabled'
+      ? 'Test checkout is disabled on the backend. Enable it on the Render web service and redeploy.'
+      : catalog?.simulated_checkout_status === 'authentication_required'
+        ? 'Your login session was not recognized. Sign out, sign in again, and retry.'
+        : catalog?.simulated_checkout_status === 'email_not_allowlisted'
+          ? 'Your signed-in email is not included in the test checkout allowlist.'
+          : 'Secure payment checkout is not configured yet.'
+    showToast({
+      tone: 'warning',
+      title: 'Checkout unavailable',
+      message: `${reason} ${unchangedMessage}`,
+      duration: 10000,
+      dedupeKey: 'billing-checkout-unavailable',
+    })
+  }
+
   const openUpgradeModal = (tier: 'STARTER' | 'ADVANCE') => {
     if (!catalog?.simulated_checkout_enabled) {
-      showToast({
-        tone: 'warning',
-        title: 'Checkout unavailable',
-        message: 'Secure payment checkout is not configured yet. No plan change was made.',
-        duration: 8000,
-        dedupeKey: 'billing-checkout-unavailable',
-      })
+      showCheckoutUnavailable('No plan change was made.')
       return
     }
     setCheckoutAction('UPGRADE_PLAN')
@@ -93,13 +104,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openBoosterModal = (credits: number) => {
     if (!catalog?.simulated_checkout_enabled) {
-      showToast({
-        tone: 'warning',
-        title: 'Checkout unavailable',
-        message: 'Secure payment checkout is not configured yet. No credits were purchased.',
-        duration: 8000,
-        dedupeKey: 'billing-checkout-unavailable',
-      })
+      showCheckoutUnavailable('No credits were purchased.')
       return
     }
     setCheckoutAction('BUY_BOOSTER')
@@ -111,13 +116,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openConnectionModal = () => {
     if (!catalog?.simulated_checkout_enabled) {
-      showToast({
-        tone: 'warning',
-        title: 'Checkout unavailable',
-        message: 'Secure payment checkout is not configured yet. No connection add-on was purchased.',
-        duration: 8000,
-        dedupeKey: 'billing-checkout-unavailable',
-      })
+      showCheckoutUnavailable('No connection add-on was purchased.')
       return
     }
     setCheckoutAction('ADD_CONNECTIONS')
@@ -128,13 +127,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
 
   const openEngageModal = () => {
     if (!catalog?.simulated_checkout_enabled) {
-      showToast({
-        tone: 'warning',
-        title: 'Checkout unavailable',
-        message: 'Secure payment checkout is not configured yet. No Engage add-on was purchased.',
-        duration: 8000,
-        dedupeKey: 'billing-checkout-unavailable',
-      })
+      showCheckoutUnavailable('No Engage add-on was purchased.')
       return
     }
     setCheckoutAction('ADD_ENGAGE')

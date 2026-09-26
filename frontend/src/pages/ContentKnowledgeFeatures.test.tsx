@@ -25,6 +25,7 @@ const subscription: SubscriptionOverview = {
 }
 const catalog: PricingCatalog = {
   currency: 'USD', credit_costs: { draft: 2, image: 1, image_regeneration: 1 }, simulated_checkout_enabled: false,
+  simulated_checkout_status: 'disabled',
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
     { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 20, credits: 50, connections: 1, engage: false },
@@ -102,6 +103,7 @@ describe('Content knowledge features', () => {
     const notification = await screen.findByRole('alert')
     expect(notification).toHaveAttribute('data-tone', 'warning')
     expect(notification).toHaveTextContent('Checkout unavailable')
+    expect(notification).toHaveTextContent('Test checkout is disabled on the backend')
     expect(notification).toHaveTextContent('No plan change was made')
     expect(document.querySelector('.billing-tab-container > .li-banner.success')).not.toBeInTheDocument()
   })
