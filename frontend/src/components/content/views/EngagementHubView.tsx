@@ -919,7 +919,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
               {team.map((person) => <option key={person.id} value={person.id}>{person.is_current_user ? 'You' : person.name}</option>)}
             </select>
           </label>
-          <label className="quick-field quick-field-full" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <label className="quick-field quick-field-full quick-checkbox-field">
             <input type="checkbox" checked={autoActivate} onChange={(event) => setAutoActivate(event.target.checked)} />
             <span><strong>Activate immediately</strong> (start matching incoming interactions right away)</span>
           </label>
