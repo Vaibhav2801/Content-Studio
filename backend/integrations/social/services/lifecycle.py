@@ -34,6 +34,7 @@ from integrations.social.publishing.errors import (
 )
 from integrations.social.publishing.registry import publishing_provider_registry
 from integrations.social.publishing.types import (
+    CancelPublishRequest,
     GetPublishStatusRequest,
     NormalizedPost,
     PostMedia,
@@ -349,7 +350,12 @@ def _provider_request(job, attempt):
         text=version.copy,
         hashtags=tuple(version.hashtags),
         media=media,
-        scheduled_for=version.scheduled_for,
+        # The immutable version preserves the schedule that was approved, but
+        # the publish job is the source of truth for execution.  In
+        # particular, Publish Now moves an existing scheduled job to `now`.
+        # Sending the version timestamp here caused providers to schedule the
+        # post again instead of publishing it immediately.
+        scheduled_for=job.scheduled_for,
     )
     return adapter, PublishNowRequest(
         workspace_id=job.variant.post.workspace_id,
@@ -531,6 +537,42 @@ def publish_variant_now(variant, *, now=None):
                 status=PublishJobState.SCHEDULED,
             ).update(scheduled_for=now, next_attempt_at=now)
             job.refresh_from_db()
+    if (
+        job.status == PublishJobState.SUBMITTED
+        and job.diagnostic_details.get("provider_status") == "scheduled"
+        and job.external_id
+    ):
+        # Provider-native schedules are submitted as soon as they are
+        # approved.  Publish Now must first remove that remote schedule;
+        # otherwise returning the existing SUBMITTED job is a no-op.
+        adapter = publishing_provider_registry.create(ProviderName(job.provider))
+        cancellation = adapter.cancel_publish(CancelPublishRequest(
+            workspace_id=job.variant.post.workspace_id,
+            external_id=job.external_id,
+            idempotency_key=f"publish-now-cancel:{job.id}",
+        ))
+        if not cancellation.cancelled:
+            job = reconcile_job(job)
+            if job.status == PublishJobState.SUBMITTED:
+                raise ProviderUnknownOutcomeError(
+                    "The existing provider schedule could not be cancelled safely.",
+                    safe_details={"provider_status": cancellation.provider_status},
+                )
+            return job
+        with transaction.atomic():
+            job = PublishJob.objects.select_for_update().select_related("variant__post").get(pk=job.pk)
+            if job.status != PublishJobState.SUBMITTED:
+                return job
+            job.status = PublishJobState.SCHEDULED
+            job.scheduled_for = now
+            job.next_attempt_at = now
+            job.external_id = ""
+            job.submitted_at = None
+            job.completed_at = None
+            job.failure_message = ""
+            job.diagnostic_details = {}
+            job.save()
+            _set_variant_state(job.variant, SocialPostState.SCHEDULED)
     if job.status != PublishJobState.SCHEDULED:
         return job
     claim = claim_publish_job(job.id, now=now)

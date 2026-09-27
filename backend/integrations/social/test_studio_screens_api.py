@@ -178,7 +178,7 @@ class ContentStudioScreensApiTests(TestCase):
         with patch(
             "integrations.social.services.lifecycle.publishing_provider_registry.create",
             return_value=provider,
-        ):
+        ), patch.object(provider, "publish_now", wraps=provider.publish_now) as provider_publish:
             response = self.client.post(
                 reverse("social-publish-now", args=[self.variant.id]),
                 {},
@@ -191,6 +191,10 @@ class ContentStudioScreensApiTests(TestCase):
         job = PublishJob.objects.get(pk=route.publish_job_id)
         self.assertLessEqual(job.scheduled_for, timezone.now())
         self.assertEqual(provider.calls.count("publish_now"), 1)
+        provider_request = provider_publish.call_args.args[0]
+        self.assertEqual(provider_request.post.scheduled_for, job.scheduled_for)
+        self.assertNotEqual(provider_request.post.scheduled_for, version.scheduled_for)
+
     def test_request_changes_reject_and_batch_approval(self):
         changed = self.client.post(reverse("social-approval-action", args=[self.variant.id]), {
             "action": "REQUEST_CHANGES", "note": "Use a clearer opening.",
