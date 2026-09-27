@@ -116,6 +116,15 @@ export interface CreateEngagementAutomation {
   activate?: boolean
 }
 
+export interface UpdateEngagementAutomation {
+  name: string
+  keywords: string[]
+  match_mode: 'contains' | 'word' | 'exact'
+  dm_message: string
+  comment_reply?: string
+  owner_id?: string
+}
+
 export interface CreateEngagementCampaign {
   connection_id: string
   name: string

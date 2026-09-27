@@ -1,7 +1,8 @@
 import {
   BarChart3, Check, CheckCircle2, ChevronDown, ExternalLink, Instagram, Linkedin,
-  MessageCircleMore, MessageSquare, MousePointerClick, Pause, Play, Plus, Search, Send, ShieldCheck, Sparkles,
+  MessageCircleMore, MessageSquare, MousePointerClick, Pause, Pencil, Play, Plus, Search, Send, ShieldCheck, Sparkles,
   Users, WandSparkles, X, Zap, Copy, AlertCircle, Clock, CornerDownRight, RotateCw, RefreshCw,
+  Trash2,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { contentStudioApi } from '../../../api/contentStudio'
@@ -84,6 +85,9 @@ export function EngagementHubView() {
   }))
   const replaceAutomation = (automation: EngagementAutomation) => updateData((current) => ({
     ...current, automations: current.automations.map((item) => item.id === automation.id ? automation : item),
+  }))
+  const removeAutomation = (automationId: string) => updateData((current) => ({
+    ...current, automations: current.automations.filter((item) => item.id !== automationId),
   }))
   const replaceCampaign = (campaign: EngagementCampaign) => updateData((current) => ({
     ...current, campaigns: current.campaigns.map((item) => item.id === campaign.id ? campaign : item),
@@ -252,7 +256,7 @@ export function EngagementHubView() {
       </div>
     )}
     {!loading && data && view === 'review' && <ReviewWorkspace reviews={data.reviews} team={data.team} connections={data.connections} onReplace={replaceReview} showNotice={showNotice} />}
-    {!loading && data && view === 'automations' && <AutomationsWorkspace automations={data.automations} team={data.team} connections={data.connections} onCreate={(item) => updateData((current) => ({ ...current, automations: [item, ...current.automations] }))} onReplace={replaceAutomation} showNotice={showNotice} />}
+    {!loading && data && view === 'automations' && <AutomationsWorkspace automations={data.automations} team={data.team} connections={data.connections} onCreate={(item) => updateData((current) => ({ ...current, automations: [item, ...current.automations] }))} onReplace={replaceAutomation} onRemove={removeAutomation} showNotice={showNotice} />}
     {!loading && data && view === 'campaigns' && <CampaignsWorkspace campaigns={data.campaigns} team={data.team} connections={data.connections} contacts={data.contacts} onCreate={(item) => updateData((current) => ({ ...current, campaigns: [item, ...current.campaigns] }))} onReplace={replaceCampaign} showNotice={showNotice} />}
     {!loading && data && view === 'analytics' && <EngagementAnalytics analytics={data.analytics} team={data.team} reviews={data.reviews} />}
     {!loading && data && view === 'linkedin' && <LinkedInCopilot reviews={data.reviews.filter((item) => item.platform === 'linkedin')} team={data.team} onReplace={replaceReview} showNotice={showNotice} />}
@@ -801,7 +805,7 @@ function ReviewCard({ item, team, onReplace, showNotice }: { item: EngagementRev
   </article>
 }
 
-function AutomationsWorkspace({ automations, team, connections, onCreate, onReplace, showNotice }: { automations: EngagementAutomation[]; team: EngagementTeamMember[]; connections: EngagementConnection[]; onCreate: (item: EngagementAutomation) => void; onReplace: (item: EngagementAutomation) => void; showNotice: (message: string) => void }) {
+function AutomationsWorkspace({ automations, team, connections, onCreate, onReplace, onRemove, showNotice }: { automations: EngagementAutomation[]; team: EngagementTeamMember[]; connections: EngagementConnection[]; onCreate: (item: EngagementAutomation) => void; onReplace: (item: EngagementAutomation) => void; onRemove: (automationId: string) => void; showNotice: (message: string) => void }) {
   const instagram = connections.filter((item) => item.platform === 'instagram' && item.engagement_supported)
   const currentUser = team.find((item) => item.is_current_user)
   const [creating, setCreating] = useState(false)
@@ -842,6 +846,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
       const updated = await contentStudioApi.engagementAutomationAction(item.id, actionName)
       onReplace(updated)
       showNotice(`${updated.name} is now ${updated.state.toLowerCase()}.`)
+      return updated
     } catch (error) { showNotice(errorMessage(error)) }
   }
 
@@ -953,7 +958,7 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
     {automations.length ? (
       <div className="automation-list">
         {automations.map((item) => (
-          <AutomationCard key={item.id} item={item} onAction={() => void action(item)} showNotice={showNotice} />
+          <AutomationCard key={item.id} item={item} team={team} onAction={() => action(item)} onReplace={onReplace} onRemove={onRemove} showNotice={showNotice} />
         ))}
       </div>
     ) : (
@@ -966,8 +971,17 @@ function AutomationsWorkspace({ automations, team, connections, onCreate, onRepl
   </div>
 }
 
-function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutomation; onAction: () => void; showNotice: (message: string) => void }) {
+function AutomationCard({ item, team, onAction, onReplace, onRemove, showNotice }: { item: EngagementAutomation; team: EngagementTeamMember[]; onAction: () => Promise<EngagementAutomation | undefined>; onReplace: (item: EngagementAutomation) => void; onRemove: (automationId: string) => void; showNotice: (message: string) => void }) {
   const [testing, setTesting] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [editName, setEditName] = useState(item.name)
+  const [editKeywords, setEditKeywords] = useState(item.keywords.join(', '))
+  const [editMatchMode, setEditMatchMode] = useState(item.match_mode)
+  const [editMessage, setEditMessage] = useState(item.dm_message)
+  const [editPublicReply, setEditPublicReply] = useState(item.comment_reply)
+  const [editOwnerId, setEditOwnerId] = useState(item.owner_id)
   const icons = { COMMENT_TO_DM: MessageCircleMore, STORY_REPLY: Instagram, DM_KEYWORD: Search, CLICK_TO_DM: MousePointerClick }
   const Icon = icons[item.kind] || MessageCircleMore
   const trigger = item.keywords.length
@@ -986,7 +1000,57 @@ function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutoma
     }
   }
 
-  return <article className="automation-row">
+  const beginEdit = () => {
+    setEditName(item.name)
+    setEditKeywords(item.keywords.join(', '))
+    setEditMatchMode(item.match_mode)
+    setEditMessage(item.dm_message)
+    setEditPublicReply(item.comment_reply)
+    setEditOwnerId(item.owner_id)
+    setEditing(true)
+  }
+
+  const saveEdit = async (event: FormEvent) => {
+    event.preventDefault()
+    try {
+      setSaving(true)
+      if (item.status === 'ACTIVE') {
+        const paused = await onAction()
+        if (!paused) return
+      }
+      const updated = await contentStudioApi.updateEngagementAutomation(item.id, {
+        name: editName.trim(),
+        keywords: editKeywords.split(',').map((value) => value.trim()).filter(Boolean),
+        match_mode: editMatchMode,
+        dm_message: editMessage.trim(),
+        comment_reply: editPublicReply.trim(),
+        owner_id: editOwnerId || undefined,
+      })
+      onReplace(updated)
+      setEditing(false)
+      showNotice(`${updated.name} was updated and moved to draft. Review and activate it when ready.`)
+    } catch (error) {
+      showNotice(errorMessage(error))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteRule = async () => {
+    if (!window.confirm(`Delete “${item.name}”? This rule will stop matching new interactions.`)) return
+    try {
+      setDeleting(true)
+      await contentStudioApi.deleteEngagementAutomation(item.id)
+      onRemove(item.id)
+      showNotice(`${item.name} was deleted.`)
+    } catch (error) {
+      showNotice(errorMessage(error))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return <article className={`automation-row ${editing ? 'automation-row-editing' : ''}`}>
     <div className="automation-row-icon"><Icon size={20} /></div>
     <div className="automation-main">
       <div className="automation-header-meta">
@@ -996,30 +1060,78 @@ function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutoma
         </span>
       </div>
       <h3>{item.name}</h3>
-      <p className="automation-guard-note">Matched replies are prepared for human review; no copy is sent automatically.</p>
-      <div className="automation-details">
-        <div className="automation-detail-pill">
-          <span className="detail-key">Trigger:</span>
-          <span className="detail-val">{trigger}</span>
-        </div>
-        <div className="automation-detail-pill">
-          <span className="detail-key">DM:</span>
-          <span className="detail-val">{item.dm_message}</span>
-        </div>
-        {item.kind === 'COMMENT_TO_DM' && item.comment_reply && (
-          <div className="automation-detail-pill">
-            <span className="detail-key">Public:</span>
-            <span className="detail-val">{item.comment_reply}</span>
+      {editing ? (
+        <form className="automation-edit-form" onSubmit={(event) => void saveEdit(event)}>
+          <div className="quick-form-grid">
+            <label className="quick-field">
+              <span>Automation Name</span>
+              <input value={editName} onChange={(event) => setEditName(event.target.value)} autoFocus />
+            </label>
+            <label className="quick-field">
+              <span>Match Mode</span>
+              <select value={editMatchMode} onChange={(event) => setEditMatchMode(event.target.value as EngagementAutomation['match_mode'])}>
+                <option value="contains">Contains</option>
+                <option value="word">Whole word</option>
+                <option value="exact">Exact</option>
+              </select>
+            </label>
+            <label className="quick-field quick-field-full">
+              <span>Trigger Keywords (comma-separated)</span>
+              <input value={editKeywords} onChange={(event) => setEditKeywords(event.target.value)} />
+            </label>
+            <label className="quick-field quick-field-full">
+              <span>Suggested Direct Message (DM)</span>
+              <textarea value={editMessage} onChange={(event) => setEditMessage(event.target.value)} rows={3} />
+            </label>
+            {item.kind === 'COMMENT_TO_DM' && (
+              <label className="quick-field quick-field-full">
+                <span>Suggested Public Reply</span>
+                <textarea value={editPublicReply} onChange={(event) => setEditPublicReply(event.target.value)} rows={2} />
+              </label>
+            )}
+            <label className="quick-field">
+              <span>Default Reviewer</span>
+              <select value={editOwnerId} onChange={(event) => setEditOwnerId(event.target.value)}>
+                {team.map((person) => <option key={person.id} value={person.id}>{person.is_current_user ? 'You' : person.name}</option>)}
+              </select>
+            </label>
           </div>
-        )}
-      </div>
+          <p className="automation-edit-note">Saving pauses active matching and returns the rule to draft for review.</p>
+          <div className="quick-form-footer">
+            <button type="button" className="li-quiet-button" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>
+            <button type="submit" className="button button-dark" disabled={saving || !editName.trim() || (item.kind !== 'STORY_REPLY' && !editKeywords.trim()) || !editMessage.trim()}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <p className="automation-guard-note">Matched replies are prepared for human review; no copy is sent automatically.</p>
+          <div className="automation-details">
+            <div className="automation-detail-pill">
+              <span className="detail-key">Trigger:</span>
+              <span className="detail-val">{trigger}</span>
+            </div>
+            <div className="automation-detail-pill">
+              <span className="detail-key">DM:</span>
+              <span className="detail-val">{item.dm_message}</span>
+            </div>
+            {item.kind === 'COMMENT_TO_DM' && item.comment_reply && (
+              <div className="automation-detail-pill">
+                <span className="detail-key">Public:</span>
+                <span className="detail-val">{item.comment_reply}</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
-    <div className="automation-owner">
+    {!editing && <div className="automation-owner">
       <span className="automation-runs-count">{item.runs} conversations</span>
       <span className="automation-owner-name">Owner: {item.owner}</span>
       {item.error && <span className="automation-error-tag">{item.error}</span>}
-    </div>
-    <div className="automation-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    </div>}
+    {!editing && <div className="automation-actions">
       <button
         className="li-quiet-button"
         type="button"
@@ -1030,6 +1142,12 @@ function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutoma
       >
         <Sparkles size={14} />
         <span>{testing ? 'Testing…' : 'Test Rule'}</span>
+      </button>
+      <button className="automation-icon-action" type="button" aria-label={`Edit ${item.name}`} title="Edit rule" onClick={beginEdit}>
+        <Pencil size={15} />
+      </button>
+      <button className="automation-icon-action automation-delete" type="button" aria-label={`Delete ${item.name}`} title="Delete rule" disabled={deleting} onClick={() => void deleteRule()}>
+        <Trash2 size={15} />
       </button>
       {item.status === 'DRAFT' ? (
         <button
@@ -1050,7 +1168,7 @@ function AutomationCard({ item, onAction, showNotice }: { item: EngagementAutoma
           {item.status === 'ACTIVE' ? <Pause size={16} /> : <Play size={16} />}
         </button>
       )}
-    </div>
+    </div>}
   </article>
 }
 

@@ -135,6 +135,53 @@ class EngagementApiTests(TestCase):
         automation.refresh_from_db()
         self.assertEqual(automation.approved_by, self.user)
 
+    def test_paused_automation_can_be_edited_and_deleted(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="COMMENT_TO_DM",
+            name="Old guide",
+            status=EngagementAutomationStatus.PAUSED,
+            keywords=["old"],
+            approved_dm_message="Old message",
+            owner=self.user,
+        )
+        detail_url = reverse("social-engagement-automation", args=[automation.id])
+
+        updated = self.client.patch(detail_url, {
+            "name": "Updated guide",
+            "keywords": ["guide", "details"],
+            "match_mode": "word",
+            "dm_message": "Here is the updated guide.",
+            "comment_reply": "Check your DM.",
+            "owner_id": str(self.user.id),
+        }, format="json")
+
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.data["name"], "Updated guide")
+        self.assertEqual(updated.data["keywords"], ["guide", "details"])
+        self.assertEqual(updated.data["status"], EngagementAutomationStatus.DRAFT)
+
+        deleted = self.client.delete(detail_url)
+        self.assertEqual(deleted.status_code, 204)
+        self.assertFalse(EngagementAutomation.objects.filter(pk=automation.id).exists())
+
+    def test_automation_update_and_delete_are_workspace_scoped(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.other_workspace,
+            connection=self.other_connection,
+            kind="COMMENT_TO_DM",
+            name="Other workspace automation",
+            keywords=["guide"],
+            approved_dm_message="Private message",
+            owner=self.other_user,
+        )
+        detail_url = reverse("social-engagement-automation", args=[automation.id])
+
+        self.assertEqual(self.client.patch(detail_url, {"name": "Changed"}, format="json").status_code, 404)
+        self.assertEqual(self.client.delete(detail_url).status_code, 404)
+        self.assertTrue(EngagementAutomation.objects.filter(pk=automation.id).exists())
+
     def test_review_is_sent_only_after_approval(self):
         with patch("integrations.social.services.engagement.EngagementProvider.send_review", return_value="message-1") as send:
             response = self.client.post(

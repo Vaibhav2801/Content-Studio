@@ -1592,6 +1592,60 @@
 .automation-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.automation-row-editing {
+  align-items: flex-start;
+}
+
+.automation-row-editing .automation-main {
+  grid-column: 2 / -1;
+}
+
+.automation-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #eceef5;
+}
+
+.automation-edit-note {
+  margin: 0;
+  color: #7b8196;
+  font-size: 12px;
+}
+
+.automation-icon-action {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid #d9dce8;
+  background: #ffffff;
+  color: #5e6478;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.automation-icon-action:hover {
+  background: #f6f4ff;
+  border-color: #c8bff9;
+  color: #5542d6;
+}
+
+.automation-icon-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.automation-delete:hover {
+  background: #fff3f2;
+  border-color: #f3b8b1;
+  color: #b52b1d;
 }
 
 .automation-play {

@@ -307,9 +307,15 @@ class EngagementAutomationDetailAPIView(EngagementWorkspaceAPIView):
                 return Response({"match_mode": ["Choose contains, word, or exact."]}, status=400)
             item.match_mode = match_mode
         if "dm_message" in request.data:
-            item.approved_dm_message = str(request.data.get("dm_message") or "").strip()
+            dm_message = str(request.data.get("dm_message") or "").strip()
+            if len(dm_message) > 1000:
+                return Response({"dm_message": ["Keep the approved DM under 1,000 characters."]}, status=400)
+            item.approved_dm_message = dm_message
         if "comment_reply" in request.data:
-            item.approved_comment_reply = str(request.data.get("comment_reply") or "").strip()
+            comment_reply = str(request.data.get("comment_reply") or "").strip()
+            if len(comment_reply) > 1000:
+                return Response({"comment_reply": ["Keep the approved public reply under 1,000 characters."]}, status=400)
+            item.approved_comment_reply = comment_reply
         if "owner_id" in request.data:
             try:
                 item.owner = self.member_user(request, request.data.get("owner_id")) or request.user
@@ -320,6 +326,11 @@ class EngagementAutomationDetailAPIView(EngagementWorkspaceAPIView):
         item.approved_at = None
         item.save()
         return Response(serialize_automation(item))
+
+    def delete(self, request, automation_id):
+        item = self.item(request, automation_id)
+        item.delete()
+        return Response(status=204)
 
     def post(self, request, automation_id):
         action = str(request.data.get("action") or "").upper()

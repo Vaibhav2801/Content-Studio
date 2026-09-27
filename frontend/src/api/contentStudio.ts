@@ -1,6 +1,6 @@
 import { csrfToken } from './auth'
 import type { ApprovalGroups, CalendarResponse, ContentAnalytics, HomeSummary, LibraryPost, PublishNowResponse, StudioConnection, StudioVariantCard } from '../types/contentStudio'
-import type { CreateEngagementAutomation, CreateEngagementCampaign, EngagementAutomation, EngagementCampaign, EngagementOverview, EngagementReview } from '../types/engagement'
+import type { CreateEngagementAutomation, CreateEngagementCampaign, EngagementAutomation, EngagementCampaign, EngagementOverview, EngagementReview, UpdateEngagementAutomation } from '../types/engagement'
 
 const baseUrl = (import.meta.env.VITE_SOCIAL_API_BASE_URL as string | undefined) ?? '/api/v3/social'
 
@@ -33,6 +33,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const message = firstMessage(payload.detail) || firstMessage(payload.error) || firstMessage(payload)
     throw new ContentStudioApiError(message || `Request failed (${response.status})`, payload)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -70,6 +71,8 @@ export const contentStudioApi = {
   updateEngagementReview: (reviewId: string, payload: { draft?: string; assignee_id?: string }) => request<EngagementReview>(`/engagement/reviews/${reviewId}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
   engagementReviewAction: (reviewId: string, action: 'GENERATE' | 'APPROVE_SEND' | 'RETRY' | 'DISMISS', draft?: string) => request<EngagementReview>(`/engagement/reviews/${reviewId}/`, { method: 'POST', body: JSON.stringify({ action, ...(draft === undefined ? {} : { draft }) }) }),
   createEngagementAutomation: (payload: CreateEngagementAutomation) => request<EngagementAutomation>('/engagement/automations/', { method: 'POST', body: JSON.stringify(payload) }),
+  updateEngagementAutomation: (automationId: string, payload: UpdateEngagementAutomation) => request<EngagementAutomation>(`/engagement/automations/${automationId}/`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteEngagementAutomation: (automationId: string) => request<void>(`/engagement/automations/${automationId}/`, { method: 'DELETE' }),
   engagementAutomationAction: (automationId: string, action: 'APPROVE' | 'ACTIVATE' | 'PAUSE') => request<EngagementAutomation>(`/engagement/automations/${automationId}/`, { method: 'POST', body: JSON.stringify({ action }) }),
   testEngagementAutomation: (payload: { automation_id?: string; connection_id?: string; kind?: string; text?: string; handle?: string }) => request<{ message: string; reviews: EngagementReview[] }>('/engagement/test-trigger/', { method: 'POST', body: JSON.stringify(payload) }),
   createEngagementCampaign: (payload: CreateEngagementCampaign) => request<EngagementCampaign>('/engagement/campaigns/', { method: 'POST', body: JSON.stringify(payload) }),

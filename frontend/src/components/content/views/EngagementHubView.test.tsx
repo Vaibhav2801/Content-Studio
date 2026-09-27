@@ -10,7 +10,10 @@ vi.mock('../../../api/contentStudio', () => ({
     updateEngagementReview: vi.fn(),
     engagementReviewAction: vi.fn(),
     createEngagementAutomation: vi.fn(),
+    updateEngagementAutomation: vi.fn(),
+    deleteEngagementAutomation: vi.fn(),
     engagementAutomationAction: vi.fn(),
+    testEngagementAutomation: vi.fn(),
     createEngagementCampaign: vi.fn(),
     engagementCampaignAction: vi.fn(),
   },
@@ -83,6 +86,40 @@ describe('EngagementHubView', () => {
     expect(await screen.findByText('Send launch guide')).toBeInTheDocument()
     expect(contentStudioApi.createEngagementAutomation).toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent(/Nothing will run until it is approved/i)
+  })
+
+  it('edits and deletes an automation rule', async () => {
+    const automation = {
+      id: 'automation-1', connection_id: 'connection-1', platform: 'instagram' as const, name: 'Send old guide',
+      kind: 'COMMENT_TO_DM' as const, type: 'Comment to DM', status: 'PAUSED' as const, state: 'Paused', keywords: ['old'],
+      match_mode: 'contains' as const, dm_message: 'Old message', comment_reply: 'Old reply', configuration: {},
+      runs: 0, owner_id: 'user-1', owner: 'Owner', error: '',
+    }
+    vi.mocked(contentStudioApi.engagement).mockResolvedValueOnce({ ...structuredClone(overview), automations: [automation] })
+    vi.mocked(contentStudioApi.updateEngagementAutomation).mockImplementation(async (_id, payload) => ({
+      ...automation, ...payload, name: payload.name, keywords: payload.keywords, status: 'DRAFT', state: 'Needs approval',
+      comment_reply: payload.comment_reply ?? '', owner_id: payload.owner_id ?? '',
+    }))
+    vi.mocked(contentStudioApi.deleteEngagementAutomation).mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<EngagementHubView />)
+    await screen.findByText('Priya Mehta')
+    fireEvent.click(screen.getByRole('button', { name: 'Automations' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Send old guide' }))
+    fireEvent.change(screen.getByLabelText('Automation Name'), { target: { value: 'Send updated guide' } })
+    fireEvent.change(screen.getByLabelText('Trigger Keywords (comma-separated)'), { target: { value: 'guide, details' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(contentStudioApi.updateEngagementAutomation).toHaveBeenCalledWith('automation-1', expect.objectContaining({
+      name: 'Send updated guide', keywords: ['guide', 'details'],
+    })))
+    expect(await screen.findByText('Send updated guide')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Send updated guide' }))
+    await waitFor(() => expect(contentStudioApi.deleteEngagementAutomation).toHaveBeenCalledWith('automation-1'))
+    expect(screen.queryByText('Send updated guide')).not.toBeInTheDocument()
+    confirm.mockRestore()
   })
 
   it('makes LinkedIn personal outreach limits explicit', async () => {
