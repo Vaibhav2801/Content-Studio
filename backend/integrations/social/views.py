@@ -567,23 +567,38 @@ class SocialPostGenerateAPIView(SocialWorkspaceScopedAPIView):
         post.save(update_fields=["metadata", "updated_at"])
 
         from integrations.social.tasks import generate_post_variants
-        try:
-            generate_post_variants.delay(
-                post_id=str(post.id), networks=request.data.get("networks"),
-                controls=request.data.get("controls"),
-                connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-                reservation_id=str(reservation.id),
-            )
-        except Exception:
-            finalize_credit_reservation(reservation.id, success=False)
-            metadata["generation_status"] = "FAILED"
-            metadata["generation_error"] = "Generation worker is unavailable."
-            post.metadata = metadata
-            post.save(update_fields=["metadata", "updated_at"])
-            logger.exception("Could not queue generation for post %s", post.id)
-            return Response({"detail": "Generation worker is unavailable."}, status=503)
+        generation_kwargs = {
+            "post_id": str(post.id),
+            "networks": request.data.get("networks"),
+            "controls": request.data.get("controls"),
+            "connection_ids": request.data.get("connection_ids") if "connection_ids" in request.data else None,
+            "reservation_id": str(reservation.id),
+        }
+        if django_settings.SOCIAL_POST_GENERATION_ASYNC:
+            try:
+                generate_post_variants.delay(**generation_kwargs)
+            except Exception:
+                finalize_credit_reservation(reservation.id, success=False)
+                metadata["generation_status"] = "FAILED"
+                metadata["generation_error"] = "Generation worker is unavailable."
+                post.metadata = metadata
+                post.save(update_fields=["metadata", "updated_at"])
+                logger.exception("Could not queue generation for post %s", post.id)
+                return Response({"detail": "Generation worker is unavailable."}, status=503)
+            post.refresh_from_db()
+            return Response(social_post_response(post), status=status.HTTP_202_ACCEPTED)
+
+        result = generate_post_variants(**generation_kwargs)
         post.refresh_from_db()
-        return Response(social_post_response(post), status=status.HTTP_202_ACCEPTED)
+        if result.get("status") != "READY":
+            return Response(
+                {
+                    "detail": result.get("error") or "Could not generate the post.",
+                    "post": social_post_response(post),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(social_post_response(post), status=status.HTTP_200_OK)
 
 
 
@@ -739,17 +754,41 @@ class SocialPostSeriesAPIView(SocialWorkspaceScopedAPIView):
             raise
 
         from integrations.social.tasks import generate_post_variants
-        try:
-            for post, part_controls in posts_with_controls:
-                generate_post_variants.delay(
-                    post_id=str(post.id), networks=request.data.get("networks"), controls=part_controls,
-                    connection_ids=request.data.get("connection_ids") if "connection_ids" in request.data else None,
-                    reservation_id=str(reservation.id),
+        common_kwargs = {
+            "networks": request.data.get("networks"),
+            "connection_ids": request.data.get("connection_ids") if "connection_ids" in request.data else None,
+            "reservation_id": str(reservation.id),
+        }
+        if django_settings.SOCIAL_POST_GENERATION_ASYNC:
+            try:
+                for post, part_controls in posts_with_controls:
+                    generate_post_variants.delay(
+                        post_id=str(post.id), controls=part_controls, **common_kwargs,
+                    )
+            except Exception:
+                finalize_credit_reservation(reservation.id, success=False)
+                logger.exception("Could not queue content series %s", title)
+                return Response({"detail": "Generation worker is unavailable."}, status=503)
+        else:
+            for index, (post, part_controls) in enumerate(posts_with_controls):
+                result = generate_post_variants(
+                    post_id=str(post.id), controls=part_controls, **common_kwargs,
                 )
-        except Exception:
-            finalize_credit_reservation(reservation.id, success=False)
-            logger.exception("Could not queue content series %s", title)
-            return Response({"detail": "Generation worker is unavailable."}, status=503)
+                if result.get("status") == "READY":
+                    continue
+                error = result.get("error") or "Could not generate the content series."
+                for pending_post, _ in posts_with_controls[index + 1:]:
+                    pending_metadata = dict(pending_post.metadata or {})
+                    pending_metadata["generation_status"] = "FAILED"
+                    pending_metadata["generation_error"] = "Series generation stopped after another post failed."
+                    pending_post.metadata = pending_metadata
+                    pending_post.save(update_fields=["metadata", "updated_at"])
+                return Response(
+                    {"detail": error, "posts": [social_post_response(item) for item in posts]},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+        for post in posts:
+            post.refresh_from_db()
         return Response({"posts": [social_post_response(post) for post in posts]}, status=201)
 
 

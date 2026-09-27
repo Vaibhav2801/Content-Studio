@@ -152,14 +152,43 @@ class SocialComposerApiTests(TestCase):
             "INSTAGRAM": {"copy": "Instagram version", "hashtags": ["#People"], "metadata": {}},
         }
         response = self.client.post(reverse("social-post-generate"), self.payload(), format="json")
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["generation_status"], "READY")
         self.assertEqual(len(response.data["variants"]), 3)
         self.assertEqual(len({item["copy"] for item in response.data["variants"]}), 3)
         self.assertEqual(SocialPostVariant.objects.filter(post_id=response.data["id"]).count(), 3)
         generated_variants = SocialPostVariant.objects.filter(post_id=response.data["id"]).prefetch_related("versions")
         self.assertTrue(all(item.versions.count() == 1 for item in generated_variants))
         self.assertTrue(all(item.versions.first().quality_check.get("schema_version") == 1 for item in generated_variants))
-        self.assertNotContains(response, "UPLOAD_POST", status_code=202)
+        self.assertNotContains(response, "UPLOAD_POST", status_code=200)
+
+    @override_settings(SOCIAL_POST_GENERATION_ASYNC=True)
+    @patch("integrations.social.tasks.generate_post_variants.delay")
+    def test_generate_can_be_reenabled_asynchronously(self, delay):
+        response = self.client.post(
+            reverse("social-post-generate"),
+            self.payload(networks=["LINKEDIN"], controls={"include_image": False}),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["generation_status"], "GENERATING")
+        delay.assert_called_once()
+
+    @patch(
+        "integrations.social.services.composer.SocialContentGenerator.generate",
+        side_effect=RuntimeError("provider unavailable"),
+    )
+    def test_synchronous_generation_returns_the_failure(self, _generate):
+        response = self.client.post(
+            reverse("social-post-generate"),
+            self.payload(networks=["LINKEDIN"], controls={"include_image": False}),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.data["post"]["generation_status"], "FAILED")
+        self.assertIn("provider unavailable", response.data["detail"])
 
     def test_generation_prompt_describes_native_linkedin_and_instagram_formats(self):
         post = SocialPost.objects.create(
