@@ -383,6 +383,57 @@ class EngagementApiTests(TestCase):
         automation.refresh_from_db()
         self.assertEqual(automation.stats["runs"], 1)
 
+    def test_comment_to_dm_native_instagram_post_with_platform_post_id(self):
+        automation = EngagementAutomation.objects.create(
+            workspace=self.workspace,
+            connection=self.instagram,
+            kind="COMMENT_TO_DM",
+            name="Native IG Post Automation",
+            status=EngagementAutomationStatus.ACTIVE,
+            keywords=["GUIDE"],
+            match_mode="contains",
+            approved_dm_message="Here is your guide!",
+            approved_comment_reply="Sent to your DMs!",
+            owner=self.user,
+        )
+        # Exact structure sent by Zernio for native/external Instagram posts
+        payload = {
+            "id": "webhook-native-comment-1",
+            "event": "comment.received",
+            "account": {"id": "account-instagram"},
+            "post": {"id": None, "platformPostId": "17986772475026325"},
+            "comment": {
+                "id": "comment-ig-999",
+                "postId": None,
+                "platformPostId": "17986772475026325",
+                "text": "Can I get the GUIDE?",
+            },
+            "contact": {"id": "contact-commenter-2", "name": "User Two", "username": "usertwo"},
+        }
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"engagement-secret", body, hashlib.sha256).hexdigest()
+
+        with patch("integrations.social.services.engagement.EngagementProvider.send_review", return_value="prov-msg-1") as send:
+            response = self.client.post(
+                reverse("social-engagement-webhook"),
+                data=body,
+                content_type="application/json",
+                HTTP_X_ZERNIO_SIGNATURE=signature,
+            )
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(response.data["accepted"], 2)
+            self.assertEqual(send.call_count, 2)
+
+        public_item = EngagementReviewItem.objects.get(provider_event_id="webhook-native-comment-1")
+        self.assertEqual(public_item.status, EngagementReviewStatus.SENT)
+        self.assertEqual(public_item.provider_post_id, "17986772475026325")
+        self.assertEqual(public_item.provider_comment_id, "comment-ig-999")
+
+        private_item = EngagementReviewItem.objects.get(provider_event_id="webhook-native-comment-1:private")
+        self.assertEqual(private_item.status, EngagementReviewStatus.SENT)
+        self.assertEqual(private_item.provider_post_id, "17986772475026325")
+        self.assertEqual(private_item.provider_comment_id, "comment-ig-999")
+
     def test_story_reply_with_meta_reply_to_story_format(self):
         automation = EngagementAutomation.objects.create(
             workspace=self.workspace,

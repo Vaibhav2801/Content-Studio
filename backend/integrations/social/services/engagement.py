@@ -58,18 +58,21 @@ def _provider_object_id(payload):
 
 
 def _extract_provider_result(payload, key):
-    item = payload.get(key) if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return ""
+    item = payload.get(key)
     if isinstance(item, dict):
         return _provider_object_id(item)
-    data = payload.get("data") if isinstance(payload, dict) else None
+    data = payload.get("data")
     if isinstance(data, dict):
-        return _provider_id(data, f"{key}Id", "id", "_id", "messageId", "commentId")
-    return ""
+        return _provider_id(data, f"{key}Id", f"{key}_id", "id", "_id", "messageId", "commentId")
+    return _provider_id(payload, f"{key}Id", f"{key}_id", "id", "_id", "messageId", "commentId")
 
 
 def _safe_error(error):
-    if isinstance(error, PublishingProviderError):
-        return str(error)[:500]
+    if isinstance(error, (PublishingProviderError, ValidationError)):
+        message = error.messages[0] if hasattr(error, "messages") and error.messages else str(error)
+        return str(message)[:500]
     return "The provider could not complete this action. Try again."
 
 
@@ -578,14 +581,14 @@ def process_engagement_webhook(headers, body, provider=None):
         post = _nested(payload, "post")
         post_id = (
             _provider_object_id(post)
-            or _provider_id(post, "id", "_id", "postId", "post_id")
-            or _provider_id(comment, "postId", "post_id")
-            or _provider_id(payload, "postId", "post_id")
+            or _provider_id(post, "id", "_id", "postId", "post_id", "platformPostId", "platform_post_id", "nativePostId", "native_post_id")
+            or _provider_id(comment, "postId", "post_id", "platformPostId", "platform_post_id", "nativePostId", "native_post_id")
+            or _provider_id(payload, "postId", "post_id", "platformPostId", "platform_post_id", "nativePostId", "native_post_id")
         )
         comment_id = (
             _provider_object_id(comment)
-            or _provider_id(comment, "id", "_id", "commentId", "comment_id")
-            or _provider_id(payload, "commentId", "comment_id")
+            or _provider_id(comment, "id", "_id", "commentId", "comment_id", "platformCommentId", "platform_comment_id")
+            or _provider_id(payload, "commentId", "comment_id", "platformCommentId", "platform_comment_id")
         )
         automation = _automation_for(connection, EngagementAutomationKind.COMMENT_TO_DM, text)
         public_suggestion = (
