@@ -82,6 +82,9 @@ VARIANT_TRANSITIONS = {
     },
     SocialPostState.SCHEDULED: {
         SocialPostState.PUBLISHING,
+        SocialPostState.SUBMITTED,
+        SocialPostState.PUBLISHED,
+        SocialPostState.FAILED,
         SocialPostState.NEEDS_REVIEW,
         SocialPostState.CONNECTION_REQUIRED,
         SocialPostState.CANCELLED,
@@ -1051,6 +1054,44 @@ def reconcile_pending_jobs(*, limit=100):
             else:
                 counts["pending"] += 1
         except (PublishingProviderError, ValueError):
+            counts["pending"] += 1
+    return counts
+
+
+def reconcile_due_workspace_jobs(workspace, *, now=None, limit=20):
+    """Refresh overdue provider-owned schedules during calendar reads.
+
+    Webhooks and Celery beat remain the primary synchronization mechanisms.
+    This bounded fallback prevents a published post from remaining locally
+    scheduled when either asynchronous path is delayed or unavailable.
+    """
+    now = now or timezone.now()
+    jobs = list(
+        PublishJob.objects.select_related("variant__post")
+        .filter(
+            variant__post__workspace=workspace,
+            status__in=RECONCILE_STATES,
+            scheduled_for__lte=now,
+        )
+        .order_by("scheduled_for", "created_at")[:limit]
+    )
+    counts = {"published": 0, "failed": 0, "pending": 0}
+    for job in jobs:
+        try:
+            reconciled = reconcile_job(job)
+        except (PublishingProviderError, ValueError):
+            logger.warning(
+                "Could not reconcile overdue social publish job %s during calendar refresh.",
+                job.id,
+                exc_info=True,
+            )
+            counts["pending"] += 1
+            continue
+        if reconciled.status == PublishJobState.PUBLISHED:
+            counts["published"] += 1
+        elif reconciled.status == PublishJobState.FAILED:
+            counts["failed"] += 1
+        else:
             counts["pending"] += 1
     return counts
 

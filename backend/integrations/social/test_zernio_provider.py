@@ -322,6 +322,10 @@ class ZernioProviderTests(SimpleTestCase):
         self.session.request.side_effect = [
             self.profile_response(),
             MockResponse(200, {"accounts": [instagram]}),
+            MockResponse(200, {
+                "synced": {"postsFound": 3, "postsSynced": 2, "skipped": False},
+                "posts": [],
+            }),
         ]
 
         result = self.provider.complete_connection(CompleteConnectionRequest(
@@ -335,7 +339,14 @@ class ZernioProviderTests(SimpleTestCase):
 
         self.assertTrue(result.connected)
         self.assertEqual(result.provider_connection_id, self.profile_id)
-        self.assertEqual(self.session.request.call_count, 2)
+        self.assertEqual(result.safe_metadata["post_sync"], {
+            "attempted": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "posts_found": 3,
+            "posts_synced": 2,
+        })
+        self.assertEqual(self.session.request.call_count, 3)
         self.assertEqual(
             self.session.request.call_args_list[0].args[:2],
             ("GET", f"https://api.example.invalid/v1/profiles/{self.profile_id}"),
@@ -344,6 +355,44 @@ class ZernioProviderTests(SimpleTestCase):
             self.session.request.call_args_list[1].args[:2],
             ("GET", "https://api.example.invalid/v1/accounts"),
         )
+        sync_call = self.session.request.call_args_list[2]
+        self.assertEqual(
+            sync_call.args[:2],
+            ("POST", "https://api.example.invalid/v1/posts/sync-external"),
+        )
+        self.assertEqual(sync_call.kwargs["json"], {"accountId": self.account_id})
+
+    def test_instagram_connection_succeeds_when_recent_post_sync_fails(self):
+        instagram = {
+            **self.account_payload,
+            "platform": "instagram",
+            "displayName": "Kaia Blaze",
+            "accountType": "business",
+        }
+        self.session.request.side_effect = [
+            self.profile_response(),
+            MockResponse(200, {"accounts": [instagram]}),
+            MockResponse(503, {"error": "Temporarily unavailable"}),
+        ]
+
+        with self.assertLogs("integrations.social.publishing.zernio", level="WARNING"):
+            result = self.provider.complete_connection(CompleteConnectionRequest(
+                workspace_id=self.workspace_id,
+                redirect_uri="https://app.example.com/content/connections",
+                state="state",
+                authorization_code="",
+                network=PublishingNetwork.INSTAGRAM,
+                provider_profile_id=self.profile_id,
+            ))
+
+        self.assertTrue(result.connected)
+        self.assertEqual(result.safe_metadata["post_sync"], {
+            "attempted": 1,
+            "succeeded": 0,
+            "failed": 1,
+            "posts_found": 0,
+            "posts_synced": 0,
+        })
 
     def test_profile_and_account_cannot_be_used_by_another_workspace(self):
         other_workspace = uuid4()

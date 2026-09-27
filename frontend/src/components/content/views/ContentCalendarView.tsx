@@ -127,17 +127,34 @@ export function ContentCalendarView() {
     void load()
   }, [load])
 
-  const hasInFlightPosts = Boolean(
-    calendar?.items.some((item) => item.status === 'PUBLISHING' || item.status === 'SUBMITTED'),
-  )
-
   useEffect(() => {
-    if (isDemo || !hasInFlightPosts) return
-    const pollId = window.setInterval(() => {
+    if (isDemo || !calendar?.items.length) return
+    const now = Date.now()
+    const hasDueOrInFlightPost = calendar.items.some(
+      (item) =>
+        item.status === 'PUBLISHING' ||
+        item.status === 'SUBMITTED' ||
+        (item.status === 'SCHEDULED' && new Date(item.scheduled_for).getTime() <= now),
+    )
+    if (hasDueOrInFlightPost) {
+      const pollId = window.setInterval(() => {
+        void load()
+      }, 5000)
+      return () => window.clearInterval(pollId)
+    }
+
+    const nextSchedule = Math.min(
+      ...calendar.items
+        .filter((item) => item.status === 'SCHEDULED')
+        .map((item) => new Date(item.scheduled_for).getTime())
+        .filter((scheduledAt) => Number.isFinite(scheduledAt) && scheduledAt > now),
+    )
+    if (!Number.isFinite(nextSchedule)) return
+    const refreshId = window.setTimeout(() => {
       void load()
-    }, 5000)
-    return () => window.clearInterval(pollId)
-  }, [hasInFlightPosts, isDemo, load])
+    }, Math.min(Math.max(nextSchedule - now + 1000, 1000), 2_147_483_647))
+    return () => window.clearTimeout(refreshId)
+  }, [calendar, isDemo, load])
 
   const days = useMemo(() => {
     if (!calendar) return []

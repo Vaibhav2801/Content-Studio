@@ -68,7 +68,7 @@ from integrations.social.services.data_management import (
     export_workspace_content,
 )
 from integrations.social.services.operations import operational_health_snapshot
-from integrations.social.services.lifecycle import submit_provider_schedules
+from integrations.social.services.lifecycle import reconcile_due_workspace_jobs, submit_provider_schedules
 from integrations.social.services.analytics import analytics_dashboard, decide_analytics_suggestion, refresh_published_metrics
 from integrations.social.services.onboarding import (
     cancel_connection,
@@ -1006,6 +1006,7 @@ class SocialBatchApprovalAPIView(SocialWorkspaceScopedAPIView):
 class SocialCalendarAPIView(SocialWorkspaceScopedAPIView):
     def get(self, request):
         workspace = self.workspace(request)
+        reconcile_due_workspace_jobs(workspace)
         view = str(request.query_params.get("view") or "WEEK").upper()
         if view not in {"WEEK", "MONTH"}:
             return Response({"view": ["Choose week or month."]}, status=400)

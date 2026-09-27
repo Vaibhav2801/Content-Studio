@@ -49,6 +49,7 @@ from integrations.social.services.lifecycle import (
     execute_claimed_job,
     process_provider_webhook,
     publish_variant_now,
+    reconcile_due_workspace_jobs,
     reconcile_pending_jobs,
     submit_provider_schedules,
     transition_variant,
@@ -504,6 +505,22 @@ class PublishingLifecycleTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(result["published"], 1)
         self.assertEqual(job.status, PublishJobState.PUBLISHED)
+
+    def test_calendar_fallback_reconciles_due_workspace_job(self):
+        job = self.schedule()
+        execute_claimed_job(claim_due_jobs()[0])
+        job.refresh_from_db()
+        self.variant.status = SocialPostState.SCHEDULED
+        self.variant.save(update_fields=["status"])
+        self.fake.set_publish_outcome(job.external_id, PublishOutcome.PUBLISHED)
+
+        result = reconcile_due_workspace_jobs(self.workspace)
+
+        job.refresh_from_db()
+        self.variant.refresh_from_db()
+        self.assertEqual(result["published"], 1)
+        self.assertEqual(job.status, PublishJobState.PUBLISHED)
+        self.assertEqual(self.variant.status, SocialPostState.PUBLISHED)
 
     def test_stale_claim_is_reconciled_without_leaving_variant_publishing(self):
         job = self.schedule()

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
@@ -11,6 +12,7 @@ from django.conf import settings as django_settings
 
 from .contract import PublishingProvider
 from .errors import (
+    PublishingProviderError,
     ProviderAuthenticationError,
     ProviderConfigurationError,
     ProviderPermanentFailureError,
@@ -76,6 +78,9 @@ LINKEDIN_IMAGE_LIMIT = 20
 ORGANIZATION_ACCOUNT_TYPES = frozenset({"organization", "organisation", "company", "company_page"})
 PERSONAL_ACCOUNT_TYPES = frozenset({"personal", "person", "member", "profile"})
 LINKEDIN_ACCOUNT_TYPES = ORGANIZATION_ACCOUNT_TYPES | PERSONAL_ACCOUNT_TYPES
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -263,12 +268,45 @@ class ZernioProvider(PublishingProvider):
         if not profile_id:
             profile_id = self._ensure_workspace_profile(request.workspace_id)
         accounts = self._list_workspace_accounts(request.workspace_id, profile_id, request.network)
+        safe_metadata = {"account_count": len(accounts)}
+        if request.network == PublishingNetwork.INSTAGRAM:
+            safe_metadata["post_sync"] = self._sync_recent_instagram_posts(accounts)
         return CompleteConnectionResult(
             provider=self.provider,
             provider_connection_id=profile_id,
             connected=bool(accounts),
-            safe_metadata={"account_count": len(accounts)},
+            safe_metadata=safe_metadata,
         )
+
+    def _sync_recent_instagram_posts(self, accounts):
+        result = {
+            "attempted": len(accounts),
+            "succeeded": 0,
+            "failed": 0,
+            "posts_found": 0,
+            "posts_synced": 0,
+        }
+        for account in accounts:
+            try:
+                _, payload = self._request(
+                    "POST",
+                    "/v1/posts/sync-external",
+                    json={"accountId": account.provider_account_id},
+                    allowed_statuses={200},
+                )
+            except PublishingProviderError as exc:
+                result["failed"] += 1
+                logger.warning(
+                    "Zernio recent-post sync failed after Instagram connection: category=%s",
+                    exc.category.value,
+                )
+                continue
+
+            sync = payload.get("synced") if isinstance(payload.get("synced"), dict) else {}
+            result["succeeded"] += 1
+            result["posts_found"] += int(sync.get("postsFound") or len(payload.get("posts") or []))
+            result["posts_synced"] += int(sync.get("postsSynced") or 0)
+        return result
 
     def list_social_accounts(self, request: ListSocialAccountsRequest) -> ListSocialAccountsResult:
         self._require_publishing_configuration()
