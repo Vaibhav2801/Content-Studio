@@ -274,6 +274,22 @@ describe('Visiofy Studio', () => {
     expect(await screen.findByPlaceholderText(/Share the point/i)).toHaveValue('')
   })
 
+  it('clears the current composer and generated drafts with New post', async () => {
+    vi.spyOn(socialComposerApi, 'generate').mockResolvedValue(makeDemoPost('RouteFloww features', 'Generated platform copy', ['LINKEDIN']))
+    renderStudio('/content/create?new=1')
+
+    fireEvent.change(await screen.findByLabelText('Working title'), { target: { value: 'RouteFloww features' } })
+    fireEvent.change(screen.getByLabelText('What is the idea?'), { target: { value: 'Explain the main product features.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+    expect(await screen.findByRole('tab', { name: 'LinkedIn' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New post' }))
+
+    expect(await screen.findByLabelText('Working title')).toHaveValue('')
+    expect(screen.getByLabelText('What is the idea?')).toHaveValue('')
+    expect(screen.queryByRole('tab', { name: 'LinkedIn' })).not.toBeInTheDocument()
+    expect(screen.getByText('Ready for a new post.')).toBeInTheDocument()
+  })
+
   it('restores the active post when leaving Create during generation', async () => {
     const draft = { ...makeDemoPost('Routefloww launch', 'Explain the route planning feature.', ['LINKEDIN']), id: 'recoverable-draft' }
     draft.variants = draft.variants.map((variant) => ({ ...variant, copy: '' }))

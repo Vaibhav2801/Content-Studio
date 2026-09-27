@@ -127,6 +127,18 @@ export function ContentCalendarView() {
     void load()
   }, [load])
 
+  const hasInFlightPosts = Boolean(
+    calendar?.items.some((item) => item.status === 'PUBLISHING' || item.status === 'SUBMITTED'),
+  )
+
+  useEffect(() => {
+    if (isDemo || !hasInFlightPosts) return
+    const pollId = window.setInterval(() => {
+      void load()
+    }, 5000)
+    return () => window.clearInterval(pollId)
+  }, [hasInFlightPosts, isDemo, load])
+
   const days = useMemo(() => {
     if (!calendar) return []
     const result: string[] = []

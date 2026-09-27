@@ -261,6 +261,104 @@ def edit_variant(
     return variant
 
 
+def cancel_provider_schedules_for_reschedule(variant):
+    """Cancel provider-owned schedules before changing their local schedule.
+
+    A provider-native schedule is already remote even though the variant still
+    looks locally editable.  Leaving that remote post active and creating a new
+    approval can make the provider return the old post as a duplicate, so both
+    local jobs end up pointing at the stale schedule.
+    """
+    active_jobs = list(
+        variant.publish_jobs.select_related("variant__post")
+        .filter(status__in=RECONCILE_STATES)
+        .exclude(external_id="")
+        .order_by("created_at")
+    )
+    if not active_jobs:
+        if variant.status == SocialPostState.SUBMITTED:
+            raise ValidationError({
+                "scheduled_for": (
+                    "The existing provider submission could not be identified safely. "
+                    "Refresh its status before rescheduling."
+                ),
+            })
+        return ()
+
+    jobs_by_remote_post = {}
+    for job in active_jobs:
+        jobs_by_remote_post.setdefault((job.provider, job.external_id), []).append(job)
+
+    cancelled_job_ids = []
+    for (provider, external_id), jobs in jobs_by_remote_post.items():
+        representative = jobs[-1]
+        attempt = representative.attempts.order_by("-attempt_number").first()
+        adapter = publishing_provider_registry.create(ProviderName(provider))
+        result = adapter.get_publish_status(GetPublishStatusRequest(
+            workspace_id=variant.post.workspace_id,
+            external_id=external_id,
+            idempotency_key=str(attempt.idempotency_key) if attempt else "",
+        ))
+        provider_status = str(result.provider_status or "").lower()
+        if result.outcome == PublishOutcome.PUBLISHED:
+            reconcile_job(representative)
+            raise ValidationError({
+                "scheduled_for": "This post has already been published and cannot be rescheduled.",
+            })
+        if result.outcome != PublishOutcome.ACCEPTED or provider_status != "scheduled":
+            raise ValidationError({
+                "scheduled_for": (
+                    "The existing provider submission is already processing or its status is unknown. "
+                    "Wait for it to finish before rescheduling."
+                ),
+            })
+
+        cancellation = adapter.cancel_publish(CancelPublishRequest(
+            workspace_id=variant.post.workspace_id,
+            external_id=external_id,
+            idempotency_key=f"reschedule-cancel:{representative.id}",
+        ))
+        if not cancellation.cancelled:
+            raise ValidationError({
+                "scheduled_for": (
+                    "The existing provider schedule could not be cancelled safely. "
+                    "Refresh its status before trying again."
+                ),
+            })
+
+        now = timezone.now()
+        group_job_ids = [job.id for job in jobs]
+        with transaction.atomic():
+            locked_jobs = PublishJob.objects.select_for_update().filter(
+                id__in=group_job_ids,
+                status__in=RECONCILE_STATES,
+                external_id=external_id,
+            )
+            locked_ids = list(locked_jobs.values_list("id", flat=True))
+            locked_jobs.update(
+                status=PublishJobState.CANCELLED,
+                completed_at=now,
+                failure_message="Provider schedule cancelled because the post was rescheduled.",
+                diagnostic_details={"provider_status": cancellation.provider_status},
+                claim_token=None,
+                claimed_at=None,
+            )
+            PublishAttempt.objects.filter(
+                job_id__in=locked_ids,
+                status__in=RECONCILE_STATES,
+            ).update(
+                status=PublishJobState.CANCELLED,
+                completed_at=now,
+                failure_message="Provider schedule cancelled because the post was rescheduled.",
+            )
+            cancelled_job_ids.extend(locked_ids)
+
+    variant.refresh_from_db()
+    if variant.status == SocialPostState.SUBMITTED:
+        transition_variant(variant, SocialPostState.SCHEDULED)
+    return tuple(cancelled_job_ids)
+
+
 @transaction.atomic
 def approve_variant(variant, *, approved_by=None):
     variant = SocialPostVariant.objects.select_for_update().get(pk=variant.pk)

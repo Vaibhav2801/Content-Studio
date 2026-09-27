@@ -26,7 +26,11 @@ from integrations.social.models import (
 from integrations.social.publishing.registry import publishing_provider_registry
 from integrations.social.publishing.types import ConnectionUrlRequest, ListSocialAccountsRequest, ProviderName, PublishingNetwork
 from integrations.social.services.composer import NETWORK_LABELS, variant_validation
-from integrations.social.services.lifecycle import cancel_variant, edit_variant
+from integrations.social.services.lifecycle import (
+    cancel_provider_schedules_for_reschedule,
+    cancel_variant,
+    edit_variant,
+)
 
 
 ACTIVE_APPROVED_STATES = {
@@ -304,7 +308,6 @@ def calendar_items(workspace, *, start, end):
     return [serialize_variant_card(variant) for variant in variants]
 
 
-@transaction.atomic
 def reschedule_variant(variant, scheduled_for):
     now = timezone.now()
     if scheduled_for <= now:
@@ -329,6 +332,8 @@ def reschedule_variant(variant, scheduled_for):
     ).exclude(pk=variant.pk).exclude(status=SocialPostState.CANCELLED).exists()
     if conflict:
         raise ValidationError({"scheduled_for": "Another post for this account is scheduled within five minutes. Choose another time."})
+    cancel_provider_schedules_for_reschedule(variant)
+    variant.refresh_from_db()
     return edit_variant(variant, scheduled_for=scheduled_for)
 
 

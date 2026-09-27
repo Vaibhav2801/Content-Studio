@@ -1,8 +1,8 @@
-import { BookOpen, CalendarClock, Check, FileText, Image as ImageIcon, LoaderCircle, Palette, PenLine, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
+import { BookOpen, CalendarClock, Check, FileText, Image as ImageIcon, LoaderCircle, Palette, PenLine, Plus, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { socialComposerApi } from '../../../api/socialComposer'
 
@@ -65,6 +65,8 @@ export function SocialComposer({ onPostChange }: Props) {
   const { showToast } = useToast()
 
   const auth = useOptionalAuth()
+
+  const navigate = useNavigate()
 
   const recoveryKey = composerRecoveryKey(auth?.user?.id, auth?.workspace?.id)
 
@@ -601,6 +603,30 @@ export function SocialComposer({ onPostChange }: Props) {
 
   }
 
+  const startNewPost = () => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    clearComposerRecovery(recoveryKey)
+    openedDraft.current = ''
+    editRevision.current = 0
+    setDirtyTick(0)
+    adoptPost(null)
+    setMode('idea')
+    setIdeaTitle('')
+    setIdeaText('')
+    setSourceIds([])
+    setDraftId('')
+    setControls(defaultControls)
+    setCreativeBrief(defaultCreativeBrief)
+    const firstNetwork = options?.connections[0]?.network
+    setNetworks(firstNetwork ? [firstNetwork] : [])
+    setActiveNetwork(firstNetwork ?? 'LINKEDIN')
+    setSaveState('SAVED')
+    setBusy('')
+    setError('')
+    setNotice('Ready for a new post.')
+    navigate('/content/create?new=1', { replace: true })
+  }
+
 
 
   const updateVariant = (changes: Partial<Pick<SocialVariant, 'copy' | 'hashtags'>>) => {
@@ -742,7 +768,10 @@ export function SocialComposer({ onPostChange }: Props) {
         <h1>Create a social post</h1>
         <p>Start with one idea. Visiofy will apply your brand and adapt it for every selected platform.</p>
       </div>
-      <Link className="composer-series-cta" to="/content/series" aria-label="Create a series automatically"><FileText size={16} /> Create a post series</Link>
+      <div className="composer-header-actions">
+        <button className="composer-new-post" type="button" disabled={Boolean(busy)} onClick={startNewPost}><Plus size={16} /> New post</button>
+        <Link className="composer-series-cta" to="/content/series" aria-label="Create a series automatically"><FileText size={16} /> Create a post series</Link>
+      </div>
     </header>
 
     <div className="composer-progress" aria-label="Post creation progress">

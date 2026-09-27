@@ -57,6 +57,7 @@ from integrations.social.services.publishing_routing import (
     SocialPublisherAdminService,
     create_publish_job,
 )
+from integrations.social.services.studio import reschedule_variant
 from prospecting.models import Workspace
 
 
@@ -294,6 +295,62 @@ class PublishingLifecycleTests(TestCase):
         self.assertLessEqual(job.scheduled_for, timezone.now())
         self.assertEqual(provider_cancel.call_args.args[0].external_id, "remote-scheduled-post")
         self.assertEqual(provider_publish.call_args.args[0].post.scheduled_for, job.scheduled_for)
+
+    def test_reschedule_cancels_provider_owned_schedule_before_revoking_approval(self):
+        now = timezone.now()
+        original_schedule = now + timedelta(days=1)
+        replacement_schedule = now + timedelta(days=2)
+        self.connection.provider = SocialProvider.ZERNIO
+        self.connection.save(update_fields=["provider"])
+        self.variant.scheduled_for = original_schedule
+        self.variant.save(update_fields=["scheduled_for"])
+        version = approve_variant(self.variant)
+        job = PublishJob.objects.create(
+            variant=self.variant,
+            connection=self.connection,
+            approved_version=version,
+            provider=SocialProvider.ZERNIO,
+            idempotency_key="provider-owned-reschedule",
+            scheduled_for=original_schedule,
+            status=PublishJobState.SUBMITTED,
+            external_id="remote-scheduled-post",
+            submitted_at=now,
+            diagnostic_details={"provider_status": "scheduled"},
+        )
+        self.variant.status = SocialPostState.SUBMITTED
+        self.variant.save(update_fields=["status"])
+        zernio = FakeZernioProvider()
+        scheduled_result = PublishResult(
+            provider=ProviderName.ZERNIO,
+            outcome=PublishOutcome.ACCEPTED,
+            external_id=job.external_id,
+            provider_status="scheduled",
+        )
+        cancelled = CancelPublishResult(
+            provider=ProviderName.ZERNIO,
+            cancelled=True,
+            outcome=PublishOutcome.FAILED,
+            provider_status="cancelled",
+        )
+
+        with patch.object(zernio, "get_publish_status", return_value=scheduled_result), patch.object(
+            zernio,
+            "cancel_publish",
+            return_value=cancelled,
+        ) as provider_cancel, patch(
+            "integrations.social.services.lifecycle.publishing_provider_registry.create",
+            return_value=zernio,
+        ):
+            reschedule_variant(self.variant, replacement_schedule)
+
+        job.refresh_from_db()
+        self.variant.refresh_from_db()
+        self.assertEqual(job.status, PublishJobState.CANCELLED)
+        self.assertEqual(self.variant.status, SocialPostState.NEEDS_REVIEW)
+        self.assertEqual(self.variant.scheduled_for, replacement_schedule)
+        self.assertIsNone(self.variant.approved_version)
+        self.assertEqual(provider_cancel.call_count, 1)
+        self.assertEqual(provider_cancel.call_args.args[0].external_id, "remote-scheduled-post")
 
     def test_same_approval_cannot_create_duplicate_publish_jobs(self):
         job = self.schedule()
