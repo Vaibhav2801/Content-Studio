@@ -26,6 +26,8 @@ import { PlatformSelector } from './PlatformSelector'
 
 import { VariantEditor } from './VariantEditor'
 
+import { useToast } from '../../notifications/useToast'
+
 
 
 type StartMode = 'manual' | 'idea' | 'source' | 'draft'
@@ -59,6 +61,8 @@ interface Props { onPostChange?: (post: SocialPost | null) => void }
 export function SocialComposer({ onPostChange }: Props) {
 
   const { isDemo, startTrackingGeneration } = useContentStudio()
+
+  const { showToast } = useToast()
 
   const auth = useOptionalAuth()
 
@@ -676,12 +680,26 @@ export function SocialComposer({ onPostChange }: Props) {
       const submitted = await socialComposerApi.submitForReview(post.id)
 
       adoptPost(submitted); setNotice('Sent for approval.')
+      showToast({
+        tone: 'success',
+        title: 'Post sent for approval',
+        message: 'It is now waiting in Approvals for a reviewer.',
+        duration: 7000,
+        dedupeKey: `composer-approval-${post.id}`,
+      })
 
     } catch (submitError) {
 
       if (!isDemo) { try { await reload() } catch { /* Keep the useful validation response. */ } }
 
-      setError(customerSafeMessage(submitError instanceof Error ? submitError.message : undefined, 'Fix the highlighted fields before sending for approval.'))
+      const message = customerSafeMessage(submitError instanceof Error ? submitError.message : undefined, 'Fix the highlighted fields before sending for approval.')
+      setError(message)
+      showToast({
+        tone: 'error',
+        title: 'Could not send for approval',
+        message,
+        dedupeKey: `composer-approval-error-${post.id}`,
+      })
 
     } finally { setBusy('') }
 

@@ -202,6 +202,16 @@ describe('Visiofy Studio', () => {
     expect(screen.queryByRole('button', { name: 'Common question' })).not.toBeInTheDocument()
   })
 
+  it('shows a toast after sending a post for approval', async () => {
+    renderStudio('/content/create?draft=review-draft')
+
+    fireEvent.click(await screen.findByRole('button', { name: /Send for approval/i }))
+
+    await waitFor(() => expect(socialComposerApi.submitForReview).toHaveBeenCalledWith(expect.any(String)))
+    expect(await screen.findByText('Post sent for approval')).toBeInTheDocument()
+    expect(screen.getByText('It is now waiting in Approvals for a reviewer.')).toBeInTheDocument()
+  })
+
   it('navigates directly to Calendar, billing Settings, and Brand in the Library', async () => {
     renderStudio('/content/create')
     await screen.findByText('Start with what you have')
