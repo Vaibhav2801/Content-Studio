@@ -1,4 +1,4 @@
-import { CalendarClock, Check, Image as ImageIcon, LoaderCircle, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
+import { BookOpen, CalendarClock, Check, FileText, Image as ImageIcon, LoaderCircle, Palette, PenLine, Save, Send, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -42,6 +42,13 @@ const ideaStarters = [
   { label: 'Behind the scenes', title: 'A look behind the scenes', idea: 'Show one real step in how our team works. Explain the care behind it without inventing details or results.' },
   { label: 'Customer story', title: 'A customer story', idea: 'Tell a customer story using only facts we can verify. Describe the challenge, what changed, and the lesson others can use.' },
 ]
+
+const startModes = [
+  { value: 'idea', label: 'Generate with AI', description: 'Turn a topic or rough notes into ready-to-edit posts.', icon: Sparkles },
+  { value: 'source', label: 'Saved source', description: 'Create from approved facts and saved material.', icon: BookOpen },
+  { value: 'manual', label: 'Write manually', description: 'Start with a blank post and write it yourself.', icon: PenLine },
+  { value: 'draft', label: 'Existing draft', description: 'Continue something you already started.', icon: FileText },
+] as const
 
 
 
@@ -698,6 +705,11 @@ export function SocialComposer({ onPostChange }: Props) {
 
   const activeVariant = useMemo(() => post?.variants.find((variant) => variant.network === activeNetwork) ?? post?.variants[0], [activeNetwork, post])
 
+  const hasDirection = mode === 'manual' || Boolean(ideaText.trim() || sourceIds.length)
+  const hasChannels = networks.length > 0
+  const generationReady = hasDirection && hasChannels
+  const generationCost = controls.include_image ? 3 : 2
+
   if (!options) return <div className="li-loading" role={error ? 'alert' : 'status'}>{error || 'Loading the post creator…'}</div>
 
 
@@ -706,53 +718,56 @@ export function SocialComposer({ onPostChange }: Props) {
 
     {(error || notice) && <div className={`li-banner ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{error ? <TriangleAlert size={17} /> : <Check size={17} />}<span>{error || notice}</span></div>}
 
+    <header className="composer-create-header">
+      <div>
+        <span>CREATE</span>
+        <h1>Create a social post</h1>
+        <p>Start with one idea. Visiofy will apply your brand and adapt it for every selected platform.</p>
+      </div>
+      <Link className="composer-series-cta" to="/content/series" aria-label="Create a series automatically"><FileText size={16} /> Create a post series</Link>
+    </header>
+
+    <div className="composer-progress" aria-label="Post creation progress">
+      <span className="active"><b>1</b> Add your content</span>
+      <span className={post ? 'active' : ''}><b>2</b> Review drafts</span>
+      <span className={post ? 'active' : ''}><b>3</b> Schedule or approve</span>
+    </div>
+
     <div className="composer-workspace">
 
       <section className="card composer-setup" aria-labelledby="composer-start-title">
 
-        <div className="li-section-heading"><span>CREATE</span><h2 id="composer-start-title">Start with what you have</h2><p>Visiofy Studio will shape a different draft for every selected network.</p></div>
+        <div className="composer-section-heading">
+          <span className="composer-step-number">1</span>
+          <div><h2 id="composer-start-title">Start with what you have</h2><p>Choose the starting point that best matches your task.</p></div>
+        </div>
 
-        <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{([['manual', 'Write manually'], ['idea', 'Generate with AI'], ['source', 'Saved source'], ['draft', 'Existing draft']] as [StartMode, string][]).map(([value, label]) => <button type="button" role="tab" aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}>{label}</button>)}</div>
-        <p className="composer-series-link">Need several posts? <Link to="/content/series">Create a series automatically from one brief</Link></p>
+        <div className="composer-brand-context"><Palette size={17} /><span><strong>Your brand settings are applied automatically</strong><small>Voice, audience, calls to action, and visual direction come from Brand &amp; Publishing.</small></span><Link to="/content/library?panel=brand">Review</Link></div>
+
+        <div className="composer-start-tabs" role="tablist" aria-label="Starting point">{startModes.map(({ value, label, description, icon: Icon }) => <button className="composer-mode-tab" type="button" role="tab" aria-label={label} aria-selected={mode === value} key={value} onClick={() => changeStartMode(value)}><Icon size={18} /><span><strong>{label}</strong><small>{description}</small></span>{mode === value && <Check className="composer-mode-check" size={15} />}</button>)}</div>
+
+        <div className="composer-form-section">
+          <div className="composer-section-heading compact"><span className="composer-step-number">2</span><div><h3>{mode === 'draft' ? 'Choose your draft' : mode === 'source' ? 'Choose a source and angle' : mode === 'manual' ? 'Name your post' : 'Describe the post'}</h3><p>{mode === 'idea' ? 'A few clear notes are enough—the AI will structure the post.' : mode === 'source' ? 'Select trusted material, then tell the AI what angle to take.' : mode === 'manual' ? 'Add a working title so you can find this post later.' : 'Pick up exactly where you left off.'}</p></div></div>
 
         {mode === 'draft' ? <label className="li-field"><span>Choose a draft</span><select value={draftId} onChange={(event) => void loadDraft(event.target.value)}><option value="">Select a draft</option>{options.drafts.map((draft) => <option key={draft.id} value={draft.id}>{draft.idea_title}</option>)}</select></label> : <>
 
           {mode === 'source' && <fieldset className="composer-source-picker"><legend>Sources to use</legend><p className="composer-source-help">Saved sources provide approved facts and language for generated posts. Your prompt still decides the angle.</p>{options.sources.length === 0 && <p className="composer-source-help">No sources saved yet. <a href="/content/library?panel=sources">Add a source</a>, or choose New idea to write from a prompt.</p>}{options.sources.map((source) => <label key={source.id}><input type="checkbox" checked={sourceIds.includes(source.id)} disabled={source.processing_status !== 'READY'} onChange={(event) => { const next = event.target.checked ? [...sourceIds, source.id] : sourceIds.filter((id) => id !== source.id); setSourceIds(next); if (event.target.checked && !ideaTitle) setIdeaTitle(source.label); markUnsaved() }} /><span><strong>{source.label}</strong><small>{source.processing_status === 'READY' ? `${source.source_type.replaceAll('_', ' ').toLowerCase()} · ready` : `${source.source_type.replaceAll('_', ' ').toLowerCase()} · still processing`}</small></span></label>)}</fieldset>}
 
-          {mode === 'idea' && !post && !ideaTitle.trim() && !ideaText.trim() && <div className="composer-idea-starters"><span>Start a post faster</span><p>Choose a direction, then add your own details before generating.</p><div>{ideaStarters.map((starter) => <button type="button" key={starter.label} onClick={() => { setIdeaTitle(starter.title); setIdeaText(starter.idea); markUnsaved() }}>{starter.label}</button>)}</div></div>}
+          {mode === 'idea' && !post && !ideaTitle.trim() && !ideaText.trim() && <div className="composer-idea-starters"><span className="idea-starters-heading"><Sparkles size={14} /> Need inspiration?</span><p>Choose a starting point, then make the idea your own.</p><div className="idea-starters-grid">{ideaStarters.map((starter) => <button type="button" key={starter.label} onClick={() => { setIdeaTitle(starter.title); setIdeaText(starter.idea); markUnsaved() }}>{starter.label}</button>)}</div></div>}
 
-          <label className="li-field"><span>Working title</span><input value={ideaTitle} placeholder="For example: A simpler onboarding process" onChange={(event) => { setIdeaTitle(event.target.value); markUnsaved() }} /></label>
+          <label className="li-field"><span>Working title <small>Only your team will see this</small></span><input aria-label="Working title" value={ideaTitle} placeholder="For example: A simpler onboarding process" onChange={(event) => { setIdeaTitle(event.target.value); markUnsaved() }} /></label>
 
-          {mode !== 'manual' && <label className="li-field"><span>{mode === 'source' ? 'Extra direction' : 'What is the idea?'}</span><textarea value={ideaText} placeholder="Share the point, rough notes, or message you want the post to convey…" onChange={(event) => { setIdeaText(event.target.value); markUnsaved() }} /></label>}
+          {mode !== 'manual' && <label className="li-field"><span>{mode === 'source' ? 'What should the post focus on?' : 'What do you want to say?'} <small>{mode === 'source' ? 'Optional' : 'Required'}</small></span><textarea aria-label={mode === 'source' ? 'Extra direction' : 'What is the idea?'} value={ideaText} placeholder={mode === 'source' ? 'For example: Focus on how route optimization reduces planning time for small delivery teams.' : 'Share the point, key message, rough notes, or paste text here. A few sentences are enough.'} onChange={(event) => { setIdeaText(event.target.value); markUnsaved() }} /></label>}
 
         </>}
+        </div>
 
-        <PlatformSelector connections={options.connections} selected={networks} selectedConnections={selectedConnections} onChange={(next) => { setNetworks(next); markUnsaved() }} onConnectionChange={(network, connectionId) => { setSelectedConnections((current) => ({ ...current, [network]: connectionId })); markUnsaved() }} />
+        <div className="composer-form-section composer-channel-section">
+          <div className="composer-section-heading compact"><span className="composer-step-number">3</span><div><h3>Choose where to publish</h3><p>Each selected account receives a version tailored to that platform.</p></div></div>
+          <PlatformSelector connections={options.connections} selected={networks} selectedConnections={selectedConnections} onChange={(next) => { setNetworks(next); markUnsaved() }} onConnectionChange={(network, connectionId) => { setSelectedConnections((current) => ({ ...current, [network]: connectionId })); markUnsaved() }} />
+        </div>
 
-        {mode !== 'manual' && (
-          <label
-            className={`composer-image-toggle-card ${controls.include_image ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}
-          >
-            <input
-              type="checkbox"
-              checked={controls.include_image}
-              onChange={(event) => {
-                setControls({ ...controls, include_image: event.target.checked })
-                markUnsaved()
-              }}
-            />
-            <ImageIcon size={14} className="composer-image-icon" />
-            <span className="composer-image-label">Include AI image with post</span>
-            {networks.includes('INSTAGRAM') && (
-              <span className="composer-image-notice">Auto on Instagram</span>
-            )}
-          </label>
-        )}
-
-        {mode !== 'manual' && <fieldset className="generation-controls"><legend>What should this post do?</legend><label>Objective<select value={controls.goal} onChange={(event) => { const goal = event.target.value as GenerationControls['goal']; const recommended = goal === 'Education' ? { tone: 'Educational' as const, length: 'Medium' as const } : goal === 'Engagement' ? { tone: 'Friendly' as const, length: 'Short' as const } : goal === 'Leads' ? { tone: 'Bold' as const, length: 'Medium' as const } : { tone: 'Professional' as const, length: 'Short' as const }; setControls({ ...controls, goal, ...recommended }); markUnsaved() }}><option value="Awareness">Share an update</option><option value="Education">Teach something</option><option value="Engagement">Start a conversation</option><option value="Leads">Promote an offer</option></select></label><details className="generation-more"><summary>More writing controls</summary><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label></details><p className="generation-cost-note">One writing request creates all selected platform drafts. Images and extra options run only when you choose them.</p></fieldset>}
-
-        {mode !== 'manual' && <details className="composer-creative-brief"><summary>Add details for better results <small>optional</small></summary><p>Your saved business profile supplies the defaults. Open this only when this post needs something specific.</p><label className="li-field"><span>Who is this post for?</span><input value={creativeBrief.target_audience} placeholder="For example: first-time customers" onChange={(event) => { setCreativeBrief({ ...creativeBrief, target_audience: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>What should people do next?</span><input value={creativeBrief.call_to_action} placeholder="For example: Book a demo" onChange={(event) => { setCreativeBrief({ ...creativeBrief, call_to_action: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>Important details <small>one per line</small></span><textarea className="short" value={creativeBrief.must_include.join('\n')} placeholder="Facts, offer details, or wording that must appear" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_include: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field"><span>Anything to avoid? <small>one per line</small></span><textarea className="short" value={creativeBrief.must_avoid.join('\n')} placeholder="Claims, phrases, subjects, or visual elements" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_avoid: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field"><span>How should the image look?</span><textarea className="short" value={creativeBrief.image_requirements} placeholder="For example: a real product photo on a clean desk, warm natural light" onChange={(event) => { setCreativeBrief({ ...creativeBrief, image_requirements: event.target.value }); markUnsaved() }} /></label><label className="creative-brief-check"><input type="checkbox" checked={creativeBrief.reserve_logo_space} onChange={(event) => { setCreativeBrief({ ...creativeBrief, reserve_logo_space: event.target.checked }); markUnsaved() }} /><span>Leave clean space where I can add my logo</span></label></details>}
+        {mode !== 'manual' && <details className="composer-customize"><summary><span><strong>Customize this post</strong><small>Optional · objective, tone, image, audience, and CTA</small></span><span aria-hidden="true">+</span></summary><div className="composer-customize-body"><fieldset className="generation-controls"><legend>What should this post do?</legend><label>Objective<select value={controls.goal} onChange={(event) => { const goal = event.target.value as GenerationControls['goal']; const recommended = goal === 'Education' ? { tone: 'Educational' as const, length: 'Medium' as const } : goal === 'Engagement' ? { tone: 'Friendly' as const, length: 'Short' as const } : goal === 'Leads' ? { tone: 'Bold' as const, length: 'Medium' as const } : { tone: 'Professional' as const, length: 'Short' as const }; setControls({ ...controls, goal, ...recommended }); markUnsaved() }}><option value="Awareness">Share an update</option><option value="Education">Teach something</option><option value="Engagement">Start a conversation</option><option value="Leads">Promote an offer</option></select></label><label>Tone<select value={controls.tone} onChange={(event) => { setControls({ ...controls, tone: event.target.value as GenerationControls['tone'] }); markUnsaved() }}>{options.generation_controls.tones.map((value) => <option key={value}>{value}</option>)}</select></label><label>Length<select value={controls.length} onChange={(event) => { setControls({ ...controls, length: event.target.value as GenerationControls['length'] }); markUnsaved() }}>{options.generation_controls.lengths.map((value) => <option key={value}>{value}</option>)}</select></label></fieldset><label className={`composer-image-toggle-card ${controls.include_image ? 'active' : ''}`}><input type="checkbox" checked={controls.include_image} onChange={(event) => { setControls({ ...controls, include_image: event.target.checked }); markUnsaved() }} /><ImageIcon size={16} className="composer-image-icon" /><span className="composer-image-label">Include an AI-generated image</span>{networks.includes('INSTAGRAM') && <span className="composer-image-notice">Recommended for Instagram</span>}</label><div className="composer-brief-grid"><label className="li-field"><span>Specific audience</span><input value={creativeBrief.target_audience} placeholder="For example: first-time customers" onChange={(event) => { setCreativeBrief({ ...creativeBrief, target_audience: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>Call to action</span><input value={creativeBrief.call_to_action} placeholder="For example: Book a demo" onChange={(event) => { setCreativeBrief({ ...creativeBrief, call_to_action: event.target.value }); markUnsaved() }} /></label><label className="li-field"><span>Must include <small>one per line</small></span><textarea className="short" value={creativeBrief.must_include.join('\n')} placeholder="Facts, offer details, or required wording" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_include: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field"><span>Avoid <small>one per line</small></span><textarea className="short" value={creativeBrief.must_avoid.join('\n')} placeholder="Claims, phrases, or subjects to avoid" onChange={(event) => { setCreativeBrief({ ...creativeBrief, must_avoid: splitRequirements(event.target.value) }); markUnsaved() }} /></label><label className="li-field full"><span>Image direction</span><textarea className="short" value={creativeBrief.image_requirements} placeholder="Only add details that differ from your saved visual direction" onChange={(event) => { setCreativeBrief({ ...creativeBrief, image_requirements: event.target.value }); markUnsaved() }} /></label></div><label className="creative-brief-check"><input type="checkbox" checked={creativeBrief.reserve_logo_space} onChange={(event) => { setCreativeBrief({ ...creativeBrief, reserve_logo_space: event.target.checked }); markUnsaved() }} /><span>Leave clean space where I can add my logo</span></label></div></details>}
 
       </section>
 
@@ -762,36 +777,31 @@ export function SocialComposer({ onPostChange }: Props) {
 
         <div className="composer-review-head"><div><span>PLATFORM DRAFTS</span><h2 id="platform-drafts-title">Review each version</h2></div><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving…' : saveState === 'UNSAVED' ? 'Unsaved' : 'Saved'}</span></div>
 
-        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action, alternativeIndex) => void rewrite(action, alternativeIndex)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id, activeVariant.metadata.alt_text || ''))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty">{mode === 'manual' ? <Save size={30} /> : <Sparkles size={30} />}<strong>No platform drafts yet</strong><p>{mode === 'manual' ? 'Choose an account, then select Start writing.' : 'Choose where to post, add an idea or source, then select Generate.'}</p></div>}
+        {busy === 'generate' && !post?.variants.some((variant) => variant.copy.trim()) ? <div className="li-empty composer-draft-empty" role="status"><LoaderCircle className="spin" size={30} /><strong>Creating your platform drafts</strong><p>{post ? 'Your draft is saved. You can leave and come back while generation continues.' : 'Saving your idea before generation starts…'}</p></div> : post?.variants.length ? <><div className="platform-tabs" role="tablist" aria-label="Platform drafts">{post.variants.map((variant) => <button role="tab" aria-selected={activeVariant?.network === variant.network} type="button" key={variant.id} onClick={() => setActiveNetwork(variant.network)}>{variant.network_label}{!variant.validation.valid && <span aria-label="Needs attention">!</span>}</button>)}</div>{activeVariant && <div className="variant-workspace"><div><VariantEditor variant={activeVariant} busy={Boolean(busy)} onChange={updateVariant} onRewrite={(action, alternativeIndex) => void rewrite(action, alternativeIndex)} /><MediaManager variant={activeVariant} busy={Boolean(busy)} onUpload={(file) => void mediaAction(() => socialComposerApi.uploadMedia(activeVariant.id, file))} onRemove={(id) => void mediaAction(() => socialComposerApi.deleteMedia(activeVariant.id, id))} onReorder={(ids) => void mediaAction(() => socialComposerApi.reorderMedia(activeVariant.id, ids))} onAltText={(id, value) => void mediaAction(() => socialComposerApi.updateAltText(activeVariant.id, id, value))} onRegenerate={(id) => void mediaAction(() => socialComposerApi.regenerateImage(activeVariant.id, activeVariant.metadata.image_prompt || ideaTitle, id, activeVariant.metadata.alt_text || ''))} /></div><PlatformPreview variant={activeVariant} /></div>}</> : <div className="li-empty composer-draft-empty">{mode === 'manual' ? <PenLine size={32} /> : <Sparkles size={32} />}<strong>Your platform drafts will appear here</strong><p>{mode === 'manual' ? 'Select an account and start writing. You can add media and preview the finished post here.' : 'Complete the essentials on the left, then generate a tailored draft for each selected account.'}</p><ul className="composer-ready-list"><li className={hasDirection ? 'done' : ''}><span>{hasDirection ? <Check size={14} /> : '1'}</span>{mode === 'source' ? 'Choose a source or add direction' : mode === 'manual' ? 'Choose manual writing' : 'Describe what you want to say'}</li><li className={hasChannels ? 'done' : ''}><span>{hasChannels ? <Check size={14} /> : '2'}</span>Select at least one social account</li><li><span>3</span>{mode === 'manual' ? 'Start writing your post' : 'Generate your platform drafts'}</li></ul></div>}
 
       </section>
 
     </div>
 
     <div className="composer-action-bar" aria-label="Composer actions">
-      <span className={`save-indicator ${saveState.toLowerCase()}`}>
-        {saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : 'Ready to start'}
-      </span>
+      <div className="composer-action-status"><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : generationReady ? 'Ready to create' : 'Finish the essentials above'}</span><small>{!hasChannels ? 'Select at least one social account.' : !hasDirection ? 'Add an idea or select a saved source.' : mode === 'manual' ? 'Start writing, then preview and publish.' : `Generation will use ${generationCost} credits.`}</small></div>
       <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>
         {saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {mode === 'manual' && !post ? 'Start writing' : 'Save draft'}
       </button>
       {mode !== 'manual' && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <button className="button button-dark" type="button" disabled={Boolean(busy) || !networks.length || (!ideaText.trim() && !sourceIds.length)} aria-busy={busy === 'generate'} onClick={() => void generate()}>
+        <div className="composer-generate-action">
+          <button className="button button-dark" type="button" aria-label={post ? 'Regenerate' : 'Generate'} disabled={Boolean(busy) || !generationReady} aria-busy={busy === 'generate'} onClick={() => void generate()}>
             {busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}
-            {busy === 'generate' ? ' Generating…' : ' Generate'}
+            {busy === 'generate' ? ' Generating…' : post ? ' Regenerate' : ' Generate drafts'}
           </button>
-          <span style={{ fontSize: '0.78rem', color: '#6b7280', whiteSpace: 'nowrap' }} title="AI credit cost for this generation">
-            ⚡ {controls.include_image ? '3 credits' : '2 credits'}
-          </span>
         </div>
       )}
-      <button className="button button-dark" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'schedule'} onClick={() => void schedule()}>
+      {post && <button className="button button-dark" type="button" disabled={Boolean(busy) || saveState === 'SAVING'} aria-busy={busy === 'schedule'} onClick={() => void schedule()}>
         {busy === 'schedule' ? <LoaderCircle className="spin" size={16} /> : <CalendarClock size={16} />} Schedule post
-      </button>
-      <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !post} aria-busy={busy === 'submit'} onClick={() => void submit()}>
+      </button>}
+      {post && <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING'} aria-busy={busy === 'submit'} onClick={() => void submit()}>
         {busy === 'submit' ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Send for approval
-      </button>
+      </button>}
     </div>
 
   </div>
