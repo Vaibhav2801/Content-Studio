@@ -21,7 +21,7 @@ function renderScreen(path: string) {
   return render(<MemoryRouter initialEntries={[path]}><Routes><Route path="content" element={<ContentStudioPage />}><Route index element={<ContentHomeView />} /><Route path="approvals" element={<ContentApprovalsView />} /><Route path="calendar" element={<ContentCalendarView />} /><Route path="library" element={<ContentLibraryView />} /><Route path="connections" element={<ContentConnectionsView />} /><Route path="analytics" element={<ContentAnalyticsView />} /><Route path="create" element={<div>Create destination</div>} /></Route></Routes></MemoryRouter>)
 }
 
-describe('Visiofy Studio core screens', () => {
+describe('Quilltap core screens', () => {
   afterEach(cleanup)
   beforeEach(() => {
     sessionStorage.clear()
@@ -196,7 +196,7 @@ describe('Visiofy Studio core screens', () => {
     const card = (await screen.findByText('LumaDesk')).closest('article')!
     expect(within(card).getByRole('button', { name: /^Disconnect$/i })).toBeInTheDocument()
     fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(/removed from Visiofy Studio and Zernio/i)
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/removed from Quilltap and Zernio/i)
     fireEvent.click(within(card).getByRole('button', { name: /^Remove account$/i }))
     await waitFor(() => expect(contentStudioApi.connectionAction).toHaveBeenCalledWith(account.id, 'REMOVE'))
     expect(await screen.findByText('No social accounts yet')).toBeInTheDocument()

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Clock,
   Cpu,
+  Feather,
   FileText,
   Instagram,
   Layers3,
@@ -34,11 +35,13 @@ import { useAuth } from '../components/content/AuthContext'
 import { usePricingCatalog } from '../hooks/usePricingCatalog'
 import { supportApi } from '../api/supportApi'
 import './LandingPage.css'
+import './QuilltapTheme.css'
 
 const planPresentation = {
   free: { description: 'Test the AI creation engine and plan upcoming drafts.', examples: 'Create drafts before connecting an account', cta: 'Start with Free' },
   starter: { description: 'For creators building an authentic personal presence.', examples: 'Consistent creation + unlimited scheduling', cta: 'Get Starter' },
-  advance: { description: 'High-volume publishing with Engage lead automation.', examples: 'High-volume creation + Engage suite', cta: 'Get Advance' },
+  advance: { description: 'High-volume publishing with Engage lead automation.', examples: 'High-volume creation + Engage suite', cta: 'Get Premium' },
+  custom: { description: 'Flexible scale and support for teams and agencies.', examples: 'Tailored credits, connections, and onboarding', cta: 'Reach out to our team' },
 }
 
 const workflowSlides = [
@@ -49,7 +52,7 @@ const workflowSlides = [
     featureName: 'Brand Brain & Knowledge Ingestion',
     title: 'Ground every idea in your genuine voice and verified evidence.',
     description:
-      'Before writing a single word, Visiofy Studio calibrates your brand persona, core values, tone pillars, and forbidden buzzwords. Ingest article URLs, team research, or speak into the Story Interviewer to convert raw founder thoughts into structured narrative foundations without synthetic AI fluff.',
+      'Before writing a single word, Quilltap calibrates your brand persona, core values, tone pillars, and forbidden buzzwords. Ingest article URLs, team research, or speak into the Story Interviewer to convert raw founder thoughts into structured narrative foundations without synthetic AI fluff.',
     bullets: [
       'Voice Calibration: Strict tone rules guarantee posts sound like you, never generic AI.',
       'Story Interviewer: 5-minute guided prompts convert spoken notes into captivating hooks.',
@@ -177,12 +180,12 @@ export function LandingPage() {
 
   const faqs = [
     {
-      q: 'What makes Visiofy Studio different from a standard scheduler?',
-      a: 'Traditional schedulers are empty containers—you must write, format, design, and paste content yourself. Visiofy Studio is an intelligent publishing operating system that houses your Brand Brain, ingests your raw ideas or sources, writes platform-native variants for LinkedIn and Instagram, generates visuals, enforces version-controlled approvals, and converts post comments into qualified leads.',
+      q: 'What makes Quilltap different from a standard scheduler?',
+      a: 'Traditional schedulers are empty containers—you must write, format, design, and paste content yourself. Quilltap is an intelligent publishing operating system that houses your Brand Brain, ingests your raw ideas or sources, writes platform-native variants for LinkedIn and Instagram, generates visuals, enforces version-controlled approvals, and converts post comments into qualified leads.',
     },
     {
-      q: 'What core features are available in Visiofy Studio today?',
-      a: 'Visiofy Studio is fully operational! Live features today include: (1) Dual LinkedIn & Instagram AI Composer with live social preview fidelity; (2) Automated Content Series Multi-Post Engine; (3) Brand Brain voice calibration & Story Interviewer; (4) Strict Version-Controlled Approvals with immutable locking; (5) Multi-Platform Interactive Calendar with zero-credit scheduling; (6) Engagement Hub for comment triage, AI replies, and lead capture; and (7) Unified Performance Analytics.',
+      q: 'What core features are available in Quilltap today?',
+      a: 'Quilltap is fully operational! Live features today include: (1) Dual LinkedIn & Instagram AI Composer with live social preview fidelity; (2) Automated Content Series Multi-Post Engine; (3) Brand Brain voice calibration & Story Interviewer; (4) Strict Version-Controlled Approvals with immutable locking; (5) Multi-Platform Interactive Calendar with zero-credit scheduling; (6) Engagement Hub for comment triage, AI replies, and lead capture; and (7) Unified Performance Analytics.',
     },
     {
       q: 'Do I get charged credits for scheduling or publishing posts?',
@@ -190,15 +193,15 @@ export function LandingPage() {
     },
     {
       q: 'How does the Immutable Approval gate protect my brand?',
-      a: 'Once a post is marked Approved, Visiofy Studio locks that version into an immutable snapshot. If anyone modifies the copy, hashtags, or attachments after approval, the system immediately revokes the approved status and moves the post back to Needs Review, preventing accidental or unauthorized changes from going live.',
+      a: 'Once a post is marked Approved, Quilltap locks that version into an immutable snapshot. If anyone modifies the copy, hashtags, or attachments after approval, the system immediately revokes the approved status and moves the post back to Needs Review, preventing accidental or unauthorized changes from going live.',
     },
     {
       q: 'Can I connect multiple accounts and manage different clients?',
-      a: 'Yes. Visiofy Studio is built with multi-tenant workspace architecture. You can switch between independent workspaces for different brands or clients, each maintaining its own Brand Brain, connected accounts, approvals queue, and calendar.',
+      a: 'Yes. Quilltap is built with multi-tenant workspace architecture. You can switch between independent workspaces for different brands or clients, each maintaining its own Brand Brain, connected accounts, approvals queue, and calendar.',
     },
     {
       q: 'What social networks are supported today and what is on the roadmap?',
-      a: 'Visiofy Studio currently supports publishing to LinkedIn (personal profiles & company pages) and Instagram (creator & business accounts) powered by resilient provider adapters (Zernio & Upload Post). Our active roadmap includes X (Twitter), Threads, TikTok, and direct CRM integrations (HubSpot & Salesforce).',
+      a: 'Quilltap currently supports publishing to LinkedIn (personal profiles & company pages) and Instagram (creator & business accounts) powered by resilient provider adapters (Zernio & Upload Post). Our active roadmap includes X (Twitter), Threads, TikTok, and direct CRM integrations (HubSpot & Salesforce).',
     },
   ]
 
@@ -208,7 +211,7 @@ export function LandingPage() {
       <div className="landing-announcement">
         <span>
           <Sparkles size={14} className="sparkle-pulse" />
-          <strong>Visiofy Studio:</strong> AI Composer, Series Engine, Brand Brain &amp; Engagement Hub are live.
+          <strong>Quilltap:</strong> AI Composer, Series Engine, Brand Brain &amp; Engagement Hub are live.
         </span>
         <Link to="/pricing" className="announcement-link">
           Explore Dynamic Cost Builder <ArrowRight size={13} />
@@ -218,13 +221,13 @@ export function LandingPage() {
       {/* Modern Frosted Header */}
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link className="landing-brand" to="/" aria-label="Visiofy Studio home">
+          <Link className="landing-brand" to="/" aria-label="Quilltap home">
             <span className="brand-icon">
-              <Sparkles size={19} />
+              <Feather size={19} />
             </span>
             <div className="brand-text">
-              <strong>visiofy</strong>
-              <small>STUDIO</small>
+              <strong>Quilltap</strong>
+              <small>CONTENT OS</small>
             </div>
           </Link>
 
@@ -255,13 +258,13 @@ export function LandingPage() {
         <section className="landing-hero">
           <div className="landing-hero-copy">
             <span className="landing-kicker">
-              <span className="kicker-pulse" /> VISIOFY STUDIO · THE INTELLIGENT SOCIAL ENGINE
+              <span className="kicker-pulse" /> QUILLTAP · THE INTELLIGENT SOCIAL ENGINE
             </span>
             <h1>
               Great content needs <em>room to think.</em>
             </h1>
             <p>
-              Visiofy Studio transforms raw ideas, interviews, and brand knowledge into high-performing,
+              Quilltap transforms raw ideas, interviews, and brand knowledge into high-performing,
               multi-channel posts. Review with immutable approval guardrails, plan on a visual calendar,
               and publish seamlessly to LinkedIn and Instagram.
             </p>
@@ -289,11 +292,11 @@ export function LandingPage() {
           </div>
 
           {/* Interactive Hero Visual */}
-          <div className="landing-visual" aria-label="Interactive Visiofy Studio Workspace Mockup">
+          <div className="landing-visual" aria-label="Interactive Quilltap Workspace Mockup">
             <div className="landing-visual-top">
               <div className="visual-top-left">
                 <span className="landing-visual-logo">
-                  <Sparkles size={14} /> visiofy studio
+                  <Sparkles size={14} /> quilltap
                 </span>
                 <span className="visual-env-tag">WORKSPACE · PROD</span>
               </div>
@@ -352,7 +355,7 @@ export function LandingPage() {
                 {heroPlatform === 'linkedin' ? (
                   <div className="hero-mockup-post linkedin-mode">
                     <div className="mockup-author">
-                      <div className="mockup-avatar">VS</div>
+                      <div className="mockup-avatar">QT</div>
                       <div>
                         <strong>Alex Morgan</strong>
                         <span>Founder &amp; CEO · 1st</span>
@@ -363,7 +366,7 @@ export function LandingPage() {
                         Most social media strategies fail because of friction, not lack of ideas.
                       </p>
                       <p>
-                        When we designed <strong>Visiofy Studio</strong>, we built an immutable approvals
+                        When we designed <strong>Quilltap</strong>, we built an immutable approvals
                         system: write once, tailor variants automatically, and lock versions so zero
                         mistakes reach live production.
                       </p>
@@ -378,9 +381,9 @@ export function LandingPage() {
                 ) : (
                   <div className="hero-mockup-post instagram-mode">
                     <div className="mockup-author">
-                      <div className="mockup-avatar ig-gradient">VS</div>
+                      <div className="mockup-avatar ig-gradient">QT</div>
                       <div>
-                        <strong>@visiofy.studio</strong>
+                        <strong>@quilltap</strong>
                         <span>Original Audio</span>
                       </div>
                     </div>
@@ -389,12 +392,12 @@ export function LandingPage() {
                         <span className="orbit-ring" />
                         <Sparkles size={28} />
                         <h4>Turn Ideas Into Influence</h4>
-                        <small>VISIOFY CREATIVE SUITE</small>
+                        <small>QUILLTAP CREATIVE SUITE</small>
                       </div>
                     </div>
                     <div className="mockup-body-text">
                       <p>
-                        <strong>visiofy.studio</strong> Clarity over noise. The calmer way to show up on
+                        <strong>quilltap</strong> Clarity over noise. The calmer way to show up on
                         Instagram with AI-crafted storytelling &amp; automated comment leads.
                       </p>
                       <span className="mockup-hashtags">#CreatorTools #ContentMarketing #InstagramGrowth</span>
@@ -463,7 +466,7 @@ export function LandingPage() {
         <section className="landing-section" id="outcomes">
           <div className="landing-section-head">
             <span className="landing-kicker">REAL-WORLD IMPACT</span>
-            <h2>What you can achieve with Visiofy Studio.</h2>
+            <h2>What you can achieve with Quilltap.</h2>
             <p>
               Replace disconnected tools, chaotic spreadsheets, and writer&apos;s block with an
               intelligent operating system tailored to your exact publishing objectives.
@@ -481,7 +484,7 @@ export function LandingPage() {
               <h3>Build high-impact authority in 15 minutes a week.</h3>
               <p>
                 Eliminate the $5,000/mo ghostwriter expense. Use the Story Interviewer to speak your
-                thoughts or drop a voice memo; Visiofy Studio extracts key lessons and writes authentic,
+                thoughts or drop a voice memo; Quilltap extracts key lessons and writes authentic,
                 deeply grounded leadership posts.
               </p>
               <ul className="outcome-points">
@@ -747,7 +750,7 @@ export function LandingPage() {
         <section className="landing-workflow" id="how-it-works">
           <div className="landing-workflow-header">
             <span className="landing-kicker">INTERACTIVE WALKTHROUGH</span>
-            <h2>How Visiofy Studio Works</h2>
+            <h2>How Quilltap Works</h2>
             <p>
               Follow how raw thoughts transform into calibrated, scheduled, revenue-generating social posts across each core capability.
             </p>
@@ -1009,7 +1012,7 @@ export function LandingPage() {
                           <span className="lead-tag high">🔥 High-Intent Buyer Lead</span>
                         </div>
                         <p className="inbox-comment">
-                          &ldquo;Does Visiofy Studio support multi-tenant workspaces for our 12-person agency? Looking to switch this month.&rdquo;
+                          &ldquo;Does Quilltap support multi-tenant workspaces for our 12-person agency? Looking to switch this month.&rdquo;
                         </p>
                       </div>
                     </div>
@@ -1018,7 +1021,7 @@ export function LandingPage() {
                         <Sparkles size={12} /> Suggested AI Reply (Calibrated Brand Voice)
                       </div>
                       <p className="ai-reply-text">
-                        &ldquo;Hi Sarah! Yes, Visiofy Studio features isolated multi-tenant workspaces with individual Brand Brains for each client. Would love to show your agency a quick walkthrough!&rdquo;
+                        &ldquo;Hi Sarah! Yes, Quilltap features isolated multi-tenant workspaces with individual Brand Brains for each client. Would love to show your agency a quick walkthrough!&rdquo;
                       </p>
                       <div className="ai-reply-actions">
                         <span className="mockup-action-pill primary">Approve &amp; Send Reply</span>
@@ -1047,27 +1050,26 @@ export function LandingPage() {
             {catalog?.plans.map((plan) => {
               const presentation = planPresentation[plan.id]
               const featured = plan.id === 'advance'
+              const isCustom = plan.id === 'custom'
               return (
               <article className={featured ? 'featured' : ''} key={plan.id}>
                 {featured && <span className="landing-plan-badge">MOST POPULAR</span>}
                 <div className="landing-plan-name">{plan.name}</div>
                 <p>{presentation.description}</p>
                 <div className="landing-plan-price">
-                  <strong>${plan.price}</strong>
-                  <span>
-                    / month
-                    <br />
-                    plus applicable tax
-                  </span>
+                  <strong>{isCustom ? 'Let\'s talk' : `$${plan.price}`}</strong>
+                  {!isCustom && (
+                    <span>
+                      / month
+                      <br />
+                      plus applicable tax
+                    </span>
+                  )}
                 </div>
                 <div className="landing-plan-divider" />
                 <ul>
-                  <li>
-                    <Check size={17} /> {plan.credits} AI credits each month
-                  </li>
-                  <li>
-                    <Check size={17} /> {plan.connections} connected {plan.connections === 1 ? 'account' : 'accounts'}
-                  </li>
+                  {!isCustom && <li><Check size={17} /> {plan.credits} AI credits each month</li>}
+                  {!isCustom && <li><Check size={17} /> {plan.connections} connected {plan.connections === 1 ? 'account' : 'accounts'}</li>}
                   <li>
                     <Check size={17} /> {presentation.examples}
                   </li>
@@ -1083,7 +1085,7 @@ export function LandingPage() {
                 </ul>
                 <Link
                   className={featured ? 'landing-plan-cta featured' : 'landing-plan-cta'}
-                  to={primaryPath}
+                  to={isCustom ? '/#support' : primaryPath}
                 >
                   {presentation.cta} <ArrowRight size={16} />
                 </Link>
@@ -1121,7 +1123,7 @@ export function LandingPage() {
           <div className="landing-section-head">
             <span className="landing-kicker">GOT QUESTIONS?</span>
             <h2>Frequently Asked Questions</h2>
-            <p>Everything you need to know about Visiofy Studio, our MVP, and how we compare.</p>
+            <p>Everything you need to know about Quilltap, our MVP, and how we compare.</p>
           </div>
 
           <div className="faq-container">
@@ -1164,8 +1166,8 @@ export function LandingPage() {
             </span>
             <h2>Have a question? We&apos;re here to help.</h2>
             <p>
-              Send us any question about Visiofy Studio, feature requests, or custom workspace setups.
-              All messages are delivered straight to <strong>visiofytech@gmail.com</strong>.
+              Send us any question about Quilltap, feature requests, or custom workspace setups.
+              Your note goes directly to the Quilltap support team.
             </p>
           </div>
 
@@ -1178,13 +1180,12 @@ export function LandingPage() {
                   </div>
                   <h4>Message sent!</h4>
                   <p>
-                    Thank you, <strong>{supportForm.name}</strong>. Your message was delivered to{' '}
-                    <strong>visiofytech@gmail.com</strong>.
+                    Thank you, <strong>{supportForm.name}</strong>. Your message was delivered to the Quilltap support team.
                   </p>
                   <p className="success-subtext">
-                    You can also email us directly at{' '}
+                    Need to add something?{' '}
                     <a href="mailto:visiofytech@gmail.com" className="support-email-link">
-                      visiofytech@gmail.com
+                      Email Quilltap support
                     </a>
                   </p>
                   <button type="button" className="landing-primary support-reset-btn" onClick={handleResetSupport}>
@@ -1234,7 +1235,7 @@ export function LandingPage() {
                     <span>Your Question or Message</span>
                     <textarea
                       rows={5}
-                      placeholder="Ask anything about Visiofy Studio, social publishing, or team setups..."
+                      placeholder="Ask anything about Quilltap, social publishing, or team setups..."
                       value={supportForm.message}
                       onChange={(e) => setSupportForm({ ...supportForm, message: e.target.value })}
                       required
@@ -1244,10 +1245,10 @@ export function LandingPage() {
                   <div className="support-form-actions">
                     {supportError && <p className="support-form-error" role="alert">{supportError}</p>}
                     <button type="submit" className="landing-primary support-submit-btn" disabled={supportBusy}>
-                      {supportBusy ? 'Sending...' : 'Send Message to visiofytech@gmail.com'} <Send size={15} />
+                      {supportBusy ? 'Sending...' : 'Send message'} <Send size={15} />
                     </button>
                     <small className="support-form-hint">
-                      Delivered directly to visiofytech@gmail.com
+                      Usually answered within one business day.
                     </small>
                   </div>
                 </form>
@@ -1263,7 +1264,7 @@ export function LandingPage() {
             <h2>Your next good idea deserves to be shared.</h2>
             <p>
               Experience the calmer, intelligent social studio. Turn raw thoughts into published authority
-              with Visiofy Studio today.
+              with Quilltap today.
             </p>
             <div className="close-cta-group">
               <Link className="landing-primary hero-btn" to={primaryPath}>
@@ -1283,11 +1284,11 @@ export function LandingPage() {
           <div className="footer-brand-col">
             <Link className="landing-brand" to="/">
               <span className="brand-icon">
-                <Sparkles size={17} />
+                <Feather size={17} />
               </span>
               <div className="brand-text">
-                <strong>visiofy</strong>
-                <small>STUDIO</small>
+                <strong>Quilltap</strong>
+                <small>CONTENT OS</small>
               </div>
             </Link>
             <p className="footer-tagline">
@@ -1323,7 +1324,7 @@ export function LandingPage() {
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} Visiofy Studio. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Quilltap. All rights reserved.</p>
           <div className="footer-meta-links">
             <a href="#features">Privacy Policy</a>
             <a href="#features">Terms of Service</a>

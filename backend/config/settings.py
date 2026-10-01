@@ -121,7 +121,7 @@ if EMAIL_USE_TLS and EMAIL_USE_SSL:
     raise ValueError("EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be enabled.")
 EMAIL_TIMEOUT = _bounded_env_int("EMAIL_TIMEOUT", 10, 1, 60)
 DEFAULT_FROM_EMAIL = os.environ.get(
-    "DEFAULT_FROM_EMAIL", "Visiofy Studio <visiofytech@gmail.com>"
+    "DEFAULT_FROM_EMAIL", "Quilltap <visiofytech@gmail.com>"
 ).strip()
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "visiofytech@gmail.com").strip()
 
@@ -168,8 +168,8 @@ ROOT_URLCONF = 'config.urls'
 
 # ── Django Unfold Admin UI Configuration ──────────────────────────────────────
 UNFOLD = {
-    "SITE_TITLE": "Visiofy Studio",
-    "SITE_HEADER": "Visiofy Studio Admin",
+    "SITE_TITLE": "Quilltap",
+    "SITE_HEADER": "Quilltap Admin",
     "SITE_SUBHEADER": "Content publishing and workspace management",
     "SITE_URL": "/",
     "SHOW_HISTORY": True,
@@ -520,8 +520,8 @@ CONTENT_AUTOMATION_ASSET_TOKEN_MAX_AGE_SECONDS = int(os.environ.get(
 ))
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Visiofy Studio API',
-    'DESCRIPTION': 'Visiofy Studio API documentation.',
+    'TITLE': 'Quilltap API',
+    'DESCRIPTION': 'Quilltap API documentation.',
     'VERSION': '3.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

@@ -1,5 +1,5 @@
 import {
-  ArrowRight, CalendarDays, Check,
+  ArrowRight, CalendarDays, Check, Feather,
   Layers3, Linkedin, MessageSquare, Sparkles, WandSparkles, X, Zap,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
 import { usePricingCatalog } from '../hooks/usePricingCatalog'
 import './PricingPage.css'
+import './QuilltapTheme.css'
 
 export function PricingPage() {
   const { user } = useAuth()
@@ -23,8 +24,8 @@ export function PricingPage() {
   useEffect(() => {
     const starter = catalog?.plans.find((plan) => plan.id === 'starter')
     if (starter) {
-      setConnections(starter.connections)
-      setCredits(starter.credits)
+      setConnections(starter.connections ?? 0)
+      setCredits(starter.credits ?? 0)
     }
   }, [catalog])
 
@@ -32,8 +33,8 @@ export function PricingPage() {
     setBaseTier(tier)
     const selected = catalog?.plans.find((plan) => plan.id === tier)
     if (!selected) return
-    setConnections(selected.connections)
-    setCredits(selected.credits)
+    setConnections(selected.connections ?? 0)
+    setCredits(selected.credits ?? 0)
     setEngageEnabled(selected.engage)
   }
 
@@ -67,8 +68,8 @@ export function PricingPage() {
     <div className="pricing-page">
       {/* Navigation Header */}
       <header className="pricing-header">
-        <Link className="pricing-brand" to="/" aria-label="Visiofy Studio home">
-          <span><Sparkles size={18} /></span> Visiofy Studio
+        <Link className="pricing-brand" to="/" aria-label="Quilltap home">
+          <span><Feather size={18} /></span> Quilltap
         </Link>
         <nav aria-label="Main navigation">
           <Link to="/#features">Features</Link>
@@ -98,7 +99,7 @@ export function PricingPage() {
           </p>
         </section>
 
-        {/* 3 Modern Light Plan Cards */}
+        {/* Four pricing tiers */}
         <section className="pricing-plans-section">
           <div className="pricing-plans-grid">
             
@@ -152,10 +153,10 @@ export function PricingPage() {
               </ul>
             </div>
 
-            {/* Card 3: Advance - Featured */}
+            {/* Card 3: Premium - Featured */}
             <div className="light-plan-card featured">
               <span className="plan-card-tag">Recommended</span>
-              <div className="plan-card-name">Advance</div>
+              <div className="plan-card-name">Premium</div>
               <div className="plan-card-desc">
                 High-volume content creation with full Engage lead conversion automation.
               </div>
@@ -176,6 +177,29 @@ export function PricingPage() {
                 <li><Check size={16} /> Instagram Story replies &amp; DM keywords</li>
                 <li><Check size={16} /> <strong>100% Unlimited Post Scheduling</strong></li>
                 <li><Check size={16} /> LinkedIn Copilot smart inbox triage</li>
+              </ul>
+            </div>
+
+            {/* Card 4: Custom */}
+            <div className="light-plan-card">
+              <div className="plan-card-name">Custom</div>
+              <div className="plan-card-desc">
+                Flexible volume, connections, and support for growing teams and agencies.
+              </div>
+              <div className="plan-card-price custom-price">
+                <strong>Let&apos;s talk</strong>
+              </div>
+              <Link to="/#support" className="plan-card-btn">
+                Reach out to our team <ArrowRight size={14} />
+              </Link>
+              <div className="plan-card-divider" />
+              <div className="plan-card-specs-title">Tailored to your team:</div>
+              <ul className="plan-card-specs">
+                <li><Check size={16} /> Custom social connection limits</li>
+                <li><Check size={16} /> Custom monthly AI credit volume</li>
+                <li><Check size={16} /> Engage Automation Suite</li>
+                <li><Check size={16} /> Team onboarding and priority support</li>
+                <li><Check size={16} /> Flexible workspace setup</li>
               </ul>
             </div>
 
@@ -249,7 +273,7 @@ export function PricingPage() {
                       className={`calc-base-btn ${baseTier === 'advance' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('advance')}
                     >
-                      <strong>Advance (${advancePlan?.price ?? '...'})</strong>
+                      <strong>Premium (${advancePlan?.price ?? '...'})</strong>
                       <span>{advancePlan?.connections ?? '...'} Conn &bull; Engage Incl.</span>
                     </button>
                   </div>
@@ -378,7 +402,7 @@ export function PricingPage() {
                     <strong>Engage Automation Suite</strong>
                     <span>
                       {baseTier === 'advance'
-                        ? 'Included Free in the Advance Plan'
+                        ? 'Included Free in the Premium Plan'
                         : `Comment-to-DM flows, story triggers & auto replies (+$${engagePrice}/mo)`}
                     </span>
                   </div>
@@ -441,7 +465,7 @@ export function PricingPage() {
         {/* Feature Explanations ("What You Get") */}
         <section className="features-light-section">
           <div className="calc-title-header">
-            <h2>Everything you get with Visiofy Studio</h2>
+            <h2>Everything you get with Quilltap</h2>
             <p>Designed for consistent publishing, authentic brand voice, and inbound lead conversion.</p>
           </div>
 
@@ -548,7 +572,7 @@ export function PricingPage() {
         {/* Bottom CTA */}
         <section className="cta-light-section">
           <h2>Start publishing better content today</h2>
-          <p>Join creators and teams using Visiofy Studio to run their content creation and publishing smoothly.</p>
+          <p>Join creators and teams using Quilltap to run their content creation and publishing smoothly.</p>
           <Link to={primaryPath} className="cta-btn-main">
             {primaryLabel} <ArrowRight size={16} />
           </Link>
@@ -558,9 +582,9 @@ export function PricingPage() {
       {/* Footer */}
       <footer className="pricing-footer">
         <Link className="pricing-brand" to="/">
-          <span><Sparkles size={16} /></span> Visiofy Studio
+          <span><Feather size={16} /></span> Quilltap
         </Link>
-        <p>&copy; Visiofy Studio Platform. Simple, calm content publishing.</p>
+        <p>&copy; Quilltap Platform. Simple, calm content publishing.</p>
         <div>
           <Link to="/">Home</Link>
           <Link to="/#features">Features</Link>

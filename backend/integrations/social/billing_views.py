@@ -127,7 +127,11 @@ class SubscriptionOverviewAPIView(SocialWorkspaceScopedAPIView):
         costs = PRICING_CATALOG["credit_costs"]
         return Response({
             "tier": "ADMIN" if is_admin else subscription.tier,
-            "role_label": "Admin" if is_admin else subscription.get_tier_display(),
+            "role_label": (
+                "Admin" if is_admin
+                else "Premium" if subscription.tier == WorkspaceTier.ADVANCE
+                else subscription.get_tier_display()
+            ),
             "is_admin": is_admin, "can_manage_billing": manages_billing,
             "connections": {"used": connected_count,
                 "limit": 999999 if is_admin else subscription.connections_quota,

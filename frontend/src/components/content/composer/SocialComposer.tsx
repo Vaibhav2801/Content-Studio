@@ -766,7 +766,7 @@ export function SocialComposer({ onPostChange }: Props) {
       <div>
         <span>CREATE</span>
         <h1>Create a social post</h1>
-        <p>Start with one idea. Visiofy will apply your brand and adapt it for every selected platform.</p>
+        <p>Start with one idea. Quilltap will apply your brand and adapt it for every selected platform.</p>
       </div>
       <div className="composer-header-actions">
         <button className="composer-new-post" type="button" disabled={Boolean(busy)} onClick={startNewPost}><Plus size={16} /> New post</button>

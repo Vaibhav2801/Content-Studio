@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-    DEFAULT_FROM_EMAIL="Visiofy Studio <noreply@visiofy.example>",
+    DEFAULT_FROM_EMAIL="Quilltap <noreply@visiofy.example>",
     SUPPORT_EMAIL="visiofytech@gmail.com",
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
@@ -57,7 +57,7 @@ class SupportRequestAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("visiofytech@gmail.com", response.data["detail"])
+        self.assertIn("contact Quilltap support directly", response.data["detail"])
 
     def test_repeated_requests_are_rate_limited(self):
         for index in range(5):

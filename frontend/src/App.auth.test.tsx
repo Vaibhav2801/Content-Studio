@@ -5,7 +5,7 @@ import { billingApi } from './api/billingApi'
 import type { PricingCatalog } from './types/billing'
 import App from './App'
 
-vi.mock('./pages/ContentStudioPage', () => ({ ContentStudioPage: () => <div>Private Visiofy Studio</div> }))
+vi.mock('./pages/ContentStudioPage', () => ({ ContentStudioPage: () => <div>Private Quilltap</div> }))
 
 const anonymous: AuthSession = { authenticated: false, user: null, workspace: null }
 const signedIn: AuthSession = {
@@ -19,13 +19,14 @@ const catalog: PricingCatalog = {
   simulated_checkout_enabled: false,
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
-    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 20, credits: 50, connections: 1, engage: false },
-    { id: 'advance', name: 'Advance', product_id: 'plan_advance_monthly', price: 39, credits: 150, connections: 1, engage: true },
+    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 9, credits: 50, connections: 1, engage: false },
+    { id: 'advance', name: 'Premium', product_id: 'plan_advance_monthly', price: 14, credits: 150, connections: 1, engage: true },
+    { id: 'custom', name: 'Custom', product_id: null, price: null, credits: null, connections: null, engage: true },
   ],
   addons: [],
 }
 
-describe('Visiofy Studio authentication routes', () => {
+describe('Quilltap authentication routes', () => {
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
   beforeEach(() => {
     window.history.replaceState({}, '', '/content')
@@ -47,7 +48,7 @@ describe('Visiofy Studio authentication routes', () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: /Simple plans/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Dynamic Cost Manager/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Everything you get with Visiofy Studio/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Everything you get with Quilltap/i })).toBeInTheDocument()
     expect(screen.getByText(/Unlimited Post Scheduling is always included/i)).toBeInTheDocument()
     expect(window.location.pathname).toBe('/pricing')
   })
@@ -63,11 +64,11 @@ describe('Visiofy Studio authentication routes', () => {
   it('redirects an anonymous visitor to sign in and opens the studio after login', async () => {
     const signin = vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'Sign in to Visiofy Studio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in to Quilltap' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'alex@example.com' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Quilltap')).toBeInTheDocument()
     expect(signin).toHaveBeenCalledWith({ email: 'alex@example.com', password: 'AnEvenStrongerPassword42!' })
     expect(window.location.pathname).toBe('/content')
   })
@@ -83,7 +84,7 @@ describe('Visiofy Studio authentication routes', () => {
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.change(screen.getByLabelText(/Workspace name/), { target: { value: 'Alex Studio' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
-    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Quilltap')).toBeInTheDocument()
     expect(signup).toHaveBeenCalledWith({
       name: 'Alex Morgan', email: 'alex@example.com', password: 'AnEvenStrongerPassword42!', workspace_name: 'Alex Studio',
     })
@@ -94,17 +95,17 @@ describe('Visiofy Studio authentication routes', () => {
     vi.spyOn(authApi, 'signin').mockResolvedValue(signedIn)
     window.history.replaceState({}, '', '/content/calendar')
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'Sign in to Visiofy Studio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in to Quilltap' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'alex@example.com' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'AnEvenStrongerPassword42!' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Quilltap')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/content/calendar')
   })
 
   it('restores a signed-in session on refresh', async () => {
     vi.spyOn(authApi, 'session').mockResolvedValue(signedIn)
     render(<App />)
-    expect(await screen.findByText('Private Visiofy Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Private Quilltap')).toBeInTheDocument()
   })
 })

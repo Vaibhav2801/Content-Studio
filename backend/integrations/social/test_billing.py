@@ -74,6 +74,13 @@ class BillingApiTests(TestCase):
             {plan["product_id"] for plan in response.data["plans"] if plan["product_id"]},
             {"plan_starter_monthly", "plan_advance_monthly"},
         )
+        plans = {plan["id"]: plan for plan in response.data["plans"]}
+        self.assertEqual(set(plans), {"free", "starter", "advance", "custom"})
+        self.assertEqual(plans["starter"]["price"], 9)
+        self.assertEqual(plans["advance"]["name"], "Premium")
+        self.assertEqual(plans["advance"]["price"], 14)
+        self.assertIsNone(plans["custom"]["product_id"])
+        self.assertIsNone(plans["custom"]["price"])
         self.assertFalse(response.data["simulated_checkout_enabled"])
         self.assertEqual(response.data["simulated_checkout_status"], "disabled")
 

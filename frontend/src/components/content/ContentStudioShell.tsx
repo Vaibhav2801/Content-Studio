@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
+  Feather,
   Home,
   Link2,
   MessageCircleMore,
@@ -98,7 +99,7 @@ export function ContentStudioShell() {
   const navigate = useNavigate()
   const current = CONTENT_STUDIO_NAV.find((item) => item.path === location.pathname) ?? CONTENT_STUDIO_NAV[0]
   const isOnboarding = location.pathname === '/content/onboarding'
-  const pageLabel = isOnboarding ? 'Set up Visiofy Studio' : current.label === 'Home' ? 'Visiofy Studio' : current.label
+  const pageLabel = isOnboarding ? 'Set up Quilltap' : current.label === 'Home' ? 'Quilltap' : current.label
   const pageDescription = isOnboarding ? 'A few steps to get ready for your first post.' : current.description
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 
@@ -205,9 +206,9 @@ export function ContentStudioShell() {
       {sidebarOpen && <button className="studio-sidebar-scrim" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
       <aside className={`studio-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="studio-sidebar-top">
-          <Link className="studio-brand" to="/content" aria-label="Visiofy Studio home">
-            <span className="studio-brand-mark"><Sparkles size={20} strokeWidth={2.1} /></span>
-            <span className="studio-brand-copy"><strong>Visiofy Studio</strong><small>CREATE · PUBLISH · GROW</small></span>
+          <Link className="studio-brand" to="/content" aria-label="Quilltap home">
+            <span className="studio-brand-mark"><Feather size={20} strokeWidth={2.1} /></span>
+            <span className="studio-brand-copy"><strong>Quilltap</strong><small>THINK · WRITE · PUBLISH</small></span>
           </Link>
           <button className="studio-sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button>
         </div>
@@ -228,7 +229,7 @@ export function ContentStudioShell() {
           </div>}
         </div>
 
-        <nav className="studio-sidebar-nav" aria-label="Visiofy Studio sections">
+        <nav className="studio-sidebar-nav" aria-label="Quilltap sections">
           {navigationGroups.map((group) => (
             <div className="studio-nav-group" key={group.label}>
               <span className="studio-nav-heading">{group.label}</span>
@@ -413,7 +414,7 @@ export function ContentStudioShell() {
               </div>
             )}
             <AskAIButton />
-            <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Visiofy Studio settings"><Settings2 size={18} /></Link>
+            <Link className="studio-topbar-settings" to="/content/settings" aria-label="Open Quilltap settings"><Settings2 size={18} /></Link>
           </div>
         </header>
         <main className="studio-main" id="studio-main">

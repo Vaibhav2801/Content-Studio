@@ -64,12 +64,12 @@ export type BillingProductId =
   | 'engage_monthly'
 
 export interface PricingPlan {
-  id: 'free' | 'starter' | 'advance'
+  id: 'free' | 'starter' | 'advance' | 'custom'
   name: string
   product_id: BillingProductId | null
-  price: number
-  credits: number
-  connections: number
+  price: number | null
+  credits: number | null
+  connections: number | null
   engage: boolean
 }
 

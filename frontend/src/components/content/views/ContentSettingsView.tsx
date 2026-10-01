@@ -34,7 +34,7 @@ export function ContentSettingsView() {
       ? 'plan'
       : 'profile'
 
-  const userName = auth?.user?.name || 'Visiofy Studio user'
+  const userName = auth?.user?.name || 'Quilltap user'
   const userEmail = auth?.user?.email || 'Sign in to view account details'
   const workspaceName = auth?.workspace?.name || onboarding.business.name || 'Your workspace'
   const membership = auth?.workspaces.find((item) => item.id === auth.workspace?.id)
@@ -47,7 +47,7 @@ export function ContentSettingsView() {
   }
 
   return (
-    <section className="settings-hub" aria-label="Visiofy Studio settings">
+    <section className="settings-hub" aria-label="Quilltap settings">
       <header className="settings-hub-hero">
         <div className="settings-hub-hero-copy">
           <span className="settings-hub-eyebrow">Account &amp; workspace</span>
@@ -96,7 +96,7 @@ export function ContentSettingsView() {
 
             <div className="settings-profile-grid">
               <article className="settings-info-card">
-                <header><span><UserRound size={19} /></span><div><h4>Personal details</h4><p>Your signed-in Visiofy Studio identity.</p></div></header>
+                <header><span><UserRound size={19} /></span><div><h4>Personal details</h4><p>Your signed-in Quilltap identity.</p></div></header>
                 <dl>
                   <div><dt>Full name</dt><dd>{userName}</dd></div>
                   <div><dt>Email address</dt><dd><Mail size={15} /> {userEmail}</dd></div>

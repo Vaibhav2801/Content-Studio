@@ -37,7 +37,7 @@ vi.mock('./AuthContext', () => ({
 import { ContentStudioShell } from './ContentStudioShell'
 import { ToastProvider } from '../notifications/ToastProvider'
 
-describe('Visiofy Studio sidebar', () => {
+describe('Quilltap sidebar', () => {
   afterEach(() => {
     cleanup()
     shellMocks.signOut.mockClear()
@@ -56,7 +56,7 @@ describe('Visiofy Studio sidebar', () => {
       </MemoryRouter>,
     )
 
-    const navigation = screen.getByRole('navigation', { name: 'Visiofy Studio sections' })
+    const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
     for (const group of ['Workspace', 'Publishing', 'Engagement', 'Manage']) {
       expect(within(navigation).getByText(group)).toBeInTheDocument()
     }

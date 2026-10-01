@@ -59,6 +59,7 @@ export function EngagementHubView() {
       if (
         msg.includes('Engage feature is not included') ||
         msg.includes('Upgrade to the Advance plan') ||
+        msg.includes('Upgrade to the Premium plan') ||
         msg.includes('Engage add-on')
       ) {
         setLockedDueToPlan(true)
@@ -136,7 +137,7 @@ export function EngagementHubView() {
                 letterSpacing: '0.06em',
               }}
             >
-              Advance Tier Feature
+              Premium Tier Feature
             </span>
             <h2
               style={{
@@ -196,10 +197,10 @@ export function EngagementHubView() {
                 textDecoration: 'none',
               }}
             >
-              Upgrade to Advance ($39/mo) or Add On ($15/mo)
+              Upgrade to Premium ($14/mo) or Add On ($15/mo)
             </a>
             <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
-              Instant activation · Included for Advance & Admin users
+              Instant activation · Included for Premium & Admin users
             </span>
           </div>
         </div>

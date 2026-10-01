@@ -34,7 +34,7 @@ function renderStudio(path = '/content') {
   </Routes></MemoryRouter>)
 }
 
-describe('Visiofy Studio', () => {
+describe('Quilltap', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
@@ -59,8 +59,8 @@ describe('Visiofy Studio', () => {
 
   it('shows the compact sidebar and keeps creation actions in one place', async () => {
     renderStudio()
-    expect(await screen.findByRole('heading', { name: 'Visiofy Studio' })).toBeInTheDocument()
-    const navigation = screen.getByRole('navigation', { name: 'Visiofy Studio sections' })
+    expect(await screen.findByRole('heading', { name: 'Quilltap' })).toBeInTheDocument()
+    const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
     for (const label of ['Home', 'Create', 'Approvals', 'Calendar', 'Content Library', 'Connections', 'Analytics']) {
       expect(navigation).toHaveTextContent(label)
     }
@@ -217,7 +217,7 @@ describe('Visiofy Studio', () => {
     await screen.findByText('Start with what you have')
     fireEvent.click(screen.getByRole('link', { name: /^calendar$/i }))
     expect(screen.getByRole('heading', { name: 'Calendar' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: /Open Visiofy Studio settings/i }))
+    fireEvent.click(screen.getByRole('link', { name: /Open Quilltap settings/i }))
     expect(screen.getByRole('heading', { name: 'Your account and workspace' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Brand and business' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: /^content library$/i }))
@@ -265,11 +265,11 @@ describe('Visiofy Studio', () => {
     renderStudio('/content/create')
     fireEvent.change(await screen.findByPlaceholderText(/Share the point/i), { target: { value: 'Saved unfinished idea' } })
     fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
-    await screen.findByRole('heading', { name: 'Visiofy Studio' })
+    await screen.findByRole('heading', { name: 'Quilltap' })
     fireEvent.click(screen.getByRole('link', { name: /^create$/i }))
     expect(await screen.findByDisplayValue('Saved unfinished idea')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
-    await screen.findByRole('heading', { name: 'Visiofy Studio' })
+    await screen.findByRole('heading', { name: 'Quilltap' })
     fireEvent.click(screen.getByRole('link', { name: /new post/i }))
     expect(await screen.findByPlaceholderText(/Share the point/i)).toHaveValue('')
   })
@@ -379,8 +379,8 @@ describe('Visiofy Studio', () => {
     expect(screen.queryByText('LumaDesk')).not.toBeInTheDocument()
   })
 
-  it('redirects the old LinkedIn route to Visiofy Studio home', async () => {
+  it('redirects the old LinkedIn route to Quilltap home', async () => {
     renderStudio('/linkedin')
-    expect(await screen.findByRole('heading', { name: 'Visiofy Studio' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Quilltap' })).toBeInTheDocument()
   })
 })

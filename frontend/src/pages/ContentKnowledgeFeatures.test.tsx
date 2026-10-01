@@ -28,8 +28,9 @@ const catalog: PricingCatalog = {
   simulated_checkout_status: 'disabled',
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
-    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 20, credits: 50, connections: 1, engage: false },
-    { id: 'advance', name: 'Advance', product_id: 'plan_advance_monthly', price: 39, credits: 150, connections: 1, engage: true },
+    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 9, credits: 50, connections: 1, engage: false },
+    { id: 'advance', name: 'Premium', product_id: 'plan_advance_monthly', price: 14, credits: 150, connections: 1, engage: true },
+    { id: 'custom', name: 'Custom', product_id: null, price: null, credits: null, connections: null, engage: true },
   ],
   addons: [],
 }
@@ -148,10 +149,10 @@ describe('Content knowledge features', () => {
     await waitFor(() => expect(exportData).toHaveBeenCalled())
     expect(await screen.findByText('Your download is ready.')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/To delete, type DELETE VISIOFY STUDIO/i), {
-      target: { value: 'DELETE VISIOFY STUDIO' },
+    fireEvent.change(screen.getByLabelText(/To delete, type DELETE QUILLTAP/i), {
+      target: { value: 'DELETE QUILLTAP' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /Delete Visiofy Studio data/i }))
-    await waitFor(() => expect(deleteData).toHaveBeenCalledWith('DELETE VISIOFY STUDIO'))
+    fireEvent.click(screen.getByRole('button', { name: /Delete Quilltap data/i }))
+    await waitFor(() => expect(deleteData).toHaveBeenCalledWith('DELETE QUILLTAP'))
   })
 })

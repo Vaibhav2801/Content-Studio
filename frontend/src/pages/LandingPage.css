@@ -1,5 +1,5 @@
 /* ==========================================================================
-   VISIOFY STUDIO — DESIGN SYSTEM & LANDING PAGE STYLES
+   QUILLTAP — DESIGN SYSTEM & LANDING PAGE STYLES
    ========================================================================== */
 
 :root {
@@ -1739,7 +1739,7 @@ section[id] {
 
 .landing-pricing-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 22px;
   align-items: stretch;
 }
@@ -2273,6 +2273,10 @@ section[id] {
    RESPONSIVE BREAKPOINTS
    ========================================================================== */
 @media (max-width: 1100px) {
+  .landing-pricing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .features-grid-complete {
     grid-template-columns: repeat(2, 1fr);
   }

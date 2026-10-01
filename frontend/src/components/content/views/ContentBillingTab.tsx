@@ -251,7 +251,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
             {isAdmin
               ? 'Administrator Full Access'
               : isAdvance
-              ? 'Advance Social Studio'
+              ? 'Premium Social Studio'
               : isStarter
               ? 'Starter Pack Workspace'
               : 'Free Plan'}
@@ -263,7 +263,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
               ? `Multi-channel scaling with ${advancePlan?.credits ?? '...'} AI credits/mo, full Engage feature suite, and unlimited scheduling.`
               : isStarter
               ? `${starterPlan?.connections ?? '...'} social connection, ${starterPlan?.credits ?? '...'} AI credits/mo, unlimited scheduling. Easily scale up anytime.`
-              : `Explore Visiofy Studio drafting with ${freePlan?.credits ?? '...'} AI credits. Upgrade to connect social channels and schedule live posts.`}
+              : `Explore Quilltap drafting with ${freePlan?.credits ?? '...'} AI credits. Upgrade to connect social channels and schedule live posts.`}
           </p>
         </div>
 
@@ -283,7 +283,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                   className="metric-action-btn"
                   onClick={() => openUpgradeModal('ADVANCE')}
                 >
-                  Upgrade to Advance (${advancePlan?.price ?? '...'}/mo)
+                  Upgrade to Premium (${advancePlan?.price ?? '...'}/mo)
                 </button>
               </>
             )}
@@ -293,7 +293,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                 className="metric-action-btn primary"
                 onClick={() => openUpgradeModal('ADVANCE')}
               >
-                <Zap size={15} /> Upgrade to Advance (${advancePlan?.price ?? '...'}/mo)
+                <Zap size={15} /> Upgrade to Premium (${advancePlan?.price ?? '...'}/mo)
               </button>
             )}
             {isAdvance && (
@@ -469,7 +469,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                 {overview.engage_entitled ? 'Active' : 'Locked'}
               </span>
               <span className="sub-label">
-                {overview.engage_entitled ? 'Included on this workspace' : 'Advance or Add-on required'}
+                {overview.engage_entitled ? 'Included on this workspace' : 'Premium or Add-on required'}
               </span>
             </div>
           </div>
@@ -609,7 +609,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
             <header className="checkout-modal-header">
               <h3>
                 {checkoutAction === 'UPGRADE_PLAN'
-                  ? `Upgrade to ${targetTier === 'ADVANCE' ? 'Advance' : 'Starter'} Plan`
+                  ? `Upgrade to ${targetTier === 'ADVANCE' ? 'Premium' : 'Starter'} Plan`
                   : checkoutAction === 'BUY_BOOSTER'
                   ? `Buy ${boosterCredits} AI Booster Credits`
                   : checkoutAction === 'ADD_CONNECTIONS'

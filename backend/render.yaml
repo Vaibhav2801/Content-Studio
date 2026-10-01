@@ -55,7 +55,7 @@ services:
       - key: EMAIL_USE_TLS
         value: "True"
       - key: DEFAULT_FROM_EMAIL
-        value: "Visiofy Studio <visiofytech@gmail.com>"
+        value: "Quilltap <visiofytech@gmail.com>"
       - key: SUPPORT_EMAIL
         value: visiofytech@gmail.com
       - key: GEMINI_API_KEY

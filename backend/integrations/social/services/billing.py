@@ -40,18 +40,27 @@ PRICING_CATALOG = {
             "id": "starter",
             "name": "Starter",
             "product_id": "plan_starter_monthly",
-            "price": 20,
+            "price": 9,
             "credits": 50,
             "connections": 1,
             "engage": False,
         },
         {
             "id": "advance",
-            "name": "Advance",
+            "name": "Premium",
             "product_id": "plan_advance_monthly",
-            "price": 39,
+            "price": 14,
             "credits": 150,
             "connections": 1,
+            "engage": True,
+        },
+        {
+            "id": "custom",
+            "name": "Custom",
+            "product_id": None,
+            "price": None,
+            "credits": None,
+            "connections": None,
             "engage": True,
         },
     ],
@@ -59,16 +68,16 @@ PRICING_CATALOG = {
         "plan_starter_monthly": {
             "kind": "plan",
             "tier": WorkspaceTier.STARTER,
-            "amount": Decimal("20.00"),
+            "amount": Decimal("9.00"),
             "credits": 50,
             "title": "Starter Plan Subscription",
         },
         "plan_advance_monthly": {
             "kind": "plan",
             "tier": WorkspaceTier.ADVANCE,
-            "amount": Decimal("39.00"),
+            "amount": Decimal("14.00"),
             "credits": 150,
-            "title": "Advance Plan Subscription",
+            "title": "Premium Plan Subscription",
         },
         "booster_50": {
             "kind": "booster",
@@ -208,7 +217,7 @@ def check_connection_quota(
     if subscription.tier == WorkspaceTier.FREE:
         return (
             False,
-            "Free accounts cannot connect social channels. Please upgrade to the Starter or Advance plan to publish directly.",
+            "Free accounts cannot connect social channels. Please upgrade to the Starter or Premium plan to publish directly.",
             0,
             used,
         )
@@ -376,7 +385,7 @@ def check_engage_entitlement(
 
     return (
         False,
-        "The Engage Automation Suite requires the Advance plan ($39/mo) or the Engage add-on ($15/mo). "
+        "The Engage Automation Suite requires the Premium plan ($14/mo) or the Engage add-on ($15/mo). "
         "Please upgrade your plan in Settings > Billing to activate.",
     )
 
@@ -423,9 +432,9 @@ def _unsafe_legacy_process_checkout(
                 line_items.append({"description": "Free Plan Subscription", "amount": "0.00"})
             elif new_tier == WorkspaceTier.STARTER:
                 subscription.tier = WorkspaceTier.STARTER
-                total_amount += Decimal("20.00")
-                invoice_title = "Starter Plan Subscription ($20/mo)"
-                line_items.append({"description": "Starter Plan - 1 Connection, 50 AI Credits", "amount": "20.00"})
+                total_amount += Decimal("9.00")
+                invoice_title = "Starter Plan Subscription ($9/mo)"
+                line_items.append({"description": "Starter Plan - 1 Connection, 50 AI Credits", "amount": "9.00"})
                 # Allocate 50 credits
                 account.total_allocated += 50
                 account.save(update_fields=["total_allocated", "updated_at"])
@@ -438,9 +447,9 @@ def _unsafe_legacy_process_checkout(
                 )
             elif new_tier == WorkspaceTier.ADVANCE:
                 subscription.tier = WorkspaceTier.ADVANCE
-                total_amount += Decimal("39.00")
-                invoice_title = "Advance Plan Subscription ($39/mo)"
-                line_items.append({"description": "Advance Plan - 1 Connection, 150 AI Credits, Engage Suite", "amount": "39.00"})
+                total_amount += Decimal("14.00")
+                invoice_title = "Premium Plan Subscription ($14/mo)"
+                line_items.append({"description": "Premium Plan - 1 Connection, 150 AI Credits, Engage Suite", "amount": "14.00"})
                 # Allocate 150 credits
                 account.total_allocated += 150
                 account.save(update_fields=["total_allocated", "updated_at"])
@@ -448,7 +457,7 @@ def _unsafe_legacy_process_checkout(
                     workspace=workspace,
                     amount=150,
                     action_type="PLAN_UPGRADE",
-                    description=f"Credits granted for upgrading to Advance plan",
+                    description=f"Credits granted for upgrading to Premium plan",
                     balance_after=account.balance,
                 )
             elif new_tier == WorkspaceTier.ADMIN and is_workspace_admin(workspace, user):
@@ -514,7 +523,7 @@ def _unsafe_legacy_process_checkout(
             amount=total_amount,
             currency="USD",
             status="PAID",
-            title=invoice_title or "Visiofy Studio Service Checkout",
+            title=invoice_title or "Quilltap Service Checkout",
             line_items=line_items,
             payment_method=payment_method,
             billing_name=billing_name or subscription.billing_name or workspace.name,
@@ -823,8 +832,8 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
   <div class="invoice-card">
     <div class="header">
       <div>
-        <div class="brand">✦ Visiofy Studio</div>
-        <div style="font-size: 13px; color: #726e85; margin-top: 4px;">Visiofy Studio Platform Inc.</div>
+        <div class="brand">✦ Quilltap</div>
+        <div style="font-size: 13px; color: #726e85; margin-top: 4px;">Quilltap Platform Inc.</div>
       </div>
       <div style="text-align: right;">
         <div class="badge">PAID</div>
@@ -867,7 +876,7 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
     </div>
 
     <div class="footer-note">
-      Thank you for building your audience with Visiofy Studio. For support or enterprise billing questions, contact support@contentstudio.com.
+      Thank you for building your audience with Quilltap. For support or enterprise billing questions, contact support@contentstudio.com.
     </div>
   </div>
 </body>

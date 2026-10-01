@@ -32,7 +32,7 @@ describe('Landing page Direct Assistance form', () => {
     fireEvent.change(screen.getByLabelText('Your Question or Message'), {
       target: { value: 'My connection page is not loading.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /Send Message to visiofytech@gmail.com/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send message/i }))
 
     await waitFor(() => expect(submit).toHaveBeenCalledWith({
       name: 'Alex Morgan',
@@ -46,7 +46,7 @@ describe('Landing page Direct Assistance form', () => {
 
   it('keeps the form open and shows the server error when delivery fails', async () => {
     vi.spyOn(supportApi, 'submit').mockRejectedValue(
-      new Error("We couldn't send your message right now. Please email visiofytech@gmail.com directly."),
+      new Error("We couldn't send your message right now. Please try again later or contact Quilltap support directly."),
     )
 
     render(<MemoryRouter><LandingPage /></MemoryRouter>)
@@ -55,10 +55,10 @@ describe('Landing page Direct Assistance form', () => {
     fireEvent.change(screen.getByLabelText('Your Question or Message'), {
       target: { value: 'Please help with my account.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /Send Message to visiofytech@gmail.com/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send message/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Please email visiofytech@gmail.com directly.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('contact Quilltap support directly.')
     expect(screen.getByLabelText('Your Question or Message')).toHaveValue('Please help with my account.')
-    expect(screen.getByRole('button', { name: /Send Message to visiofytech@gmail.com/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Send message/i })).toBeEnabled()
   })
 })

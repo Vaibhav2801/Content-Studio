@@ -1657,12 +1657,12 @@ class ContentStudioDataExportAPIView(SocialWorkspaceScopedAPIView):
 
 
 class ContentStudioDataDeletionAPIView(SocialWorkspaceScopedAPIView):
-    """Owner-only deletion of Visiofy Studio data, with an explicit confirmation."""
+    """Owner-only deletion of Quilltap data, with an explicit confirmation."""
 
     def delete(self, request):
-        if request.data.get("confirmation") != "DELETE VISIOFY STUDIO":
+        if request.data.get("confirmation") != "DELETE QUILLTAP":
             return Response(
-                {"confirmation": ["Type DELETE VISIOFY STUDIO to confirm deletion."]},
+                {"confirmation": ["Type DELETE QUILLTAP to confirm deletion."]},
                 status=400,
             )
         try:
@@ -1676,7 +1676,7 @@ class ContentStudioDataDeletionAPIView(SocialWorkspaceScopedAPIView):
 
 
 class ContentStudioAssistantAPIView(SocialWorkspaceScopedAPIView):
-    """Answers user queries regarding any feature or workflow of the Visiofy Studio platform."""
+    """Answers user queries regarding any feature or workflow of the Quilltap platform."""
 
     def post(self, request):
         messages = request.data.get("messages", [])

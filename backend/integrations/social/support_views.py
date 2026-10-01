@@ -65,7 +65,7 @@ class SupportRequestAPIView(APIView):
         if email_backend.endswith("smtp.EmailBackend") and not email_host:
             logger.error("Support email delivery is unavailable because EMAIL_HOST is not configured.")
             return Response(
-                {"detail": f"Email delivery is temporarily unavailable. Please email {support_email} directly."},
+                {"detail": "Email delivery is temporarily unavailable. Please try again later or contact Quilltap support directly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -81,13 +81,13 @@ class SupportRequestAPIView(APIView):
                 data["message"],
                 "",
                 "---",
-                "Sent from the Visiofy Studio Direct Assistance form.",
+                "Sent from the Quilltap Direct Assistance form.",
             )
         )
 
         try:
             email = EmailMessage(
-                subject=f"[Visiofy Studio Support] {category} from {name}",
+                subject=f"[Quilltap Support] {category} from {name}",
                 body=body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[support_email],
@@ -97,7 +97,7 @@ class SupportRequestAPIView(APIView):
         except Exception:
             logger.exception("Direct Assistance email delivery failed.")
             return Response(
-                {"detail": f"We couldn't send your message right now. Please email {support_email} directly."},
+                {"detail": "We couldn't send your message right now. Please try again later or contact Quilltap support directly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
