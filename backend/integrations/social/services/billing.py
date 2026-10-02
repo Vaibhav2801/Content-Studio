@@ -24,7 +24,6 @@ from integrations.social.models import (
 )
 
 PRICING_CATALOG = {
-    "currency": "USD",
     "credit_costs": {"draft": 2, "image": 1, "image_regeneration": 1},
     "plans": [
         {
@@ -40,7 +39,7 @@ PRICING_CATALOG = {
             "id": "starter",
             "name": "Starter",
             "product_id": "plan_starter_monthly",
-            "price": 9,
+            "price": 14,
             "credits": 50,
             "connections": 1,
             "engage": False,
@@ -49,7 +48,7 @@ PRICING_CATALOG = {
             "id": "advance",
             "name": "Premium",
             "product_id": "plan_advance_monthly",
-            "price": 14,
+            "price": 20,
             "credits": 150,
             "connections": 1,
             "engage": True,
@@ -68,14 +67,14 @@ PRICING_CATALOG = {
         "plan_starter_monthly": {
             "kind": "plan",
             "tier": WorkspaceTier.STARTER,
-            "amount": Decimal("9.00"),
+            "amount": Decimal("14.00"),
             "credits": 50,
             "title": "Starter Plan Subscription",
         },
         "plan_advance_monthly": {
             "kind": "plan",
             "tier": WorkspaceTier.ADVANCE,
-            "amount": Decimal("14.00"),
+            "amount": Decimal("20.00"),
             "credits": 150,
             "title": "Premium Plan Subscription",
         },
@@ -112,13 +111,70 @@ PRICING_CATALOG = {
 }
 
 
-def public_pricing_catalog() -> Dict[str, Any]:
+REGIONAL_PRICE_BOOKS = {
+    "global": {
+        "currency": "USD",
+        "label": "Worldwide",
+        "amounts": {
+            "plan_starter_monthly": Decimal("14.00"),
+            "plan_advance_monthly": Decimal("20.00"),
+            "booster_50": Decimal("10.00"),
+            "booster_150": Decimal("25.00"),
+            "booster_350": Decimal("50.00"),
+            "connection_1_monthly": Decimal("5.00"),
+            "engage_monthly": Decimal("15.00"),
+        },
+    },
+}
+
+
+def normalize_country_code(value: Any, default: str = "US") -> str:
+    code = str(value or "").strip().upper()
+    return code if len(code) == 2 and code.isalpha() else default
+
+
+def pricing_region_for_country(country_code: Any) -> str:
+    # Pricing is intentionally USD worldwide. The country is still retained
+    # for availability controls and billing records.
+    normalize_country_code(country_code)
+    return "global"
+
+
+def _decimal_as_json_number(value: Decimal):
+    return int(value) if value == value.to_integral_value() else float(value)
+
+
+def public_pricing_catalog(
+    country_code: Any = "US", blocked_country_codes=(),
+) -> Dict[str, Any]:
+    normalized_country = normalize_country_code(country_code)
+    region = pricing_region_for_country(normalized_country)
+    price_book = REGIONAL_PRICE_BOOKS[region]
+    blocked = normalized_country in {normalize_country_code(code, "") for code in blocked_country_codes}
+    plans = []
+    for source in PRICING_CATALOG["plans"]:
+        plan = dict(source)
+        if plan["product_id"]:
+            plan["price"] = _decimal_as_json_number(price_book["amounts"][plan["product_id"]])
+        plans.append(plan)
     return {
-        "currency": PRICING_CATALOG["currency"],
+        "country_code": normalized_country,
+        "pricing_region": region,
+        "region_label": price_book["label"],
+        "currency": price_book["currency"],
+        "checkout_available": not blocked,
+        "availability_message": (
+            "Paid Quilltap plans are not available in your billing country."
+            if blocked else ""
+        ),
         "credit_costs": dict(PRICING_CATALOG["credit_costs"]),
-        "plans": [dict(plan) for plan in PRICING_CATALOG["plans"]],
+        "plans": plans,
         "addons": [
-            {"product_id": key, **{k: (str(v) if isinstance(v, Decimal) else v) for k, v in value.items() if k != "tier"}}
+            {
+                "product_id": key,
+                **{k: v for k, v in value.items() if k not in {"tier", "amount"}},
+                "amount": str(price_book["amounts"][key]),
+            }
             for key, value in PRICING_CATALOG["products"].items()
             if value["kind"] != "plan"
         ],
@@ -385,7 +441,7 @@ def check_engage_entitlement(
 
     return (
         False,
-        "The Engage Automation Suite requires the Premium plan ($14/mo) or the Engage add-on ($15/mo). "
+        "The Engage Automation Suite requires the Premium plan or the Engage add-on. "
         "Please upgrade your plan in Settings > Billing to activate.",
     )
 
@@ -548,10 +604,20 @@ def process_billing_product(
     current_period_start=None,
     current_period_end=None,
     user: Optional[Any] = None,
+    country_code: str = "US",
+    blocked_country_codes=(),
 ) -> Tuple[BillingInvoice, WorkspaceSubscription, CreditAccount]:
     product = PRICING_CATALOG["products"].get(product_id)
     if product is None:
         raise ValueError("Unknown billing product.")
+    normalized_country = normalize_country_code(country_code, "")
+    if not normalized_country:
+        raise ValueError("A valid two-letter billing country is required.")
+    blocked = {normalize_country_code(code, "") for code in blocked_country_codes}
+    if normalized_country in blocked:
+        raise ValueError("Quilltap billing is not available in this country.")
+    pricing_region = pricing_region_for_country(normalized_country)
+    price_book = REGIONAL_PRICE_BOOKS[pricing_region]
     with transaction.atomic():
         subscription, _ = get_or_create_workspace_billing(workspace, user)
         subscription = WorkspaceSubscription.objects.select_for_update().get(pk=subscription.pk)
@@ -593,12 +659,12 @@ def process_billing_product(
             subscription.billing_email = billing_email[:255]
         subscription.save()
 
-        amount = product["amount"]
+        amount = price_book["amounts"][product_id]
         invoice = BillingInvoice.objects.create(
             invoice_number=next_invoice_number(),
             workspace=workspace,
             amount=amount,
-            currency=PRICING_CATALOG["currency"],
+            currency=price_book["currency"],
             status="PAID",
             title=product["title"],
             line_items=[
@@ -608,6 +674,8 @@ def process_billing_product(
                     "quantity": 1,
                     "unit_price": str(amount),
                     "total": str(amount),
+                    "billing_country": normalized_country,
+                    "pricing_region": pricing_region,
                 }
             ],
             payment_method=payment_method[:100],
@@ -619,7 +687,7 @@ def process_billing_product(
         return invoice, subscription, account
 
 
-def process_billing_event(payload: Dict[str, Any], raw_body: bytes):
+def process_billing_event(payload: Dict[str, Any], raw_body: bytes, blocked_country_codes=()):
     """Apply a signed payment event exactly once."""
     provider = str(payload.get("provider") or "generic").strip().lower()[:30]
     event_id = str(payload.get("event_id") or "").strip()
@@ -677,6 +745,8 @@ def process_billing_event(payload: Dict[str, Any], raw_body: bytes):
             provider_subscription_id=str(payload.get("subscription_id") or ""),
             current_period_start=payload.get("current_period_start"),
             current_period_end=payload.get("current_period_end"),
+            country_code=str(payload.get("billing_country") or ""),
+            blocked_country_codes=blocked_country_codes,
         )
         event.invoice = invoice
         event.save(update_fields=["invoice"])
@@ -685,6 +755,8 @@ def process_billing_event(payload: Dict[str, Any], raw_body: bytes):
 
 def generate_invoice_html(invoice: BillingInvoice) -> str:
     """Generate a clean, printable HTML invoice for download/viewing."""
+    currency_code = str(invoice.currency or "USD").upper()
+    currency_symbol = {"USD": "$", "EUR": "€", "INR": "₹"}.get(currency_code, "")
     line_items_html = ""
     for item in invoice.line_items:
         desc = escape(str(item.get("description", "Service")))
@@ -692,7 +764,7 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
         line_items_html += f"""
         <tr>
           <td style="padding: 12px 16px; border-bottom: 1px solid #f0ecf6; font-size: 14px; color: #25243b;">{desc}</td>
-          <td style="padding: 12px 16px; border-bottom: 1px solid #f0ecf6; font-size: 14px; color: #25243b; text-align: right; font-weight: 700;">${amt}</td>
+          <td style="padding: 12px 16px; border-bottom: 1px solid #f0ecf6; font-size: 14px; color: #25243b; text-align: right; font-weight: 700;">{currency_symbol}{amt}</td>
         </tr>
         """
 
@@ -871,7 +943,7 @@ def generate_invoice_html(invoice: BillingInvoice) -> str:
     <div class="total-box">
       <div class="total-row">
         <span>Total Paid ({currency}):</span>
-        <strong>${amount}</strong>
+        <strong>{currency_symbol}{amount}</strong>
       </div>
     </div>
 

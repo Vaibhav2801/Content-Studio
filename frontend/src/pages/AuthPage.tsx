@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowRight, Check, Feather, LockKeyhole, Mail } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, LockKeyhole, Mail } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
+import { QuilltapLogo } from '../components/branding/QuilltapLogo'
 import './AuthPage.css'
 import './QuilltapTheme.css'
 
@@ -14,6 +15,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [workspace, setWorkspace] = useState('')
+  const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const isSignup = mode === 'signup'
@@ -27,6 +29,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
     event.preventDefault()
     setError('')
     if (isSignup && password !== confirmPassword) { setError('Passwords do not match.'); return }
+    if (isSignup && !acceptedLegal) { setError('Please agree to the Terms and acknowledge the Privacy Policy.'); return }
     setBusy(true)
     try {
       if (isSignup) await signUp(name.trim(), email.trim(), password, workspace.trim())
@@ -41,7 +44,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
 
   return <div className="auth-page">
     <aside className="auth-story">
-      <Link className="auth-brand" to="/"><span><Feather size={23} /></span><strong>Quilltap</strong></Link>
+      <Link className="auth-brand" to="/"><QuilltapLogo /></Link>
       <div className="auth-story-body">
         <div className="auth-eyebrow"><span /> YOUR CONTENT WORKSPACE</div>
         <h1>Make room for<br /><em>better ideas.</em></h1>
@@ -57,7 +60,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
     </aside>
     <main className="auth-main">
       <Link className="auth-home-link" to="/"><ArrowLeft size={16} /> Back to home</Link>
-      <Link className="auth-mobile-brand" to="/" aria-label="Quilltap home"><Feather size={20} /> Quilltap</Link>
+      <Link className="auth-mobile-brand" to="/" aria-label="Quilltap home"><QuilltapLogo alt="" /></Link>
       <div className="auth-form-wrap">
         <span className="auth-form-kicker">{isSignup ? 'START YOUR WORKSPACE' : 'WELCOME BACK'}</span>
         <h2>{isSignup ? 'Create your account' : 'Sign in to Quilltap'}</h2>
@@ -66,7 +69,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
           {isSignup && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex Morgan" required maxLength={150} /></label>}
           <label>Email address<span className="auth-input-icon"><Mail size={18} /><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required maxLength={150} /></span></label>
           <label>Password<span className="auth-input-icon"><LockKeyhole size={18} /><input type="password" autoComplete={isSignup ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? 'Create a strong password' : 'Enter your password'} required minLength={isSignup ? 8 : undefined} /></span></label>
-          {isSignup && <><label>Confirm password<span className="auth-input-icon"><LockKeyhole size={18} /><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" required /></span></label><p className="auth-password-hint">Use at least 8 characters. Common or numeric-only passwords are rejected.</p><label><span className="auth-label-line">Workspace name <small>Optional</small></span><input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Your brand or team name" maxLength={255} /></label></>}
+          {isSignup && <><label>Confirm password<span className="auth-input-icon"><LockKeyhole size={18} /><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" required /></span></label><p className="auth-password-hint">Use at least 8 characters. Common or numeric-only passwords are rejected.</p><label><span className="auth-label-line">Workspace name <small>Optional</small></span><input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Your brand or team name" maxLength={255} /></label><label className="auth-legal-consent"><input type="checkbox" checked={acceptedLegal} onChange={(event) => setAcceptedLegal(event.target.checked)} required /><span>I agree to the <Link to="/terms">Terms and Conditions</Link> and acknowledge the <Link to="/privacy">Privacy Policy</Link>.</span></label></>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-submit" type="submit" disabled={busy}>{busy ? 'One moment…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={18} /></button>
         </form>

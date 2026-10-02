@@ -149,6 +149,18 @@
   line-height: 1.6;
 }
 
+.pricing-availability-note {
+  max-width: 560px;
+  margin: 14px auto 0;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 /* 3 Clean Modern Plan Cards */
 .pricing-plans-section {
   position: relative;

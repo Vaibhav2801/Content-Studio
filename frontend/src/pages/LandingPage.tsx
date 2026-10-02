@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Clock,
   Cpu,
-  Feather,
   FileText,
   Instagram,
   Layers3,
@@ -32,7 +31,9 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
+import { QuilltapLogo } from '../components/branding/QuilltapLogo'
 import { usePricingCatalog } from '../hooks/usePricingCatalog'
+import { formatMoney } from '../utils/money'
 import { supportApi } from '../api/supportApi'
 import './LandingPage.css'
 import './QuilltapTheme.css'
@@ -222,13 +223,7 @@ export function LandingPage() {
       <header className="landing-header">
         <div className="landing-header-inner">
           <Link className="landing-brand" to="/" aria-label="Quilltap home">
-            <span className="brand-icon">
-              <Feather size={19} />
-            </span>
-            <div className="brand-text">
-              <strong>Quilltap</strong>
-              <small>CONTENT OS</small>
-            </div>
+            <QuilltapLogo alt="" />
           </Link>
 
           <nav aria-label="Main navigation">
@@ -471,6 +466,9 @@ export function LandingPage() {
               Replace disconnected tools, chaotic spreadsheets, and writer&apos;s block with an
               intelligent operating system tailored to your exact publishing objectives.
             </p>
+            {catalog && !catalog.checkout_available && (
+              <div className="landing-pricing-availability" role="alert">{catalog.availability_message}</div>
+            )}
           </div>
 
           <div className="outcomes-grid">
@@ -1057,7 +1055,7 @@ export function LandingPage() {
                 <div className="landing-plan-name">{plan.name}</div>
                 <p>{presentation.description}</p>
                 <div className="landing-plan-price">
-                  <strong>{isCustom ? 'Let\'s talk' : `$${plan.price}`}</strong>
+                  <strong>{isCustom ? 'Let\'s talk' : formatMoney(plan.price, catalog.currency)}</strong>
                   {!isCustom && (
                     <span>
                       / month
@@ -1283,13 +1281,7 @@ export function LandingPage() {
         <div className="footer-top">
           <div className="footer-brand-col">
             <Link className="landing-brand" to="/">
-              <span className="brand-icon">
-                <Feather size={17} />
-              </span>
-              <div className="brand-text">
-                <strong>Quilltap</strong>
-                <small>CONTENT OS</small>
-              </div>
+              <QuilltapLogo />
             </Link>
             <p className="footer-tagline">
               The intelligent social publishing operating system. Grounded in your voice, protected by
@@ -1326,9 +1318,9 @@ export function LandingPage() {
         <div className="footer-bottom">
           <p>© {new Date().getFullYear()} Quilltap. All rights reserved.</p>
           <div className="footer-meta-links">
-            <a href="#features">Privacy Policy</a>
-            <a href="#features">Terms of Service</a>
-            <a href="#features">Security &amp; Tenancy</a>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms and Conditions</Link>
+            <Link to="/cancellation">Cancellation Policy</Link>
           </div>
         </div>
       </footer>

@@ -197,7 +197,7 @@ export function EngagementHubView() {
                 textDecoration: 'none',
               }}
             >
-              Upgrade to Premium ($14/mo) or Add On ($15/mo)
+              Upgrade to Premium or add the Engage suite
             </a>
             <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
               Instant activation · Included for Premium & Admin users

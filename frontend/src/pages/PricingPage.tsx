@@ -1,11 +1,13 @@
 import {
-  ArrowRight, CalendarDays, Check, Feather,
+  ArrowRight, CalendarDays, Check,
   Layers3, Linkedin, MessageSquare, Sparkles, WandSparkles, X, Zap,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../components/content/AuthContext'
+import { QuilltapLogo } from '../components/branding/QuilltapLogo'
 import { usePricingCatalog } from '../hooks/usePricingCatalog'
+import { formatMoney } from '../utils/money'
 import './PricingPage.css'
 import './QuilltapTheme.css'
 
@@ -22,12 +24,13 @@ export function PricingPage() {
   const [engageEnabled, setEngageEnabled] = useState<boolean>(false)
 
   useEffect(() => {
-    const starter = catalog?.plans.find((plan) => plan.id === 'starter')
-    if (starter) {
-      setConnections(starter.connections ?? 0)
-      setCredits(starter.credits ?? 0)
+    const selected = catalog.plans.find((plan) => plan.id === baseTier)
+    if (selected) {
+      setConnections(selected.connections ?? 0)
+      setCredits(selected.credits ?? 0)
+      setEngageEnabled(selected.engage)
     }
-  }, [catalog])
+  }, [baseTier, catalog])
 
   const handleSelectTier = (tier: 'free' | 'starter' | 'advance') => {
     setBaseTier(tier)
@@ -69,7 +72,7 @@ export function PricingPage() {
       {/* Navigation Header */}
       <header className="pricing-header">
         <Link className="pricing-brand" to="/" aria-label="Quilltap home">
-          <span><Feather size={18} /></span> Quilltap
+          <QuilltapLogo alt="" />
         </Link>
         <nav aria-label="Main navigation">
           <Link to="/#features">Features</Link>
@@ -97,6 +100,9 @@ export function PricingPage() {
             Choose a plan that fits your current workflow, or buy credit top-ups anytime.
             Post scheduling is always 100% free and unlimited on every plan.
           </p>
+          {!catalog.checkout_available && (
+            <div className="pricing-availability-note" role="alert">{catalog.availability_message}</div>
+          )}
         </section>
 
         {/* Four pricing tiers */}
@@ -110,7 +116,7 @@ export function PricingPage() {
                 Test drive the AI content creation engine and plan drafts risk-free.
               </div>
               <div className="plan-card-price">
-                <strong>${catalog?.plans.find((plan) => plan.id === 'free')?.price ?? '...'}</strong>
+                <strong>{formatMoney(catalog.plans.find((plan) => plan.id === 'free')?.price, catalog.currency)}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn">
@@ -135,7 +141,7 @@ export function PricingPage() {
                 For creators and founders building a consistent personal channel.
               </div>
               <div className="plan-card-price">
-                <strong>${catalog?.plans.find((plan) => plan.id === 'starter')?.price ?? '...'}</strong>
+                <strong>{formatMoney(catalog.plans.find((plan) => plan.id === 'starter')?.price, catalog.currency)}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn">
@@ -161,7 +167,7 @@ export function PricingPage() {
                 High-volume content creation with full Engage lead conversion automation.
               </div>
               <div className="plan-card-price">
-                <strong>${catalog?.plans.find((plan) => plan.id === 'advance')?.price ?? '...'}</strong>
+                <strong>{formatMoney(catalog.plans.find((plan) => plan.id === 'advance')?.price, catalog.currency)}</strong>
                 <span>/ month</span>
               </div>
               <Link to={primaryPath} className="plan-card-btn featured-btn">
@@ -222,7 +228,7 @@ export function PricingPage() {
                 <div className="booster-item-box" key={addon.product_id}>
                   <div className="booster-item-name">{addon.title}</div>
                   <div className="booster-item-credits">{addon.credits} Credits</div>
-                  <div className="booster-item-price">${addon.amount}</div>
+                  <div className="booster-item-price">{formatMoney(addon.amount, catalog.currency)}</div>
                   <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
                 </div>
               ))}
@@ -257,7 +263,7 @@ export function PricingPage() {
                       className={`calc-base-btn ${baseTier === 'free' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('free')}
                     >
-                      <strong>Free (${freePlan?.price ?? '...'})</strong>
+                      <strong>Free ({formatMoney(freePlan?.price, catalog.currency)})</strong>
                       <span>Sandbox &bull; {freePlan?.credits ?? '...'} Credits</span>
                     </button>
                     <button
@@ -265,7 +271,7 @@ export function PricingPage() {
                       className={`calc-base-btn ${baseTier === 'starter' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('starter')}
                     >
-                      <strong>Starter (${starterPlan?.price ?? '...'})</strong>
+                      <strong>Starter ({formatMoney(starterPlan?.price, catalog.currency)})</strong>
                       <span>{starterPlan?.connections ?? '...'} Conn &bull; {starterPlan?.credits ?? '...'} Credits</span>
                     </button>
                     <button
@@ -273,7 +279,7 @@ export function PricingPage() {
                       className={`calc-base-btn ${baseTier === 'advance' ? 'selected' : ''}`}
                       onClick={() => handleSelectTier('advance')}
                     >
-                      <strong>Premium (${advancePlan?.price ?? '...'})</strong>
+                      <strong>Premium ({formatMoney(advancePlan?.price, catalog.currency)})</strong>
                       <span>{advancePlan?.connections ?? '...'} Conn &bull; Engage Incl.</span>
                     </button>
                   </div>
@@ -327,7 +333,7 @@ export function PricingPage() {
                   </div>
                   <div className="calc-subnote">
                     {extraConnections > 0
-                      ? `+${extraConnections} additional accounts (+$${extraConnectionsCost}/mo)`
+                      ? `+${extraConnections} additional accounts (+${formatMoney(extraConnectionsCost, catalog.currency)}/mo)`
                       : `${baseIncludedConns} connection included in base plan`}
                     {' '}&bull; <em>No upper limit (type any number)</em>
                   </div>
@@ -384,7 +390,7 @@ export function PricingPage() {
                   </div>
                   <div className="calc-subnote">
                     {extraCredits > 0
-                      ? `+${extraCredits} additional credits (+$${extraCreditsCost}/mo)`
+                      ? `+${extraCredits} additional credits (+${formatMoney(extraCreditsCost, catalog.currency)}/mo)`
                       : `${baseIncludedCredits} credits included in base plan`}
                     {' '}&bull; <em>No upper limit (type any number)</em>
                   </div>
@@ -403,7 +409,7 @@ export function PricingPage() {
                     <span>
                       {baseTier === 'advance'
                         ? 'Included Free in the Premium Plan'
-                        : `Comment-to-DM flows, story triggers & auto replies (+$${engagePrice}/mo)`}
+                        : `Comment-to-DM flows, story triggers & auto replies (+${formatMoney(engagePrice, catalog.currency)}/mo)`}
                     </span>
                   </div>
                   <label className="calc-switch">
@@ -422,13 +428,13 @@ export function PricingPage() {
               {/* Output Invoice Card */}
               <div className="calc-output-card">
                 <div className="output-eyebrow">Calculated Plan</div>
-                <div className="output-price-number">${dynamicMonthlyTotal}</div>
+                <div className="output-price-number">{formatMoney(dynamicMonthlyTotal, catalog.currency)}</div>
                 <div className="output-price-cycle">/ month (no contracts, cancel anytime)</div>
 
                 <div className="output-details-list">
                   <div>
                     <span>Base Tier:</span>
-                    <strong>${basePrice} ({baseTier.toUpperCase()})</strong>
+                    <strong>{formatMoney(basePrice, catalog.currency)} ({baseTier.toUpperCase()})</strong>
                   </div>
                   <div>
                     <span>Social Connections:</span>
@@ -542,7 +548,7 @@ export function PricingPage() {
             <div className="faq-card-light">
               <h4>What happens when I exhaust my post generation credits?</h4>
               <p>
-                Your already scheduled posts will publish normally without interruption. You can purchase an on-demand credit booster pack starting at ${smallestBooster?.amount ?? '...'} to generate more content. Booster credits never expire.
+                Your already scheduled posts will publish normally without interruption. You can purchase an on-demand credit booster pack starting at {formatMoney(smallestBooster?.amount, catalog.currency)} to generate more content. Booster credits never expire.
               </p>
             </div>
 
@@ -582,12 +588,15 @@ export function PricingPage() {
       {/* Footer */}
       <footer className="pricing-footer">
         <Link className="pricing-brand" to="/">
-          <span><Feather size={16} /></span> Quilltap
+          <QuilltapLogo />
         </Link>
         <p>&copy; Quilltap Platform. Simple, calm content publishing.</p>
         <div>
           <Link to="/">Home</Link>
           <Link to="/#features">Features</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/cancellation">Cancellation</Link>
           <Link to="/signin">Sign in</Link>
         </div>
       </footer>

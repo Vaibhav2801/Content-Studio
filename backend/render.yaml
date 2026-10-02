@@ -24,6 +24,8 @@ services:
         sync: false
       - key: BILLING_WEBHOOK_SECRET
         generateValue: true
+      - key: BILLING_BLOCKED_COUNTRY_CODES
+        sync: false
       - key: WORKER_WAKE_TOKEN
         generateValue: true
       - key: WORKER_1_URL
@@ -60,6 +62,8 @@ services:
         value: visiofytech@gmail.com
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false
       - key: APOLLO_API_KEY
@@ -87,6 +91,10 @@ services:
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_IDS
+        sync: false
+      - key: CLOUDFLARE_API_TOKENS
         sync: false
       - key: OPENAI_API_KEY
         sync: false
@@ -145,6 +153,8 @@ services:
         value: config.settings
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false
       - key: APOLLO_API_KEY
@@ -176,6 +186,10 @@ services:
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_IDS
+        sync: false
+      - key: CLOUDFLARE_API_TOKENS
         sync: false
       - key: OPENAI_API_KEY
         sync: false
@@ -247,6 +261,8 @@ services:
         value: config.settings
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false
       - key: APOLLO_API_KEY
@@ -278,6 +294,10 @@ services:
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_IDS
+        sync: false
+      - key: CLOUDFLARE_API_TOKENS
         sync: false
       - key: OPENAI_API_KEY
         sync: false

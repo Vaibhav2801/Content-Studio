@@ -24,12 +24,14 @@ const subscription: SubscriptionOverview = {
   engage_entitled: false, scheduling_unlimited: true, transactions: [], invoices: [],
 }
 const catalog: PricingCatalog = {
-  currency: 'USD', credit_costs: { draft: 2, image: 1, image_regeneration: 1 }, simulated_checkout_enabled: false,
+  country_code: 'US', pricing_region: 'global', region_label: 'Rest of world',
+  currency: 'USD', checkout_available: true, availability_message: '',
+  credit_costs: { draft: 2, image: 1, image_regeneration: 1 }, simulated_checkout_enabled: false,
   simulated_checkout_status: 'disabled',
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
-    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 9, credits: 50, connections: 1, engage: false },
-    { id: 'advance', name: 'Premium', product_id: 'plan_advance_monthly', price: 14, credits: 150, connections: 1, engage: true },
+    { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: 14, credits: 50, connections: 1, engage: false },
+    { id: 'advance', name: 'Premium', product_id: 'plan_advance_monthly', price: 20, credits: 150, connections: 1, engage: true },
     { id: 'custom', name: 'Custom', product_id: null, price: null, credits: null, connections: null, engage: true },
   ],
   addons: [],

@@ -18,6 +18,7 @@ from llm.providers.duckduckgo import DuckDuckGoSearchProvider
 from llm.providers.registry import provider_registry
 from llm.providers.base import CompanyDiscoveryProvider, CompanyCandidate
 from llm.gemini_api import GeminiAPIProvider
+from config.env_keys import env_value_ring
 
 # =====================================================================
 # Dummy tools and models for testing platform behaviors
@@ -216,6 +217,44 @@ class ToolPlatformTestCase(TestCase):
 
 class GeminiReliabilityTestCase(TestCase):
     databases = {'default'}
+
+    def test_env_value_ring_combines_legacy_list_and_any_number_of_numbered_keys(self):
+        values = env_value_ring(
+            "GEMINI_API_KEY",
+            "GEMINI_API_KEYS",
+            environ={
+                "GEMINI_API_KEY": "primary",
+                "GEMINI_API_KEYS": "fallback-a, fallback-b;fallback-a",
+                "GEMINI_API_KEY_10": "fallback-d",
+                "GEMINI_API_KEY_2": "fallback-c",
+            },
+        )
+
+        self.assertEqual(values, ("primary", "fallback-a", "fallback-b", "fallback-c", "fallback-d"))
+
+    @patch("llm.gemini_api.requests.post")
+    def test_gemini_uses_next_key_after_quota_is_exhausted(self, mock_post):
+        exhausted = MagicMock()
+        exhausted.status_code = 429
+        exhausted.headers = {}
+        exhausted.json.return_value = {"error": {"message": "Quota exhausted"}}
+        exhausted.raise_for_status.side_effect = requests.HTTPError("429", response=exhausted)
+        available = MagicMock()
+        available.raise_for_status.return_value = None
+        available.json.return_value = {
+            "candidates": [{"content": {"parts": [{"text": '{"response":"ready"}'}]}}],
+            "usageMetadata": {},
+        }
+        mock_post.side_effect = [exhausted, available]
+
+        result = GeminiAPIProvider(api_keys=["first-key", "second-key"]).generate("hello")
+
+        self.assertEqual(result["type"], "text")
+        self.assertEqual(result["text"], "ready")
+        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(mock_post.call_args_list[0].kwargs["headers"]["x-goog-api-key"], "first-key")
+        self.assertEqual(mock_post.call_args_list[1].kwargs["headers"]["x-goog-api-key"], "second-key")
+
     @patch("llm.gemini_api.requests.post")
     def test_gemini_error_preserves_http_status_and_message(self, mock_post):
         response = MagicMock()

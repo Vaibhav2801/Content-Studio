@@ -15,6 +15,8 @@ import json
 import os
 import sys
 
+from config.env_keys import env_value_ring
+
 
 def _env_bool(name, default=False):
     return os.environ.get(name, "true" if default else "false").strip().lower() in {"true", "1", "yes"}
@@ -563,10 +565,22 @@ LINKEDIN_HTTP_TIMEOUT_SECONDS = int(os.environ.get("LINKEDIN_HTTP_TIMEOUT_SECOND
 LINKEDIN_GENERATE_IMAGES = os.environ.get("LINKEDIN_GENERATE_IMAGES", "False").lower() in ("true", "1", "yes")
 LINKEDIN_IMAGE_PROVIDER = os.environ.get("LINKEDIN_IMAGE_PROVIDER", "cloudflare").strip().lower()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+GEMINI_API_KEYS = tuple(
+    value for value in env_value_ring("GEMINI_API_KEY", "GEMINI_API_KEYS")
+    if value != GEMINI_API_KEY
+)
 GEMINI_IMAGE_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image").strip()
 GEMINI_IMAGE_SIZE = os.environ.get("GEMINI_IMAGE_SIZE", "1K").strip().upper()
 CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+CLOUDFLARE_ACCOUNT_IDS = tuple(
+    value for value in env_value_ring("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_IDS")
+    if value != CLOUDFLARE_ACCOUNT_ID
+)
+CLOUDFLARE_API_TOKENS = tuple(
+    value for value in env_value_ring("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKENS")
+    if value != CLOUDFLARE_API_TOKEN
+)
 CLOUDFLARE_IMAGE_MODEL = os.environ.get(
     "CLOUDFLARE_IMAGE_MODEL",
     "@cf/black-forest-labs/flux-2-dev",
@@ -633,6 +647,11 @@ BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS = {
     if email.strip()
 }
 BILLING_WEBHOOK_SECRET = os.environ.get("BILLING_WEBHOOK_SECRET", "").strip()
+BILLING_BLOCKED_COUNTRY_CODES = {
+    code.strip().upper()
+    for code in os.environ.get("BILLING_BLOCKED_COUNTRY_CODES", "").split(",")
+    if len(code.strip()) == 2 and code.strip().isalpha()
+}
 
 # ── Remote Celery Worker Keep-Alive & Wake Configuration ─────────────────────
 WORKER_1_URL = os.environ.get("WORKER_1_URL", "http://127.0.0.1:10000").rstrip("/")

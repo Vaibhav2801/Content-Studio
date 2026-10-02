@@ -142,6 +142,36 @@ class LinkedInImageGeneratorTests(TestCase):
         self.assertEqual(metadata["aspect_ratio"], "1.91:1")
         self.assertIn("post-id", url)
 
+    @override_settings(
+        LINKEDIN_GENERATE_IMAGES=True,
+        LINKEDIN_IMAGE_PROVIDER="cloudflare",
+        CLOUDFLARE_ACCOUNT_ID="account-id",
+        CLOUDFLARE_ACCOUNT_IDS=("account-id",),
+        CLOUDFLARE_API_TOKEN="exhausted-token",
+        CLOUDFLARE_API_TOKENS=("exhausted-token", "available-token"),
+        CLOUDFLARE_IMAGE_MODEL="@cf/black-forest-labs/flux-2-dev",
+    )
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_cloudflare_uses_next_token_after_quota_is_exhausted(self, request_post):
+        exhausted = Mock(status_code=429)
+        exhausted.raise_for_status.side_effect = requests.HTTPError(response=exhausted)
+        exhausted.json.return_value = {"errors": [{"message": "Quota exhausted"}]}
+        available = Mock()
+        available.raise_for_status.return_value = None
+        available.json.return_value = {
+            "result": {"image": base64.b64encode(b"fallback-image").decode("ascii")},
+            "success": True,
+        }
+        request_post.side_effect = [exhausted, available]
+
+        _, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A bridge")
+
+        self.assertEqual(request_post.call_count, 2)
+        self.assertEqual(request_post.call_args_list[0].kwargs["headers"]["Authorization"], "Bearer exhausted-token")
+        self.assertEqual(request_post.call_args_list[1].kwargs["headers"]["Authorization"], "Bearer available-token")
+        self.assertEqual(image_data, b"fallback-image")
+        self.assertEqual(metadata["provider"], "cloudflare")
+
     def test_art_direction_is_platform_specific(self):
         prompt = LinkedInImageGenerator.art_direct("A product on a clean desk", network="INSTAGRAM")
         self.assertIn("Instagram post", prompt)
@@ -175,6 +205,8 @@ class LinkedInImageGeneratorTests(TestCase):
         GEMINI_API_KEY="gemini-key",
         CLOUDFLARE_ACCOUNT_ID="",
         CLOUDFLARE_API_TOKEN="",
+        CLOUDFLARE_ACCOUNT_IDS=(),
+        CLOUDFLARE_API_TOKENS=(),
         OPENAI_API_KEY="",
     )
     @patch("integrations.linkedin.services.images.requests.post")
@@ -216,6 +248,37 @@ class LinkedInImageGeneratorTests(TestCase):
         self.assertEqual(image_data, b"image-bytes")
         self.assertEqual(metadata["provider"], "gemini")
         self.assertIn("post-id", url)
+
+    @override_settings(
+        LINKEDIN_GENERATE_IMAGES=True,
+        LINKEDIN_IMAGE_PROVIDER="gemini",
+        GEMINI_API_KEY="exhausted-key",
+        GEMINI_API_KEYS=("exhausted-key", "available-key"),
+        GEMINI_IMAGE_MODEL="gemini-3.1-flash-image",
+        GEMINI_IMAGE_SIZE="1K",
+    )
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_gemini_image_uses_next_key_after_quota_is_exhausted(self, request_post):
+        exhausted = Mock(status_code=429)
+        exhausted.raise_for_status.side_effect = requests.HTTPError(response=exhausted)
+        exhausted.json.return_value = {"error": {"message": "Quota exhausted"}}
+        available = Mock()
+        available.raise_for_status.return_value = None
+        available.json.return_value = {
+            "candidates": [{"content": {"parts": [{"inlineData": {
+                "mimeType": "image/png",
+                "data": base64.b64encode(b"fallback-image").decode("ascii"),
+            }}]}}],
+        }
+        request_post.side_effect = [exhausted, available]
+
+        _, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A bridge")
+
+        self.assertEqual(request_post.call_count, 2)
+        self.assertEqual(request_post.call_args_list[0].kwargs["headers"]["x-goog-api-key"], "exhausted-key")
+        self.assertEqual(request_post.call_args_list[1].kwargs["headers"]["x-goog-api-key"], "available-key")
+        self.assertEqual(image_data, b"fallback-image")
+        self.assertEqual(metadata["provider"], "gemini")
 
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,

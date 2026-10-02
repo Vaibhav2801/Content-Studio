@@ -42,7 +42,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const billingApi = {
-  getCatalog: () => request<PricingCatalog>('/billing/catalog/', { cache: 'no-store' }),
+  getCatalog: (countryCode?: string) => request<PricingCatalog>(
+    `/billing/catalog/${countryCode ? `?country=${encodeURIComponent(countryCode)}` : ''}`,
+    { cache: 'no-store' },
+  ),
   getSubscription: () => request<SubscriptionOverview>('/billing/subscription/'),
   checkout: (payload: CheckoutPayload) =>
     request<CheckoutResponse>('/billing/checkout/', {

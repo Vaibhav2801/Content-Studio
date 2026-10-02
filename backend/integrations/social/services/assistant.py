@@ -266,7 +266,10 @@ class ContentStudioAssistantService:
     @staticmethod
     def has_llm_credentials() -> bool:
         import os
-        return any(bool(os.environ.get(k)) for k in ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_API_KEY"])
+        from config.env_keys import env_value_ring
+        return bool(env_value_ring("GEMINI_API_KEY", "GEMINI_API_KEYS")) or any(
+            bool(os.environ.get(k)) for k in ["GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_API_KEY"]
+        )
 
     def _try_llm(self, messages: List[Dict[str, str]], current_path: str = "") -> Optional[str]:
         if not self.has_llm_credentials():

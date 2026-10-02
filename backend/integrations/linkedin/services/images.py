@@ -36,6 +36,47 @@ class ImageProviderUnavailableError(ImageGenerationError):
     """The configured image provider could not service the request."""
 
 
+def _setting_values(plural_name, singular_name):
+    values = [str(value).strip() for value in getattr(settings, plural_name, ()) if str(value).strip()]
+    singular = str(getattr(settings, singular_name, "") or "").strip()
+    if singular and singular not in values:
+        values.insert(0, singular)
+    return tuple(values)
+
+
+def _gemini_keys():
+    return _setting_values("GEMINI_API_KEYS", "GEMINI_API_KEY")
+
+
+def _cloudflare_credentials():
+    accounts = _setting_values("CLOUDFLARE_ACCOUNT_IDS", "CLOUDFLARE_ACCOUNT_ID")
+    tokens = _setting_values("CLOUDFLARE_API_TOKENS", "CLOUDFLARE_API_TOKEN")
+    if not accounts or not tokens:
+        return ()
+    if len(accounts) == 1:
+        return tuple((accounts[0], token) for token in tokens)
+    if len(tokens) == 1:
+        return tuple((account, tokens[0]) for account in accounts)
+    if len(accounts) != len(tokens):
+        raise ImageGenerationConfigurationError(
+            "Cloudflare account and token fallback lists must have matching lengths, "
+            "unless one side contains a single shared value."
+        )
+    return tuple(zip(accounts, tokens))
+
+
+def _response_allows_key_failover(response):
+    if response.status_code in {401, 403, 429}:
+        return True
+    try:
+        payload = response.json()
+        error = payload.get("error") or payload.get("errors") or ""
+        message = error.get("message", "") if isinstance(error, dict) else str(error)
+    except (TypeError, ValueError, AttributeError):
+        message = ""
+    return any(marker in message.lower() for marker in ("quota", "rate limit", "resource_exhausted", "exhausted"))
+
+
 def _raise_provider_error(response, provider):
     try:
         response.raise_for_status()
@@ -73,25 +114,26 @@ def image_provider_status():
         return {"ready": False, "label": "Image generation is off", "detail": "Set LINKEDIN_GENERATE_IMAGES=True"}
     provider = settings.LINKEDIN_IMAGE_PROVIDER
     if provider == "cloudflare":
-        ready = bool(settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_API_TOKEN)
+        ready = bool(_cloudflare_credentials())
         label, missing = "Cloudflare AI image", "CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
     elif provider == "gemini":
-        ready, label, missing = bool(settings.GEMINI_API_KEY), "Gemini image", "GEMINI_API_KEY"
+        ready, label, missing = bool(_gemini_keys()), "Gemini image", "GEMINI_API_KEY or GEMINI_API_KEYS"
     elif provider == "openai":
         ready, label, missing = bool(settings.OPENAI_API_KEY), "OpenAI image", "OPENAI_API_KEY"
     else:
+        cloudflare_ready = bool(_cloudflare_credentials())
         ready = bool(
-            (settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_API_TOKEN)
+            cloudflare_ready
             or settings.OPENAI_API_KEY
         )
         label = (
             "Cloudflare AI image"
-            if settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_API_TOKEN
+            if cloudflare_ready
             else "OpenAI image"
             if settings.OPENAI_API_KEY
             else "Automatic image provider"
         )
-        missing = "CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN or OPENAI_API_KEY"
+        missing = "Cloudflare account/token credentials or OPENAI_API_KEY"
     return {
         "ready": ready,
         "label": label,
@@ -139,7 +181,7 @@ Return only the final image.
         spec = PLATFORM_IMAGE_SPECS.get(str(network), PLATFORM_IMAGE_SPECS["LINKEDIN"])
         provider = settings.LINKEDIN_IMAGE_PROVIDER
         errors = []
-        if provider in {"auto", "cloudflare"} and settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_API_TOKEN:
+        if provider in {"auto", "cloudflare"} and _cloudflare_credentials():
             try:
                 return self._generate_cloudflare(post_id, directed_prompt, spec=spec)
             except Exception as exc:
@@ -147,7 +189,7 @@ Return only the final image.
                     raise
                 errors.append(f"Cloudflare: {exc}")
         # Gemini remains available only for installations that explicitly select it.
-        if provider == "gemini" and settings.GEMINI_API_KEY:
+        if provider == "gemini" and _gemini_keys():
             try:
                 return self._generate_gemini(post_id, directed_prompt, spec=spec)
             except Exception as exc:
@@ -170,11 +212,6 @@ Return only the final image.
 
     def _generate_cloudflare(self, post_id, prompt, *, spec):
         model = settings.CLOUDFLARE_IMAGE_MODEL
-        endpoint = self.cloudflare_endpoint.format(
-            account_id=settings.CLOUDFLARE_ACCOUNT_ID,
-            model=model,
-        )
-        headers = {"Authorization": f"Bearer {settings.CLOUDFLARE_API_TOKEN}"}
         # FLUX.2 models require multipart form data, including for prompt-only requests.
         if model.startswith("@cf/black-forest-labs/flux-2"):
             response_kwargs = {
@@ -192,16 +229,28 @@ Return only the final image.
                     "steps": settings.CLOUDFLARE_IMAGE_STEPS,
                 },
             }
-        try:
-            response = requests.post(
-                endpoint,
-                headers=headers,
-                timeout=settings.LINKEDIN_HTTP_TIMEOUT_SECONDS,
-                **response_kwargs,
-            )
-        except requests.RequestException as exc:
-            raise ImageProviderUnavailableError("Cloudflare AI image provider could not be reached.") from exc
-        _raise_provider_error(response, "Cloudflare AI")
+        credentials = _cloudflare_credentials()
+        for index, (account_id, token) in enumerate(credentials):
+            endpoint = self.cloudflare_endpoint.format(account_id=account_id, model=model)
+            try:
+                response = requests.post(
+                    endpoint,
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=settings.LINKEDIN_HTTP_TIMEOUT_SECONDS,
+                    **response_kwargs,
+                )
+            except requests.RequestException as exc:
+                raise ImageProviderUnavailableError("Cloudflare AI image provider could not be reached.") from exc
+            try:
+                response.raise_for_status()
+                break
+            except requests.HTTPError:
+                pass
+            if _response_allows_key_failover(response) and index + 1 < len(credentials):
+                continue
+            _raise_provider_error(response, "Cloudflare AI")
+        else:
+            raise ImageGenerationConfigurationError("No Cloudflare AI credentials are configured.")
         response_headers = getattr(response, "headers", {}) or {}
         content_type = response_headers.get("content-type", "") if hasattr(response_headers, "get") else ""
         if not isinstance(content_type, str):
@@ -231,25 +280,37 @@ Return only the final image.
         return self._result(post_id, raw_bytes, "cloudflare", model, "image/png", spec["ratio"])
 
     def _generate_gemini(self, post_id, prompt, *, spec):
-        try:
-            response = requests.post(
-                self.gemini_endpoint.format(model=settings.GEMINI_IMAGE_MODEL),
-                headers={"x-goog-api-key": settings.GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "responseModalities": ["IMAGE"],
-                        "responseFormat": {"image": {
-                            "aspectRatio": GEMINI_ASPECT_RATIOS["4:5"],
-                            "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "IMAGE_SIZE_ONE_K"),
-                        }},
-                    },
-                },
-                timeout=settings.LINKEDIN_HTTP_TIMEOUT_SECONDS,
-            )
-        except requests.RequestException as exc:
-            raise ImageProviderUnavailableError("Gemini image provider could not be reached.") from exc
-        _raise_provider_error(response, "Gemini")
+        keys = _gemini_keys()
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "responseModalities": ["IMAGE"],
+                "responseFormat": {"image": {
+                    "aspectRatio": GEMINI_ASPECT_RATIOS["4:5"],
+                    "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "IMAGE_SIZE_ONE_K"),
+                }},
+            },
+        }
+        for index, api_key in enumerate(keys):
+            try:
+                response = requests.post(
+                    self.gemini_endpoint.format(model=settings.GEMINI_IMAGE_MODEL),
+                    headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                    json=payload,
+                    timeout=settings.LINKEDIN_HTTP_TIMEOUT_SECONDS,
+                )
+            except requests.RequestException as exc:
+                raise ImageProviderUnavailableError("Gemini image provider could not be reached.") from exc
+            try:
+                response.raise_for_status()
+                break
+            except requests.HTTPError:
+                pass
+            if _response_allows_key_failover(response) and index + 1 < len(keys):
+                continue
+            _raise_provider_error(response, "Gemini")
+        else:
+            raise ImageGenerationConfigurationError("No Gemini API keys are configured.")
         data = response.json()
         parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
         image_part = next((item.get("inlineData") or item.get("inline_data") for item in parts if item.get("inlineData") or item.get("inline_data")), None)

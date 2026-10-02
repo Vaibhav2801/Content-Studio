@@ -50,6 +50,7 @@ export interface SubscriptionOverview {
 
 export interface CheckoutPayload {
   product_id: BillingProductId
+  billing_country: string
   billing_name?: string
   billing_email?: string
 }
@@ -83,12 +84,17 @@ export interface PricingAddon {
 }
 
 export interface PricingCatalog {
-  currency: 'USD'
+  country_code: string
+  pricing_region: 'india' | 'europe' | 'global'
+  region_label: string
+  currency: 'USD' | 'EUR' | 'INR'
+  checkout_available: boolean
+  availability_message: string
   credit_costs: { draft: number; image: number; image_regeneration: number }
   plans: PricingPlan[]
   addons: PricingAddon[]
   simulated_checkout_enabled: boolean
-  simulated_checkout_status?: 'enabled' | 'disabled' | 'authentication_required' | 'email_not_allowlisted'
+  simulated_checkout_status?: 'enabled' | 'disabled' | 'authentication_required' | 'email_not_allowlisted' | 'country_blocked'
 }
 
 export interface CheckoutResponse {

@@ -1201,7 +1201,7 @@ class BillingInvoice(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.invoice_number} - {self.workspace.name} (${self.amount})"
+        return f"{self.invoice_number} - {self.workspace.name} ({self.currency} {self.amount})"
 
 
 class BillingWebhookEvent(models.Model):

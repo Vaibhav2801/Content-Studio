@@ -22,6 +22,7 @@ import type {
   CheckoutPayload,
   SubscriptionOverview,
 } from '../../../types/billing'
+import { formatMoney } from '../../../utils/money'
 import { useToast } from '../../notifications/useToast'
 import './ContentBillingTab.css'
 
@@ -74,7 +75,9 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
   }, [loadSubscription])
 
   const showCheckoutUnavailable = (unchangedMessage: string) => {
-    const reason = catalog?.simulated_checkout_status === 'disabled'
+    const reason = catalog?.simulated_checkout_status === 'country_blocked'
+      ? catalog.availability_message
+      : catalog?.simulated_checkout_status === 'disabled'
       ? 'Test checkout is disabled on the backend. Enable it on the Render web service and redeploy.'
       : catalog?.simulated_checkout_status === 'authentication_required'
         ? 'Your login session was not recognized. Sign out, sign in again, and retry.'
@@ -154,6 +157,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
       }
       const payload: CheckoutPayload = {
         product_id: productId,
+        billing_country: catalog.country_code,
         billing_name: billingName.trim() || undefined,
         billing_email: billingEmail.trim() || undefined,
       }
@@ -244,7 +248,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
             <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
               {isAdmin
                 ? 'System Admin Workspace · Unrestricted Privileges'
-                : `$${currentPlan?.price ?? '...'}/month · ${isFree ? 'Free Sandbox Account' : 'Billed Monthly'}`}
+                : `${formatMoney(currentPlan?.price, catalog.currency)}/month · ${isFree ? 'Free Sandbox Account' : 'Billed Monthly'}`}
             </span>
           </div>
           <h2>
@@ -276,14 +280,14 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                   className="metric-action-btn primary"
                   onClick={() => openUpgradeModal('STARTER')}
                 >
-                  Upgrade to Starter (${starterPlan?.price ?? '...'}/mo)
+                  Upgrade to Starter ({formatMoney(starterPlan?.price, catalog.currency)}/mo)
                 </button>
                 <button
                   type="button"
                   className="metric-action-btn"
                   onClick={() => openUpgradeModal('ADVANCE')}
                 >
-                  Upgrade to Premium (${advancePlan?.price ?? '...'}/mo)
+                  Upgrade to Premium ({formatMoney(advancePlan?.price, catalog.currency)}/mo)
                 </button>
               </>
             )}
@@ -293,7 +297,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                 className="metric-action-btn primary"
                 onClick={() => openUpgradeModal('ADVANCE')}
               >
-                <Zap size={15} /> Upgrade to Premium (${advancePlan?.price ?? '...'}/mo)
+                <Zap size={15} /> Upgrade to Premium ({formatMoney(advancePlan?.price, catalog.currency)}/mo)
               </button>
             )}
             {isAdvance && (
@@ -398,7 +402,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
           <p className="metric-footnote">
             {overview.connections.limit === 0
               ? 'Free plan is sandbox mode with 0 live connections. Upgrade to connect LinkedIn/Instagram.'
-              : `${overview.connections.limit} account slot${overview.connections.limit > 1 ? 's' : ''} available. Extra connections are $${connectionAddon?.amount ?? '...'}/month each.`}
+              : `${overview.connections.limit} account slot${overview.connections.limit > 1 ? 's' : ''} available. Extra connections are ${formatMoney(connectionAddon?.amount, catalog.currency)}/month each.`}
           </p>
 
           {!isAdmin && (
@@ -407,7 +411,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
               className="metric-action-btn"
               onClick={isFree ? () => openUpgradeModal('STARTER') : openConnectionModal}
             >
-              <Plus size={14} /> {isFree ? 'Unlock Connections' : `Add Connection ($${connectionAddon?.amount ?? '...'}/mo)`}
+              <Plus size={14} /> {isFree ? 'Unlock Connections' : `Add Connection (${formatMoney(connectionAddon?.amount, catalog.currency)}/mo)`}
             </button>
           )}
         </div>
@@ -484,7 +488,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
               className="metric-action-btn primary"
               onClick={isStarter ? openEngageModal : () => openUpgradeModal('ADVANCE')}
             >
-              <Unlock size={14} /> {isStarter ? `Add Engage ($${engageAddon?.amount ?? '...'}/mo)` : 'Upgrade to Unlock Engage'}
+              <Unlock size={14} /> {isStarter ? `Add Engage (${formatMoney(engageAddon?.amount, catalog.currency)}/mo)` : 'Upgrade to Unlock Engage'}
             </button>
           )}
 
@@ -520,7 +524,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
               <div className="booster-item-card" style={index === 1 ? { borderColor: '#ddd6fe' } : undefined} key={addon.product_id}>
                 <div className="booster-item-top">
                   <span className="booster-credits-amount">{addon.credits} Credits</span>
-                  <span className="booster-price-tag">${addon.amount}</span>
+                  <span className="booster-price-tag">{formatMoney(addon.amount, catalog.currency)}</span>
                 </div>
                 <p className="booster-item-desc">{addon.title}. Credits remain available while the account is active.</p>
                 <button
@@ -528,7 +532,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                   className={`metric-action-btn ${index === 1 ? 'primary' : ''}`}
                   onClick={() => openBoosterModal(addon.credits ?? 0)}
                 >
-                  <Zap size={14} /> Buy {addon.credits} Credits (${addon.amount})
+                  <Zap size={14} /> Buy {addon.credits} Credits ({formatMoney(addon.amount, catalog.currency)})
                 </button>
               </div>
             ))}
@@ -576,7 +580,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                     </td>
                     <td>
                       <strong>
-                        ${Number(inv.amount).toFixed(2)} {inv.currency}
+                        {formatMoney(inv.amount, inv.currency as 'USD' | 'EUR' | 'INR')} {inv.currency}
                       </strong>
                     </td>
                     <td>
@@ -664,7 +668,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                     <div className="checkout-summary-box">
                       <div className="summary-row">
                         <span>Plan Tier:</span>
-                        <strong>{checkoutPlan?.name} (${checkoutPlan?.price ?? '...'}/mo)</strong>
+                        <strong>{checkoutPlan?.name} ({formatMoney(checkoutPlan?.price, catalog.currency)}/mo)</strong>
                       </div>
                       <div className="summary-row">
                         <span>Billing Cycle:</span>
@@ -680,11 +684,11 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Engage Feature:</span>
-                        <span>{checkoutPlan?.engage ? 'Included & Unlocked' : `Locked ($${engageAddon?.amount ?? '...'}/mo add-on)`}</span>
+                        <span>{checkoutPlan?.engage ? 'Included & Unlocked' : `Locked (${formatMoney(engageAddon?.amount, catalog.currency)}/mo add-on)`}</span>
                       </div>
                       <div className="summary-row total">
                         <span>Test amount (no charge):</span>
-                        <span>${checkoutPlan?.price ?? '...'}</span>
+                        <span>{formatMoney(checkoutPlan?.price, catalog.currency)}</span>
                       </div>
                     </div>
                   )}
@@ -702,7 +706,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                       <div className="summary-row total">
                         <span>Test amount (no charge):</span>
                         <span>
-                          ${checkoutBooster?.amount ?? '...'}
+                          {formatMoney(checkoutBooster?.amount, catalog.currency)}
                         </span>
                       </div>
                     </div>
@@ -716,11 +720,11 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Rate:</span>
-                        <span>${connectionAddon?.amount ?? '...'} / month</span>
+                        <span>{formatMoney(connectionAddon?.amount, catalog.currency)} / month</span>
                       </div>
                       <div className="summary-row total">
                         <span>Test amount (no charge):</span>
-                        <span>${connectionAddon?.amount ?? '...'}</span>
+                        <span>{formatMoney(connectionAddon?.amount, catalog.currency)}</span>
                       </div>
                     </div>
                   )}
@@ -733,11 +737,11 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                       </div>
                       <div className="summary-row">
                         <span>Rate:</span>
-                        <span>${engageAddon?.amount ?? '...'} / month</span>
+                        <span>{formatMoney(engageAddon?.amount, catalog.currency)} / month</span>
                       </div>
                       <div className="summary-row total">
                         <span>Test amount (no charge):</span>
-                        <span>${engageAddon?.amount ?? '...'}</span>
+                        <span>{formatMoney(engageAddon?.amount, catalog.currency)}</span>
                       </div>
                     </div>
                   )}

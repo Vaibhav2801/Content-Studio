@@ -22,6 +22,7 @@ from integrations.social.services.billing import (
     generate_invoice_html,
     get_or_create_workspace_billing,
     is_workspace_admin,
+    normalize_country_code,
     process_billing_event,
     process_billing_product,
     public_pricing_catalog,
@@ -31,8 +32,15 @@ from integrations.social.views import SocialWorkspaceScopedAPIView
 
 class SimulatedCheckoutSerializer(serializers.Serializer):
     product_id = serializers.ChoiceField(choices=tuple(PRICING_CATALOG["products"].keys()))
+    billing_country = serializers.CharField(min_length=2, max_length=2)
     billing_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     billing_email = serializers.EmailField(required=False, allow_blank=True)
+
+    def validate_billing_country(self, value):
+        normalized = normalize_country_code(value, "")
+        if not normalized:
+            raise serializers.ValidationError("Enter a valid two-letter country code.")
+        return normalized
 
 
 class BillingWebhookSerializer(serializers.Serializer):
@@ -49,6 +57,7 @@ class BillingWebhookSerializer(serializers.Serializer):
     subscription_id = serializers.CharField(required=False, allow_blank=True, max_length=255)
     billing_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     billing_email = serializers.EmailField(required=False, allow_blank=True)
+    billing_country = serializers.CharField(required=False, min_length=2, max_length=2)
     current_period_start = serializers.DateTimeField(required=False, allow_null=True)
     current_period_end = serializers.DateTimeField(required=False, allow_null=True)
     cancellation_effective = serializers.ChoiceField(
@@ -58,7 +67,15 @@ class BillingWebhookSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["event_type"] != "subscription.cancelled" and not attrs.get("product_id"):
             raise serializers.ValidationError({"product_id": "This field is required."})
+        if attrs["event_type"] != "subscription.cancelled" and not attrs.get("billing_country"):
+            raise serializers.ValidationError({"billing_country": "This field is required."})
         return attrs
+
+    def validate_billing_country(self, value):
+        normalized = normalize_country_code(value, "")
+        if not normalized:
+            raise serializers.ValidationError("Enter a valid two-letter country code.")
+        return normalized
 
 
 def _require_billing_manager(workspace, user) -> None:
@@ -85,17 +102,54 @@ def _can_use_simulated_checkout(user) -> bool:
     return _simulated_checkout_status(user) == "enabled"
 
 
+def _proxy_country_code(request) -> str:
+    for candidate in (
+        request.META.get("HTTP_CF_IPCOUNTRY"),
+        request.META.get("HTTP_X_VERCEL_IP_COUNTRY"),
+    ):
+        normalized = normalize_country_code(candidate, "")
+        if normalized:
+            return normalized
+    return ""
+
+
+def _request_country_code(request) -> str:
+    # Query selection is for storefront preview. Checkout independently requires
+    # the billing country and never trusts a displayed currency as authority.
+    candidates = (
+        request.query_params.get("country"),
+        _proxy_country_code(request),
+    )
+    for candidate in candidates:
+        normalized = normalize_country_code(candidate, "")
+        if normalized:
+            return normalized
+    return "US"
+
+
 class BillingCatalogAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        catalog = public_pricing_catalog()
+        catalog = public_pricing_catalog(
+            _request_country_code(request), settings.BILLING_BLOCKED_COUNTRY_CODES
+        )
+        detected_country = _proxy_country_code(request)
+        if detected_country in settings.BILLING_BLOCKED_COUNTRY_CODES:
+            catalog["checkout_available"] = False
+            catalog["availability_message"] = (
+                "Paid Quilltap plans are not available in your billing country."
+            )
         checkout_status = _simulated_checkout_status(request.user)
-        catalog["simulated_checkout_enabled"] = checkout_status == "enabled"
+        if not catalog["checkout_available"]:
+            checkout_status = "country_blocked"
+        catalog["simulated_checkout_enabled"] = (
+            checkout_status == "enabled" and catalog["checkout_available"]
+        )
         catalog["simulated_checkout_status"] = checkout_status
         response = Response(catalog)
         response["Cache-Control"] = "private, no-store"
-        response["Vary"] = "Cookie"
+        response["Vary"] = "Cookie, CF-IPCountry, X-Vercel-IP-Country"
         return response
 
 
@@ -158,15 +212,20 @@ class BillingCheckoutAPIView(SocialWorkspaceScopedAPIView):
         serializer = SimulatedCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        billing_country = _proxy_country_code(request) or data["billing_country"]
+        if billing_country in settings.BILLING_BLOCKED_COUNTRY_CODES:
+            raise PermissionDenied("Quilltap billing is not available in this country.")
         invoice, subscription, account = process_billing_product(
             workspace=workspace, product_id=data["product_id"],
             billing_name=data.get("billing_name", ""), billing_email=data.get("billing_email", ""),
             payment_method="Test checkout simulator", payment_reference=f"sim_{uuid.uuid4().hex}",
-            provider="simulator", user=request.user,
+            provider="simulator", user=request.user, country_code=billing_country,
+            blocked_country_codes=settings.BILLING_BLOCKED_COUNTRY_CODES,
         )
         return Response({"success": True,
             "invoice": {"id": str(invoice.id), "invoice_number": invoice.invoice_number,
-                "amount": str(invoice.amount), "status": invoice.status, "title": invoice.title,
+                "amount": str(invoice.amount), "currency": invoice.currency,
+                "status": invoice.status, "title": invoice.title,
                 "download_url": f"/api/v3/social/billing/invoices/{invoice.id}/download/"},
             "tier": subscription.tier, "credit_balance": account.balance,
             "connections_limit": subscription.connections_quota,
@@ -193,7 +252,9 @@ class BillingPaymentWebhookAPIView(APIView):
         serializer = BillingWebhookSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         try:
-            invoice, processed = process_billing_event(serializer.validated_data, raw_body)
+            invoice, processed = process_billing_event(
+                serializer.validated_data, raw_body, settings.BILLING_BLOCKED_COUNTRY_CODES
+            )
         except Workspace.DoesNotExist:
             return Response({"error": "Workspace not found."}, status=404)
         except ValueError as exc:

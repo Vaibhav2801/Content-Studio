@@ -1,7 +1,8 @@
 import json
 import os
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Sequence
+from config.env_keys import env_value_ring
 from .base import BaseLLMProvider
 
 class GeminiAPIProvider(BaseLLMProvider):
@@ -9,22 +10,24 @@ class GeminiAPIProvider(BaseLLMProvider):
     LLM Provider that uses the official Gemini REST API.
     """
     
-    def __init__(self, api_key: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
-        if not self.api_key:
+    def __init__(self, api_key: str = None, model: str = None, api_keys: Sequence[str] | None = None):
+        if api_keys is not None:
+            keys = tuple(dict.fromkeys(key.strip() for key in api_keys if key and key.strip()))
+        elif api_key:
+            keys = (api_key.strip(),)
+        else:
+            keys = env_value_ring("GEMINI_API_KEY", "GEMINI_API_KEYS")
+        if not keys:
             raise ValueError(
-                "Gemini API key is required. Please set the GEMINI_API_KEY environment variable "
-                "or pass it as api_key."
+                "Gemini API key is required. Set GEMINI_API_KEY, GEMINI_API_KEYS, "
+                "or a numbered GEMINI_API_KEY_n variable."
             )
+        self.api_keys = keys
+        self.api_key = keys[0]
         self.model = model or os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
         self.url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 
     def generate(self, prompt: str, system_prompt: str = "", tools: list = None) -> Dict[str, Any]:
-        headers = {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': self.api_key
-        }
-        
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System Instruction: {system_prompt}\n\nUser: {prompt}"
@@ -47,10 +50,38 @@ class GeminiAPIProvider(BaseLLMProvider):
             }
         }
         
+        response = None
+        for index, api_key in enumerate(self.api_keys):
+            headers = {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': api_key
+            }
+            try:
+                response = requests.post(self.url, headers=headers, json=payload, timeout=30)
+                response.raise_for_status()
+                break
+            except requests.exceptions.RequestException as e:
+                failed_response = getattr(e, "response", None)
+                status_code = failed_response.status_code if failed_response is not None else 500
+                api_message = str(e)
+                if failed_response is not None:
+                    try:
+                        error_payload = failed_response.json()
+                        api_message = error_payload.get("error", {}).get("message") or api_message
+                    except (ValueError, AttributeError):
+                        pass
+                retry_with_next_key = (
+                    status_code in {401, 403, 429}
+                    or any(marker in api_message.lower() for marker in ("quota", "rate limit", "resource_exhausted", "exhausted"))
+                )
+                if retry_with_next_key and index + 1 < len(self.api_keys):
+                    continue
+                return self._error_result(e, api_message=api_message, attempted_keys=index + 1)
+
+        if response is None:
+            return {"type": "error", "text": "Gemini API request did not produce a response.", "status_code": 500}
+
         try:
-            response = requests.post(self.url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            
             data = response.json()
             try:
                 output_text = data['candidates'][0]['content']['parts'][0]['text']
@@ -98,23 +129,18 @@ class GeminiAPIProvider(BaseLLMProvider):
                     "total_tokens": total_tokens
                 }
                 
-        except requests.exceptions.RequestException as e:
-            response = getattr(e, "response", None)
-            status_code = response.status_code if response is not None else 500
-            retry_after = None
-            api_message = str(e)
+        except (ValueError, KeyError, IndexError) as exc:
+            return {"type": "error", "text": f"Unexpected response from Gemini API: {exc}", "status_code": 502}
 
-            if response is not None:
-                retry_after = response.headers.get("Retry-After")
-                try:
-                    error_payload = response.json()
-                    api_message = error_payload.get("error", {}).get("message") or api_message
-                except (ValueError, AttributeError):
-                    pass
-
-            return {
-                "type": "error",
-                "text": f"Error calling Gemini REST API ({status_code}): {api_message}",
-                "status_code": status_code,
-                "retry_after": retry_after
-            }
+    @staticmethod
+    def _error_result(error, *, api_message: str, attempted_keys: int) -> Dict[str, Any]:
+        response = getattr(error, "response", None)
+        status_code = response.status_code if response is not None else 500
+        retry_after = response.headers.get("Retry-After") if response is not None else None
+        return {
+            "type": "error",
+            "text": f"Error calling Gemini REST API ({status_code}): {api_message}",
+            "status_code": status_code,
+            "retry_after": retry_after,
+            "attempted_keys": attempted_keys,
+        }

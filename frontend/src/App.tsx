@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './components/content/AuthContext'
 const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
 const LandingPage = lazy(() => import('./pages/LandingPage').then((module) => ({ default: module.LandingPage })))
 const PricingPage = lazy(() => import('./pages/PricingPage').then((module) => ({ default: module.PricingPage })))
+const LegalPage = lazy(() => import('./pages/LegalPage').then((module) => ({ default: module.LegalPage })))
 const ContentStudioPage = lazy(() => import('./pages/ContentStudioPage').then((module) => ({ default: module.ContentStudioPage })))
 const ContentHomeView = lazy(() => import('./components/content/views/ContentHomeView').then((module) => ({ default: module.ContentHomeView })))
 const ContentCreateView = lazy(() => import('./components/content/views/ContentCreateView').then((module) => ({ default: module.ContentCreateView })))
@@ -35,6 +36,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/cancellation" element={<LegalPage kind="cancellation" />} />
         <Route path="/signin" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/content" element={<ProtectedStudio />}>

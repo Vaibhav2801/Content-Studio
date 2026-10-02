@@ -76,13 +76,40 @@ class BillingApiTests(TestCase):
         )
         plans = {plan["id"]: plan for plan in response.data["plans"]}
         self.assertEqual(set(plans), {"free", "starter", "advance", "custom"})
-        self.assertEqual(plans["starter"]["price"], 9)
+        self.assertEqual(response.data["currency"], "USD")
+        self.assertEqual(response.data["pricing_region"], "global")
+        self.assertEqual(plans["starter"]["price"], 14)
         self.assertEqual(plans["advance"]["name"], "Premium")
-        self.assertEqual(plans["advance"]["price"], 14)
+        self.assertEqual(plans["advance"]["price"], 20)
         self.assertIsNone(plans["custom"]["product_id"])
         self.assertIsNone(plans["custom"]["price"])
         self.assertFalse(response.data["simulated_checkout_enabled"])
         self.assertEqual(response.data["simulated_checkout_status"], "disabled")
+
+    def test_catalog_uses_usd_worldwide(self):
+        india = self.client.get(reverse("social-billing-catalog"), {"country": "IN"})
+        india_plans = {plan["id"]: plan for plan in india.data["plans"]}
+        self.assertEqual(india.data["currency"], "USD")
+        self.assertEqual(india.data["pricing_region"], "global")
+        self.assertEqual(india_plans["starter"]["price"], 14)
+        self.assertEqual(india_plans["advance"]["price"], 20)
+
+        europe = self.client.get(reverse("social-billing-catalog"), {"country": "DE"})
+        europe_plans = {plan["id"]: plan for plan in europe.data["plans"]}
+        self.assertEqual(europe.data["currency"], "USD")
+        self.assertEqual(europe.data["pricing_region"], "global")
+        self.assertEqual(europe_plans["starter"]["price"], 14)
+        self.assertEqual(europe_plans["advance"]["price"], 20)
+
+    @override_settings(BILLING_BLOCKED_COUNTRY_CODES={"IR"})
+    def test_catalog_marks_configured_country_as_unavailable(self):
+        response = self.client.get(reverse("social-billing-catalog"), {"country": "IR"})
+        self.assertFalse(response.data["checkout_available"])
+        self.assertEqual(response.data["simulated_checkout_status"], "country_blocked")
+        attempted_override = self.client.get(
+            reverse("social-billing-catalog"), {"country": "US"}, HTTP_CF_IPCOUNTRY="IR"
+        )
+        self.assertFalse(attempted_override.data["checkout_available"])
 
     @override_settings(
         BILLING_SIMULATED_CHECKOUT_ENABLED=True,
@@ -133,12 +160,41 @@ class BillingApiTests(TestCase):
             403,
         )
         self.client.force_authenticate(self.owner)
-        response = self.client.post(reverse("social-billing-checkout"), {"product_id": "booster_50"})
+        response = self.client.post(
+            reverse("social-billing-checkout"),
+            {"product_id": "booster_50", "billing_country": "US"},
+        )
         self.assertEqual(response.status_code, 200)
         invoice = BillingInvoice.objects.get()
         self.assertEqual(invoice.amount, Decimal("10.00"))
+        self.assertEqual(invoice.currency, "USD")
         self.assertEqual(invoice.line_items[0]["product_id"], "booster_50")
         self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 65)
+
+    @override_settings(
+        BILLING_SIMULATED_CHECKOUT_ENABLED=True,
+        BILLING_SIMULATED_CHECKOUT_ALLOWED_EMAILS={"owner@example.com"},
+        BILLING_BLOCKED_COUNTRY_CODES={"IR"},
+    )
+    def test_checkout_enforces_country_price_book_and_block_list(self):
+        self.client.force_authenticate(self.owner)
+        blocked = self.client.post(
+            reverse("social-billing-checkout"),
+            {"product_id": "plan_starter_monthly", "billing_country": "US"},
+            HTTP_CF_IPCOUNTRY="IR",
+        )
+        self.assertEqual(blocked.status_code, 403)
+        self.assertFalse(BillingInvoice.objects.exists())
+
+        india = self.client.post(
+            reverse("social-billing-checkout"),
+            {"product_id": "plan_starter_monthly", "billing_country": "IN"},
+        )
+        self.assertEqual(india.status_code, 200)
+        invoice = BillingInvoice.objects.get()
+        self.assertEqual(invoice.amount, Decimal("14.00"))
+        self.assertEqual(invoice.currency, "USD")
+        self.assertEqual(invoice.line_items[0]["billing_country"], "IN")
 
     def test_only_active_owner_or_admin_can_read_billing_history(self):
         for user, expected in ((self.owner, 200), (self.member, 403), (self.inactive, 403)):
@@ -157,7 +213,8 @@ class BillingApiTests(TestCase):
         payload = {
             "provider": "stripe", "event_id": "evt_paid_1", "event_type": "payment.succeeded",
             "workspace_id": str(self.workspace.id), "product_id": "booster_150",
-            "payment_reference": "pi_1", "billing_name": "A <script>alert(1)</script>",
+            "payment_reference": "pi_1", "billing_country": "US",
+            "billing_name": "A <script>alert(1)</script>",
         }
         first = self.signed_webhook(payload)
         second = self.signed_webhook(payload)
@@ -170,7 +227,7 @@ class BillingApiTests(TestCase):
 
     def test_webhook_event_id_cannot_be_reused_with_different_payload(self):
         base = {"provider": "stripe", "event_id": "evt_reuse", "event_type": "payment.succeeded",
-            "workspace_id": str(self.workspace.id), "product_id": "booster_50"}
+            "workspace_id": str(self.workspace.id), "product_id": "booster_50", "billing_country": "US"}
         self.assertEqual(self.signed_webhook(base).status_code, 200)
         changed = {**base, "product_id": "booster_350"}
         self.assertEqual(self.signed_webhook(changed).status_code, 400)
@@ -179,7 +236,7 @@ class BillingApiTests(TestCase):
     def test_renewal_and_cancellation_lifecycle(self):
         renewal = {"provider": "stripe", "event_id": "evt_renew", "event_type": "subscription.renewed",
             "workspace_id": str(self.workspace.id), "product_id": "plan_advance_monthly",
-            "subscription_id": "sub_1"}
+            "subscription_id": "sub_1", "billing_country": "US"}
         self.assertEqual(self.signed_webhook(renewal).status_code, 200)
         subscription = WorkspaceSubscription.objects.get(workspace=self.workspace)
         self.assertEqual(subscription.tier, WorkspaceTier.ADVANCE)

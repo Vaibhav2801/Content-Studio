@@ -33,6 +33,9 @@
 .auth-input-icon svg { position: absolute; z-index: 1; top: 16px; left: 15px; color: #9699aa; }
 .auth-input-icon input { padding-left: 43px; }
 .auth-password-hint { margin: -9px 0 0; color: #85879a; font-size: 12px; line-height: 1.4; }
+.auth-form-wrap .auth-legal-consent { display: flex; align-items: flex-start; gap: 10px; color: #696b7e; font-size: 12px; font-weight: 450; line-height: 1.55; cursor: pointer; }
+.auth-form-wrap .auth-legal-consent input { flex: 0 0 auto; width: 17px; height: 17px; margin: 1px 0 0; padding: 0; border-radius: 4px; box-shadow: none; accent-color: #6656df; }
+.auth-legal-consent a { color: #6250d4; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .auth-error { padding: 12px 14px; border: 1px solid #f2c5c5; border-radius: 10px; background: #fff6f6; color: #a43535; font-size: 13px; line-height: 1.5; }
 .auth-submit { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 51px; margin-top: 7px; border: 0; border-radius: 12px; background: #6656df; color: #fff; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; box-shadow: 0 9px 23px #6859dd38; transition: transform .18s, background .18s; }
 .auth-submit:hover:not(:disabled) { background: #5545cf; transform: translateY(-1px); }

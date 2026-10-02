@@ -7,7 +7,6 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
-  Feather,
   Home,
   Link2,
   MessageCircleMore,
@@ -35,6 +34,7 @@ import { useContentStudio } from './ContentStudioContext'
 import { useOptionalAuth } from './AuthContext'
 import { AskAIButton } from './ai/AskAIFloatingButton'
 import { useToast } from '../notifications/useToast'
+import { QuilltapLogo } from '../branding/QuilltapLogo'
 
 const icons: Record<ContentStudioSection, LucideIcon> = {
   home: Home,
@@ -207,8 +207,7 @@ export function ContentStudioShell() {
       <aside className={`studio-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="studio-sidebar-top">
           <Link className="studio-brand" to="/content" aria-label="Quilltap home">
-            <span className="studio-brand-mark"><Feather size={20} strokeWidth={2.1} /></span>
-            <span className="studio-brand-copy"><strong>Quilltap</strong><small>THINK · WRITE · PUBLISH</small></span>
+            <QuilltapLogo alt="" />
           </Link>
           <button className="studio-sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button>
         </div>

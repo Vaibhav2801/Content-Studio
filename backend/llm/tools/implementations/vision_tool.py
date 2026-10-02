@@ -1,6 +1,7 @@
 import os
 import base64
 import requests
+from config.env_keys import env_value_ring
 from ..base import BaseTool
 from .browser_tool import get_screenshot_dir
 
@@ -46,12 +47,12 @@ class AnalyzeScreenshotTool(BaseTool):
             with open(file_path, "rb") as image_file:
                 image_data = base64.b64encode(image_file.read()).decode("utf-8")
 
-            # Resolve Gemini API Key from environment
-            api_key = os.environ.get("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("Gemini API key is required. Please set the GEMINI_API_KEY environment variable.")
+            # Resolve the ordered Gemini key ring from the environment.
+            api_keys = env_value_ring("GEMINI_API_KEY", "GEMINI_API_KEYS")
+            if not api_keys:
+                raise ValueError("Gemini API key is required. Set GEMINI_API_KEY or GEMINI_API_KEYS.")
             model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
             payload = {
                 "contents": [{
@@ -67,9 +68,16 @@ class AnalyzeScreenshotTool(BaseTool):
                 }]
             }
             
-            headers = {"Content-Type": "application/json"}
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
+            for index, api_key in enumerate(api_keys):
+                headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+                response = requests.post(url, headers=headers, json=payload)
+                try:
+                    response.raise_for_status()
+                    break
+                except requests.HTTPError:
+                    if response.status_code in {401, 403, 429} and index + 1 < len(api_keys):
+                        continue
+                    raise
             
             data = response.json()
             try:
