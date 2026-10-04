@@ -1,7 +1,29 @@
-.studio-brand .quilltap-logo {
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  filter: drop-shadow(0 4px 10px rgba(13, 8, 20, 0.2));
+.studio-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 2px 4px;
+}
+
+.studio-brand-icon {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(13, 8, 20, 0.22));
+}
+
+.studio-brand-wordmark {
+  min-width: 0;
+  color: #ffffff;
+  font-size: clamp(1.65rem, 2.2vw, 2rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.065em;
+  white-space: nowrap;
+}
+
+.studio-brand-wordmark > span {
+  color: #8b5cf6;
 }

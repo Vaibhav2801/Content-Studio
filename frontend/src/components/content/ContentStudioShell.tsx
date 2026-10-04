@@ -34,7 +34,6 @@ import { useContentStudio } from './ContentStudioContext'
 import { useOptionalAuth } from './AuthContext'
 import { AskAIButton } from './ai/AskAIFloatingButton'
 import { useToast } from '../notifications/useToast'
-import { QuilltapLogo } from '../branding/QuilltapLogo'
 
 const icons: Record<ContentStudioSection, LucideIcon> = {
   home: Home,
@@ -207,7 +206,10 @@ export function ContentStudioShell() {
       <aside className={`studio-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="studio-sidebar-top">
           <Link className="studio-brand" to="/content" aria-label="Quilltap home">
-            <QuilltapLogo alt="" />
+            <img className="studio-brand-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+            <span className="studio-brand-wordmark" aria-hidden="true">
+              Quill<span>tap</span>
+            </span>
           </Link>
           <button className="studio-sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button>
         </div>
