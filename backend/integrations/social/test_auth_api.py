@@ -3,6 +3,7 @@ import json
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from config.auth_views import _session_data
 from integrations.social.models import ConnectionState, SocialConnection, SocialNetwork, SocialPost, SocialProvider
 from prospecting.models import WorkspaceMembership
 
@@ -40,6 +41,16 @@ class ContentStudioAuthenticationTests(TestCase):
         refreshed = self.client.get(reverse("studio-auth-session"))
         self.assertEqual(refreshed.json()["workspace"]["id"], session["workspace"]["id"])
         self.assertEqual(self.client.get(reverse("social-connections")).status_code, 200)
+
+    def test_session_data_loads_all_workspaces_in_one_query(self):
+        self.signup("Alex Morgan", "alex@example.com", "Alex Studio")
+        user = WorkspaceMembership.objects.select_related("user").get().user
+
+        with self.assertNumQueries(1):
+            session = _session_data(user)
+
+        self.assertEqual(session["workspace"]["name"], "Alex Studio")
+        self.assertEqual(len(session["workspaces"]), 1)
 
     def test_signin_signout_and_invalid_password(self):
         self.signup("Alex Morgan", "alex@example.com", "Alex Studio")

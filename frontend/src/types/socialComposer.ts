@@ -93,6 +93,23 @@ export interface MediaAsset {
   publish_url: string
 }
 
+export type VideoGenerationStatus = 'QUEUED' | 'SUBMITTED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+
+export interface VideoGenerationJob {
+  id: string
+  variant_id: string
+  status: VideoGenerationStatus
+  prompt: string
+  aspect_ratio: '16:9' | '9:16'
+  resolution: '720p'
+  duration_seconds: 8
+  credits_charged: number
+  error_message: string
+  asset: MediaAsset | null
+  created_at: string
+  updated_at: string
+}
+
 export interface SocialVariant {
   id: string
   network: SocialNetwork

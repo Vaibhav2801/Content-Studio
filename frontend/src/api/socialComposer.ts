@@ -1,5 +1,5 @@
 import { csrfToken } from './auth'
-import type { ComposerOptions, DraftPayload, MediaAsset, RewriteAction, SocialPost } from '../types/socialComposer'
+import type { ComposerOptions, DraftPayload, MediaAsset, RewriteAction, SocialPost, VideoGenerationJob } from '../types/socialComposer'
 
 const baseUrl = (import.meta.env.VITE_SOCIAL_API_BASE_URL as string | undefined) ?? '/api/v3/social'
 
@@ -84,4 +84,6 @@ export const socialComposerApi = {
   deleteMedia: (variantId: string, assetId: string) => request<void>(`/variants/${variantId}/media/${assetId}/`, { method: 'DELETE' }),
   reorderMedia: (variantId: string, assetIds: string[]) => request<MediaAsset[]>(`/variants/${variantId}/media/reorder/`, { method: 'POST', body: JSON.stringify({ asset_ids: assetIds }) }),
   regenerateImage: (variantId: string, prompt: string, assetId?: string, altText = '') => request<MediaAsset>(`/variants/${variantId}/media/regenerate-image/`, { method: 'POST', body: JSON.stringify({ prompt, asset_id: assetId, alt_text: altText }) }),
+  generateVideo: (variantId: string, prompt: string, aspectRatio: '16:9' | '9:16') => request<VideoGenerationJob>(`/variants/${variantId}/media/generate-video/`, { method: 'POST', body: JSON.stringify({ prompt, aspect_ratio: aspectRatio }) }),
+  getVideoJob: (variantId: string, jobId: string) => request<VideoGenerationJob>(`/variants/${variantId}/media/video-jobs/${jobId}/`),
 }

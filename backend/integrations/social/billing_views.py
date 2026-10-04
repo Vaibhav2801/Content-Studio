@@ -193,7 +193,7 @@ class SubscriptionOverviewAPIView(SocialWorkspaceScopedAPIView):
             "credits": {"balance": 999999 if is_admin else account.balance,
                 "total_allocated": account.total_allocated, "total_used": account.total_used,
                 "unlimited": is_admin, "cost_per_draft": costs["draft"],
-                "cost_per_image": costs["image"]},
+                "cost_per_image": costs["image"], "cost_per_video": costs["video"]},
             "engage_entitled": is_admin or subscription.engage_entitled,
             "scheduling_unlimited": True, "transactions": recent_txs, "invoices": recent_invoices,
         })

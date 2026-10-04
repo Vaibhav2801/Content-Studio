@@ -23,6 +23,7 @@ from integrations.social.media import safe_publish_url
 from integrations.social.publishing.errors import ProviderValidationError
 from integrations.social.models import (
     ConnectionState,
+    CreditAccount,
     MediaAsset,
     MediaAssetSource,
     SocialConnection,
@@ -31,6 +32,8 @@ from integrations.social.models import (
     SocialPostState,
     SocialPostVariant,
     SocialProvider,
+    VideoGenerationJob,
+    VideoGenerationState,
 )
 from prospecting.models import Workspace, WorkspaceMembership
 
@@ -442,6 +445,115 @@ class SocialMediaApiTests(TestCase):
 
         self.assertEqual(response.status_code, 502)
         self.assertEqual(response.data["code"], "image_generation_failed")
+
+    @override_settings(
+        SOCIAL_GENERATE_VIDEOS=True,
+        GEMINI_API_KEY="test-video-key",
+        GEMINI_API_KEYS=(),
+        GEMINI_VIDEO_MODEL="veo-3.1-fast-generate-preview",
+    )
+    def test_video_generation_reserves_fixed_credits_and_exposes_job_status(self):
+        with patch("integrations.social.views.process_video_generation.delay") as dispatch:
+            response = self.client.post(
+                reverse("social-video-generate", args=[self.variant.id]),
+                {"prompt": "A calm product animation with a slow camera push", "aspect_ratio": "16:9"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(response.data["status"], VideoGenerationState.QUEUED)
+        self.assertEqual(response.data["credits_charged"], 10)
+        self.assertEqual(response.data["duration_seconds"], 8)
+        self.assertEqual(response.data["resolution"], "720p")
+        job = VideoGenerationJob.objects.get(pk=response.data["id"])
+        self.assertEqual(job.credit_reservation.amount, 10)
+        self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 5)
+        dispatch.assert_called_once_with(str(job.id))
+
+        status_response = self.client.get(
+            reverse("social-video-job", args=[self.variant.id, job.id])
+        )
+        self.assertEqual(status_response.status_code, 200)
+        self.assertEqual(status_response.data["id"], str(job.id))
+
+    @override_settings(
+        SOCIAL_GENERATE_VIDEOS=True,
+        GEMINI_API_KEY="test-video-key",
+        GEMINI_API_KEYS=(),
+        GEMINI_VIDEO_MODEL="veo-3.1-fast-generate-preview",
+    )
+    def test_video_worker_completes_job_and_consumes_reservation_once(self):
+        from integrations.social.services.videos import VideoOperationResult
+        from integrations.social.tasks import process_video_generation_step
+
+        with patch("integrations.social.views.process_video_generation.delay"):
+            response = self.client.post(
+                reverse("social-video-generate", args=[self.variant.id]),
+                {"prompt": "A calm product animation with a slow camera push"},
+                format="json",
+            )
+        job = VideoGenerationJob.objects.get(pk=response.data["id"])
+        generated_mp4 = mp4_file(duration_ms=8_000).read()
+
+        with patch("integrations.social.services.videos.GeminiVideoGenerator") as generator_class:
+            generator = generator_class.return_value
+            generator.start.return_value = ("operations/video-123", 0)
+            submitted = process_video_generation_step(job.id)
+            generator.poll.return_value = VideoOperationResult(
+                done=True, video_uri="https://provider.example/video.mp4"
+            )
+            generator.download.return_value = generated_mp4
+            completed = process_video_generation_step(job.id)
+
+        self.assertEqual(submitted["status"], "PENDING")
+        self.assertEqual(completed["status"], "COMPLETED")
+        job.refresh_from_db()
+        self.assertEqual(job.status, VideoGenerationState.COMPLETED)
+        self.assertEqual(job.output_asset.asset_type, "VIDEO")
+        self.assertEqual(job.output_asset.duration_ms, 8_000)
+        self.assertEqual(job.credit_reservation.status, "CONSUMED")
+        self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 5)
+
+    @override_settings(
+        SOCIAL_GENERATE_VIDEOS=True,
+        GEMINI_API_KEY="test-video-key",
+        GEMINI_API_KEYS=(),
+        GEMINI_VIDEO_MODEL="veo-3.1-fast-generate-preview",
+    )
+    def test_video_dispatch_failure_refunds_reserved_credits(self):
+        with patch(
+            "integrations.social.views.process_video_generation.delay",
+            side_effect=RuntimeError("broker unavailable"),
+        ), self.assertLogs("integrations.social.views", level="ERROR"):
+            response = self.client.post(
+                reverse("social-video-generate", args=[self.variant.id]),
+                {"prompt": "A calm product animation with a slow camera push"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data["code"], "video_dispatch_failed")
+        job = VideoGenerationJob.objects.get()
+        self.assertEqual(job.status, VideoGenerationState.FAILED)
+        self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 15)
+
+    @override_settings(
+        SOCIAL_GENERATE_VIDEOS=True,
+        GEMINI_API_KEY="test-video-key",
+        GEMINI_API_KEYS=(),
+    )
+    def test_video_generation_preserves_existing_media(self):
+        self.assertEqual(self.upload(png_file()).status_code, 201)
+        response = self.client.post(
+            reverse("social-video-generate", args=[self.variant.id]),
+            {"prompt": "Animate the existing composition with a slow camera move"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "media_already_exists")
+        self.assertEqual(self.variant.media_assets.count(), 1)
+        self.assertFalse(VideoGenerationJob.objects.exists())
 
 class PublishMediaHostTests(SimpleTestCase):
     @override_settings(PUBLIC_BACKEND_URL="https://backend.example.test")

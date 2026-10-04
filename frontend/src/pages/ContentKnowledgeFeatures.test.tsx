@@ -20,13 +20,13 @@ const story: StoryInterview = { id: 'story-1', week_of: '2030-06-10', questions:
 const subscription: SubscriptionOverview = {
   tier: 'FREE', role_label: 'Free', is_admin: false, can_manage_billing: true,
   connections: { used: 0, limit: 0, unlimited: false, extra_purchased: 0 },
-  credits: { balance: 15, total_allocated: 15, total_used: 0, unlimited: false, cost_per_draft: 2, cost_per_image: 1 },
+  credits: { balance: 15, total_allocated: 15, total_used: 0, unlimited: false, cost_per_draft: 2, cost_per_image: 1, cost_per_video: 10 },
   engage_entitled: false, scheduling_unlimited: true, transactions: [], invoices: [],
 }
 const catalog: PricingCatalog = {
   country_code: 'US', pricing_region: 'global', region_label: 'Rest of world',
   currency: 'USD', checkout_available: true, availability_message: '',
-  credit_costs: { draft: 2, image: 1, image_regeneration: 1 }, simulated_checkout_enabled: false,
+  credit_costs: { draft: 2, image: 1, image_regeneration: 1, video: 10 }, simulated_checkout_enabled: false,
   simulated_checkout_status: 'disabled',
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },

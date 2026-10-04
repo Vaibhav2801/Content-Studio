@@ -24,7 +24,7 @@ from integrations.social.models import (
 )
 
 PRICING_CATALOG = {
-    "credit_costs": {"draft": 2, "image": 1, "image_regeneration": 1},
+    "credit_costs": {"draft": 2, "image": 1, "image_regeneration": 1, "video": 10},
     "plans": [
         {
             "id": "free",
@@ -96,6 +96,13 @@ PRICING_CATALOG = {
             "credits": 350,
             "title": "350 AI Credit Booster",
         },
+        "video_pack_100": {
+            "kind": "video_pack",
+            "amount": Decimal("25.00"),
+            "credits": 100,
+            "videos": 10,
+            "title": "10-Video Creator Pack",
+        },
         "connection_1_monthly": {
             "kind": "connection",
             "amount": Decimal("5.00"),
@@ -121,6 +128,7 @@ REGIONAL_PRICE_BOOKS = {
             "booster_50": Decimal("10.00"),
             "booster_150": Decimal("25.00"),
             "booster_350": Decimal("50.00"),
+            "video_pack_100": Decimal("25.00"),
             "connection_1_monthly": Decimal("5.00"),
             "engage_monthly": Decimal("15.00"),
         },
@@ -628,7 +636,7 @@ def process_billing_product(
             subscription.tier = product["tier"]
             subscription.is_active = True
             subscription.cancel_at_period_end = False
-        elif kind == "booster":
+        elif kind in {"booster", "video_pack"}:
             pass
         elif kind == "connection":
             subscription.extra_connections += int(product["connections"])

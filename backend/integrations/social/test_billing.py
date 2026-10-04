@@ -69,7 +69,12 @@ class BillingApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertIn("Cookie", response["Vary"])
-        self.assertEqual(response.data["credit_costs"], {"draft": 2, "image": 1, "image_regeneration": 1})
+        self.assertEqual(response.data["credit_costs"], {"draft": 2, "image": 1, "image_regeneration": 1, "video": 10})
+        video_pack = next(addon for addon in response.data["addons"] if addon["product_id"] == "video_pack_100")
+        self.assertEqual(video_pack["kind"], "video_pack")
+        self.assertEqual(video_pack["credits"], 100)
+        self.assertEqual(video_pack["videos"], 10)
+        self.assertEqual(video_pack["amount"], "25.00")
         self.assertEqual(
             {plan["product_id"] for plan in response.data["plans"] if plan["product_id"]},
             {"plan_starter_monthly", "plan_advance_monthly"},
@@ -170,6 +175,16 @@ class BillingApiTests(TestCase):
         self.assertEqual(invoice.currency, "USD")
         self.assertEqual(invoice.line_items[0]["product_id"], "booster_50")
         self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 65)
+
+        video_pack = self.client.post(
+            reverse("social-billing-checkout"),
+            {"product_id": "video_pack_100", "billing_country": "US"},
+        )
+        self.assertEqual(video_pack.status_code, 200)
+        video_invoice = BillingInvoice.objects.order_by("-created_at").first()
+        self.assertEqual(video_invoice.amount, Decimal("25.00"))
+        self.assertEqual(video_invoice.line_items[0]["product_id"], "video_pack_100")
+        self.assertEqual(CreditAccount.objects.get(workspace=self.workspace).balance, 165)
 
     @override_settings(
         BILLING_SIMULATED_CHECKOUT_ENABLED=True,

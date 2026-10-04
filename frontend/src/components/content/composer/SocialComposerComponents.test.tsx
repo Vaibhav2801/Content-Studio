@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeDemoPost, socialComposerMockOptions } from '../../../api/socialComposerMock'
 import { MediaManager } from './MediaManager'
@@ -56,7 +56,7 @@ describe('social composer components', () => {
       { id: 'two', asset_type: 'IMAGE', source: 'UPLOAD', original_filename: 'two.png', content_type: 'image/png', byte_size: 10, width: 100, height: 100, duration_ms: null, alt_text: 'Second', sort_order: 1, publish_url: '/two.png' },
     ]
     const reorder = vi.fn(); const alt = vi.fn(); const regenerate = vi.fn(); const remove = vi.fn()
-    render(<MediaManager variant={variant} busy={false} onUpload={vi.fn()} onRemove={remove} onReorder={reorder} onAltText={alt} onRegenerate={regenerate} />)
+    render(<MediaManager variant={variant} busy={false} onUpload={vi.fn()} onRemove={remove} onReorder={reorder} onAltText={alt} onRegenerate={regenerate} initialVideoPrompt="Animate this post" onGenerateVideo={vi.fn()} onPollVideo={vi.fn()} onVideoComplete={vi.fn()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Move right' })[0])
     expect(reorder).toHaveBeenCalledWith(['two', 'one'])
     fireEvent.change(screen.getByDisplayValue('First'), { target: { value: 'Accessible first image' } })
@@ -66,6 +66,24 @@ describe('social composer components', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove media' })[0])
     expect(regenerate).toHaveBeenCalledWith('one')
     expect(remove).toHaveBeenCalledWith('one')
+  })
+
+  it('collects a video prompt, orientation, and confirms the fixed credit charge', async () => {
+    const variant = makeDemoPost('Idea', 'Body copy', ['INSTAGRAM']).variants[0]
+    const generateVideo = vi.fn().mockResolvedValue({
+      id: 'video-job', variant_id: variant.id, status: 'QUEUED', prompt: 'A calm product animation with a slow camera move',
+      aspect_ratio: '9:16', resolution: '720p', duration_seconds: 8, credits_charged: 10,
+      error_message: '', asset: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    })
+    render(<MediaManager variant={variant} busy={false} onUpload={vi.fn()} onRemove={vi.fn()} onReorder={vi.fn()} onAltText={vi.fn()} onRegenerate={vi.fn()} initialVideoPrompt="A calm product animation with a slow camera move" onGenerateVideo={generateVideo} onPollVideo={vi.fn()} onVideoComplete={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create video' }))
+    expect(screen.getByText('10 AI credits')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Vertical/i })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate video' }))
+
+    await waitFor(() => expect(generateVideo).toHaveBeenCalledWith('A calm product animation with a slow camera move', '9:16'))
+    expect(screen.getByText('Creating your video…')).toBeInTheDocument()
   })
 
   it('renders X threads and Instagram carousel slides accurately', () => {

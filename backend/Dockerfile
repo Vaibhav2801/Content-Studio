@@ -25,5 +25,9 @@ RUN playwright install-deps chromium
 # Copy project files
 COPY . /app/
 
+# Static files only change when the image changes. Building them here keeps a
+# sleeping free-tier instance from repeating this work on every cold start.
+RUN python manage.py collectstatic --noinput
+
 # Ensure run scripts are executable
 RUN chmod +x /app/scripts/*.sh

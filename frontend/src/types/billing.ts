@@ -41,6 +41,7 @@ export interface SubscriptionOverview {
     unlimited: boolean
     cost_per_draft: number
     cost_per_image: number
+    cost_per_video: number
   }
   engage_entitled: boolean
   scheduling_unlimited: boolean
@@ -61,6 +62,7 @@ export type BillingProductId =
   | 'booster_50'
   | 'booster_150'
   | 'booster_350'
+  | 'video_pack_100'
   | 'connection_1_monthly'
   | 'engage_monthly'
 
@@ -76,9 +78,10 @@ export interface PricingPlan {
 
 export interface PricingAddon {
   product_id: BillingProductId
-  kind: 'booster' | 'connection' | 'engage'
+  kind: 'booster' | 'video_pack' | 'connection' | 'engage'
   amount: string
   credits?: number
+  videos?: number
   connections?: number
   title: string
 }
@@ -90,7 +93,7 @@ export interface PricingCatalog {
   currency: 'USD' | 'EUR' | 'INR'
   checkout_available: boolean
   availability_message: string
-  credit_costs: { draft: number; image: number; image_regeneration: number }
+  credit_costs: { draft: number; image: number; image_regeneration: number; video: number }
   plans: PricingPlan[]
   addons: PricingAddon[]
   simulated_checkout_enabled: boolean

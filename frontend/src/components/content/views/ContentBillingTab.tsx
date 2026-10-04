@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   CreditCard,
   Download,
+  Film,
   Link2,
   LoaderCircle,
   MessageCircleMore,
@@ -31,7 +32,7 @@ interface Props {
   view?: 'overview' | 'invoices'
 }
 
-type CheckoutAction = 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
+type CheckoutAction = 'UPGRADE_PLAN' | 'BUY_BOOSTER' | 'BUY_VIDEO_PACK' | 'ADD_CONNECTIONS' | 'ADD_ENGAGE'
 
 export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
   const { showToast } = useToast()
@@ -117,6 +118,17 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
     setNewInvoice(null)
   }
 
+  const openVideoPackModal = () => {
+    if (!catalog?.simulated_checkout_enabled) {
+      showCheckoutUnavailable('No video pack was purchased.')
+      return
+    }
+    setCheckoutAction('BUY_VIDEO_PACK')
+    setShowCheckout(true)
+    setCheckoutError('')
+    setNewInvoice(null)
+  }
+
   const openConnectionModal = () => {
     if (!catalog?.simulated_checkout_enabled) {
       showCheckoutUnavailable('No connection add-on was purchased.')
@@ -150,6 +162,8 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
         productId = targetTier === 'STARTER' ? 'plan_starter_monthly' : 'plan_advance_monthly'
       } else if (checkoutAction === 'BUY_BOOSTER') {
         productId = `booster_${boosterCredits}` as BillingProductId
+      } else if (checkoutAction === 'BUY_VIDEO_PACK') {
+        productId = 'video_pack_100'
       } else if (checkoutAction === 'ADD_CONNECTIONS') {
         productId = 'connection_1_monthly'
       } else {
@@ -222,6 +236,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
   const connectionAddon = catalog?.addons.find((addon) => addon.product_id === 'connection_1_monthly')
   const engageAddon = catalog?.addons.find((addon) => addon.product_id === 'engage_monthly')
   const boosterAddons = catalog?.addons.filter((addon) => addon.kind === 'booster') ?? []
+  const videoPackAddon = catalog?.addons.find((addon) => addon.product_id === 'video_pack_100')
   const checkoutPlan = targetTier === 'ADVANCE' ? advancePlan : starterPlan
   const checkoutBooster = boosterAddons.find((addon) => addon.credits === boosterCredits)
 
@@ -345,7 +360,7 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
           </div>
 
           <p className="metric-footnote">
-            ⚡ <strong>{overview.credits.cost_per_draft} credits</strong> per text draft · 🎨 <strong>{overview.credits.cost_per_draft + overview.credits.cost_per_image} credits</strong> with AI image · 🔄 <strong>{catalog?.credit_costs.image_regeneration ?? overview.credits.cost_per_image} credit</strong> image regeneration.
+            ⚡ <strong>{overview.credits.cost_per_draft} credits</strong> per text draft · 🎨 <strong>{overview.credits.cost_per_draft + overview.credits.cost_per_image} credits</strong> with AI image · 🎬 <strong>{overview.credits.cost_per_video} credits</strong> per AI video · 🔄 <strong>{catalog?.credit_costs.image_regeneration ?? overview.credits.cost_per_image} credit</strong> image regeneration.
           </p>
 
           {!isAdmin && (
@@ -536,6 +551,18 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                 </button>
               </div>
             ))}
+            {videoPackAddon && (
+              <div className="booster-item-card video-pack-card">
+                <div className="booster-item-top">
+                  <span className="booster-credits-amount"><Film size={15} /> {videoPackAddon.videos} AI Videos</span>
+                  <span className="booster-price-tag">{formatMoney(videoPackAddon.amount, catalog.currency)}</span>
+                </div>
+                <p className="booster-item-desc">{videoPackAddon.title}. Includes {videoPackAddon.credits} credits for 8-second, 720p video generations.</p>
+                <button type="button" className="metric-action-btn primary" onClick={openVideoPackModal}>
+                  <Film size={14} /> Buy Video Pack ({formatMoney(videoPackAddon.amount, catalog.currency)})
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -616,6 +643,8 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                   ? `Upgrade to ${targetTier === 'ADVANCE' ? 'Premium' : 'Starter'} Plan`
                   : checkoutAction === 'BUY_BOOSTER'
                   ? `Buy ${boosterCredits} AI Booster Credits`
+                  : checkoutAction === 'BUY_VIDEO_PACK'
+                  ? 'Buy 10-Video Creator Pack'
                   : checkoutAction === 'ADD_CONNECTIONS'
                   ? 'Add Extra Social Connection'
                   : 'Unlock Engage Feature'}
@@ -708,6 +737,27 @@ export function ContentBillingTab({ onPlanChanged, view = 'overview' }: Props) {
                         <span>
                           {formatMoney(checkoutBooster?.amount, catalog.currency)}
                         </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {checkoutAction === 'BUY_VIDEO_PACK' && (
+                    <div className="checkout-summary-box">
+                      <div className="summary-row">
+                        <span>Item:</span>
+                        <strong>{videoPackAddon?.title}</strong>
+                      </div>
+                      <div className="summary-row">
+                        <span>Included:</span>
+                        <span>{videoPackAddon?.credits} AI credits · {videoPackAddon?.videos} videos</span>
+                      </div>
+                      <div className="summary-row">
+                        <span>Generation rate:</span>
+                        <span>{overview.credits.cost_per_video} credits per 8-second video</span>
+                      </div>
+                      <div className="summary-row total">
+                        <span>Test amount (no charge):</span>
+                        <span>{formatMoney(videoPackAddon?.amount, catalog.currency)}</span>
                       </div>
                     </div>
                   )}

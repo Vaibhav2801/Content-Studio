@@ -23,6 +23,8 @@ from integrations.social.views import (
     SocialMediaAssetListCreateAPIView,
     SocialMediaRegenerateAPIView,
     SocialMediaReorderAPIView,
+    SocialVideoGenerateAPIView,
+    SocialVideoGenerationJobAPIView,
     SocialPublicMediaAPIView,
     SocialVariantApproveAPIView,
     SocialPostDetailAPIView,
@@ -132,6 +134,16 @@ urlpatterns = [
         "variants/<uuid:variant_id>/media/regenerate-image/",
         SocialMediaRegenerateAPIView.as_view(),
         name="social-media-regenerate",
+    ),
+    path(
+        "variants/<uuid:variant_id>/media/generate-video/",
+        SocialVideoGenerateAPIView.as_view(),
+        name="social-video-generate",
+    ),
+    path(
+        "variants/<uuid:variant_id>/media/video-jobs/<uuid:job_id>/",
+        SocialVideoGenerationJobAPIView.as_view(),
+        name="social-video-job",
     ),
     path(
         "variants/<uuid:variant_id>/approve/",

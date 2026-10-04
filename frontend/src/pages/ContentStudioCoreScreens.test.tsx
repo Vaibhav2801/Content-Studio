@@ -254,7 +254,7 @@ describe('Quilltap core screens', () => {
       is_admin: false,
       can_manage_billing: true,
       connections: { used: 0, limit: 0, unlimited: false, extra_purchased: 0 },
-      credits: { balance: 15, total_allocated: 15, total_used: 0, unlimited: false, cost_per_draft: 2, cost_per_image: 1 },
+      credits: { balance: 15, total_allocated: 15, total_used: 0, unlimited: false, cost_per_draft: 2, cost_per_image: 1, cost_per_video: 10 },
       engage_entitled: false,
       scheduling_unlimited: true,
       transactions: [],

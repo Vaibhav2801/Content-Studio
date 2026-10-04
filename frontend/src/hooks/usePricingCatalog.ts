@@ -25,7 +25,7 @@ function catalogMatchesCountry(catalog: PricingCatalog): boolean {
 function fallbackCatalog(countryCode: string): PricingCatalog {
   const country = countryCode.toUpperCase()
   const region = expectedRegion()
-  const prices = { starter: 14, advance: 20, booster50: '10.00', booster150: '25.00', booster350: '50.00', connection: '5.00', engage: '15.00' }
+  const prices = { starter: 14, advance: 20, booster50: '10.00', booster150: '25.00', booster350: '50.00', videoPack: '25.00', connection: '5.00', engage: '15.00' }
   return {
   country_code: country,
   pricing_region: region,
@@ -33,7 +33,7 @@ function fallbackCatalog(countryCode: string): PricingCatalog {
   currency: 'USD',
   checkout_available: true,
   availability_message: '',
-  credit_costs: { draft: 2, image: 1, image_regeneration: 1 },
+  credit_costs: { draft: 2, image: 1, image_regeneration: 1, video: 10 },
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
     { id: 'starter', name: 'Starter', product_id: 'plan_starter_monthly', price: prices.starter, credits: 50, connections: 1, engage: false },
@@ -44,6 +44,7 @@ function fallbackCatalog(countryCode: string): PricingCatalog {
     { product_id: 'booster_50', kind: 'booster', amount: prices.booster50, credits: 50, title: '50 AI Credit Booster' },
     { product_id: 'booster_150', kind: 'booster', amount: prices.booster150, credits: 150, title: '150 AI Credit Booster' },
     { product_id: 'booster_350', kind: 'booster', amount: prices.booster350, credits: 350, title: '350 AI Credit Booster' },
+    { product_id: 'video_pack_100', kind: 'video_pack', amount: prices.videoPack, credits: 100, videos: 10, title: '10-Video Creator Pack' },
     { product_id: 'connection_1_monthly', kind: 'connection', amount: prices.connection, connections: 1, title: 'Additional Social Connection' },
     { product_id: 'engage_monthly', kind: 'engage', amount: prices.engage, title: 'Engage Automation Suite Add-On' },
   ],

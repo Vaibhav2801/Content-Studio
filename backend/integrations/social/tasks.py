@@ -2,6 +2,9 @@ import logging
 import json
 
 from celery import shared_task
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 
 from integrations.social.services.lifecycle import (
     claim_due_jobs,
@@ -14,6 +17,128 @@ from integrations.social.services.automation import fill_workspace_queue
 
 
 logger = logging.getLogger(__name__)
+
+
+def _fail_video_generation(job, message):
+    from integrations.social.models import VideoGenerationState
+    from integrations.social.services.billing import finalize_credit_reservation
+
+    job.refresh_from_db()
+    if job.status in {VideoGenerationState.COMPLETED, VideoGenerationState.FAILED}:
+        return job
+    job.status = VideoGenerationState.FAILED
+    job.error_message = str(message or "The video could not be generated.")[:500]
+    job.completed_at = timezone.now()
+    job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+    finalize_credit_reservation(job.credit_reservation_id, success=False)
+    return job
+
+
+def process_video_generation_step(job_id):
+    """Advance one provider step; returns PENDING, COMPLETED, FAILED, or NOT_FOUND."""
+    from integrations.social.media import MediaValidationError, store_uploaded_media
+    from integrations.social.models import (
+        MediaAssetSource,
+        VideoGenerationJob,
+        VideoGenerationState,
+    )
+    from integrations.social.services.billing import finalize_credit_reservation
+    from integrations.social.services.videos import GeminiVideoGenerator, VideoGenerationError
+
+    try:
+        job = VideoGenerationJob.objects.select_related("variant__post").get(pk=job_id)
+    except VideoGenerationJob.DoesNotExist:
+        logger.error("VideoGenerationJob %s does not exist.", job_id)
+        return {"status": "NOT_FOUND", "job_id": str(job_id)}
+
+    if job.status == VideoGenerationState.COMPLETED:
+        return {"status": "COMPLETED", "job_id": str(job.id)}
+    if job.status == VideoGenerationState.FAILED:
+        return {"status": "FAILED", "job_id": str(job.id), "error": job.error_message}
+
+    generator = GeminiVideoGenerator()
+    try:
+        if not job.provider_operation_id:
+            operation_id, key_index = generator.start(
+                job.prompt,
+                aspect_ratio=job.aspect_ratio,
+                duration_seconds=job.duration_seconds,
+                resolution=job.resolution,
+            )
+            job.provider_operation_id = operation_id
+            job.provider_metadata = {"key_index": key_index}
+            job.status = VideoGenerationState.SUBMITTED
+            job.error_message = ""
+            job.save(update_fields=[
+                "provider_operation_id", "provider_metadata", "status", "error_message", "updated_at"
+            ])
+            return {"status": "PENDING", "job_id": str(job.id)}
+
+        key_index = int((job.provider_metadata or {}).get("key_index", 0))
+        operation = generator.poll(job.provider_operation_id, key_index=key_index)
+        if not operation.done:
+            if job.status != VideoGenerationState.PROCESSING:
+                job.status = VideoGenerationState.PROCESSING
+                job.save(update_fields=["status", "updated_at"])
+            return {"status": "PENDING", "job_id": str(job.id)}
+        if operation.error:
+            _fail_video_generation(job, operation.error)
+            return {"status": "FAILED", "job_id": str(job.id), "error": job.error_message}
+
+        video_data = generator.download(operation.video_uri, key_index=key_index)
+        uploaded = SimpleUploadedFile(
+            "ai-video.mp4",
+            video_data,
+            content_type="video/mp4",
+        )
+        asset = store_uploaded_media(
+            job.variant,
+            uploaded,
+            alt_text=job.prompt[:500],
+            source=MediaAssetSource.AI,
+        )
+    except MediaValidationError as exc:
+        _fail_video_generation(job, "; ".join(exc.issues))
+        return {"status": "FAILED", "job_id": str(job.id), "error": job.error_message}
+    except VideoGenerationError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected video generation failure for job %s", job.id)
+        _fail_video_generation(job, str(exc))
+        return {"status": "FAILED", "job_id": str(job.id), "error": job.error_message}
+
+    job.output_asset = asset
+    job.status = VideoGenerationState.COMPLETED
+    job.error_message = ""
+    job.completed_at = timezone.now()
+    job.save(update_fields=["output_asset", "status", "error_message", "completed_at", "updated_at"])
+    finalize_credit_reservation(job.credit_reservation_id, success=True)
+    return {"status": "COMPLETED", "job_id": str(job.id), "asset_id": str(asset.id)}
+
+
+@shared_task(bind=True, max_retries=90, name="social.process_video_generation")
+def process_video_generation(self, job_id):
+    from integrations.social.models import VideoGenerationJob
+    from integrations.social.services.videos import VideoGenerationError, VideoProviderUnavailableError
+
+    try:
+        result = process_video_generation_step(job_id)
+    except VideoProviderUnavailableError as exc:
+        if self.request.retries >= self.max_retries:
+            job = VideoGenerationJob.objects.filter(pk=job_id).first()
+            if job:
+                _fail_video_generation(job, "The video provider remained unavailable. Your credits were refunded.")
+            return {"status": "FAILED", "job_id": str(job_id)}
+        raise self.retry(exc=exc, countdown=settings.SOCIAL_VIDEO_POLL_INTERVAL_SECONDS)
+    except VideoGenerationError as exc:
+        job = VideoGenerationJob.objects.filter(pk=job_id).first()
+        if job:
+            _fail_video_generation(job, str(exc))
+        return {"status": "FAILED", "job_id": str(job_id), "error": str(exc)}
+
+    if result["status"] == "PENDING":
+        raise self.retry(countdown=settings.SOCIAL_VIDEO_POLL_INTERVAL_SECONDS)
+    return result
 
 
 @shared_task(name="social.fill_content_queues")

@@ -185,6 +185,14 @@ class MediaAssetSource(models.TextChoices):
     LEGACY = "LEGACY", "Legacy import"
 
 
+class VideoGenerationState(models.TextChoices):
+    QUEUED = "QUEUED", "Queued"
+    SUBMITTED = "SUBMITTED", "Submitted"
+    PROCESSING = "PROCESSING", "Processing"
+    COMPLETED = "COMPLETED", "Completed"
+    FAILED = "FAILED", "Failed"
+
+
 class SocialWorkspaceSettings(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.OneToOneField(
@@ -613,6 +621,59 @@ class MediaAsset(models.Model):
         from integrations.social.media import publish_url_for_asset
 
         return publish_url_for_asset(self)
+
+
+class VideoGenerationJob(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="video_generation_jobs",
+    )
+    variant = models.ForeignKey(
+        SocialPostVariant,
+        on_delete=models.CASCADE,
+        related_name="video_generation_jobs",
+    )
+    credit_reservation = models.OneToOneField(
+        "CreditReservation",
+        on_delete=models.CASCADE,
+        related_name="video_generation_job",
+    )
+    output_asset = models.ForeignKey(
+        MediaAsset,
+        on_delete=models.SET_NULL,
+        related_name="video_generation_jobs",
+        null=True,
+        blank=True,
+    )
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    prompt = models.TextField()
+    provider = models.CharField(max_length=30, default="gemini")
+    model = models.CharField(max_length=100)
+    aspect_ratio = models.CharField(max_length=10, default="16:9")
+    resolution = models.CharField(max_length=20, default="720p")
+    duration_seconds = models.PositiveSmallIntegerField(default=8)
+    credits_charged = models.PositiveSmallIntegerField(default=10)
+    status = models.CharField(
+        max_length=20,
+        choices=VideoGenerationState.choices,
+        default=VideoGenerationState.QUEUED,
+        db_index=True,
+    )
+    provider_operation_id = models.CharField(max_length=500, blank=True, default="")
+    provider_metadata = models.JSONField(default=dict, blank=True)
+    error_message = models.CharField(max_length=500, blank=True, default="")
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["workspace", "status", "created_at"], name="social_video_ws_status_idx"),
+            models.Index(fields=["variant", "status"], name="social_video_variant_idx"),
+        ]
 
 
 class PublishJob(models.Model):

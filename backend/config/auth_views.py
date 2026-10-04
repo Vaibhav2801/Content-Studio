@@ -30,16 +30,12 @@ def _payload(request):
 def _session_data(user):
     if not user.is_authenticated:
         return {"authenticated": False, "user": None, "workspace": None}
-    membership = (
-        WorkspaceMembership.objects.select_related("workspace")
-        .filter(user=user, is_active=True)
-        .first()
-    )
     memberships = list(
         WorkspaceMembership.objects.select_related("workspace")
         .filter(user=user)
         .order_by("workspace__name", "created_at")
     )
+    membership = next((item for item in memberships if item.is_active), None)
     return {
         "authenticated": True,
         "user": {

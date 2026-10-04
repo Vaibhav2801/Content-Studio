@@ -13,6 +13,7 @@ const socialBase = (import.meta.env.VITE_SOCIAL_API_BASE_URL as string | undefin
 const baseUrl = socialBase.replace(/\/social\/?$/, '/auth')
 
 let sessionCsrfToken = ''
+let sessionRequest: Promise<AuthSession> | null = null
 
 export function csrfToken(): string | undefined {
   const value = document.cookie.split('; ').find((item) => item.startsWith('csrftoken='))?.split('=')[1]
@@ -39,17 +40,22 @@ async function request(path: string, options: RequestInit = {}): Promise<AuthSes
 }
 
 export const authApi = {
-  session: () => request('/session/'),
+  session: () => {
+    if (!sessionRequest) {
+      sessionRequest = request('/session/').finally(() => { sessionRequest = null })
+    }
+    return sessionRequest
+  },
   signup: async (data: { name: string; email: string; password: string; workspace_name: string }) => {
-    await authApi.session() // Django sets the CSRF cookie before any unsafe request.
+    if (!csrfToken()) await authApi.session() // Django sets the CSRF cookie before the first unsafe request.
     return request('/signup/', { method: 'POST', body: JSON.stringify(data) })
   },
   signin: async (data: { email: string; password: string }) => {
-    await authApi.session()
+    if (!csrfToken()) await authApi.session()
     return request('/signin/', { method: 'POST', body: JSON.stringify(data) })
   },
   signout: async () => {
-    await authApi.session()
+    if (!csrfToken()) await authApi.session()
     return request('/signout/', { method: 'POST', body: '{}' })
   },
   createWorkspace: (name: string) => request('/workspaces/', { method: 'POST', body: JSON.stringify({ name }) }),

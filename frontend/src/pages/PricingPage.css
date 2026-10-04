@@ -1043,3 +1043,13 @@
     flex-wrap: wrap;
   }
 }
+.video-pack-box {
+  border-color: #8b7bea !important;
+  background: linear-gradient(145deg, #fbfaff, #f2efff) !important;
+}
+
+.video-pack-box p {
+  margin: 0;
+  color: #716b88;
+  font-size: .74rem;
+}

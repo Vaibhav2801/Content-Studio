@@ -51,6 +51,7 @@ export function PricingPage() {
   const connectionPrice = Number(catalog?.addons.find((addon) => addon.product_id === 'connection_1_monthly')?.amount ?? 0)
   const engagePrice = Number(catalog?.addons.find((addon) => addon.product_id === 'engage_monthly')?.amount ?? 0)
   const smallestBooster = catalog?.addons.find((addon) => addon.product_id === 'booster_50')
+  const videoPack = catalog?.addons.find((addon) => addon.product_id === 'video_pack_100')
 
   const extraConnections = Math.max(0, connections - baseIncludedConns)
   const extraConnectionsCost = extraConnections * connectionPrice
@@ -232,6 +233,15 @@ export function PricingPage() {
                   <Link to={primaryPath} className="booster-item-btn">Buy Credits</Link>
                 </div>
               ))}
+              {videoPack && (
+                <div className="booster-item-box video-pack-box" key={videoPack.product_id}>
+                  <div className="booster-item-name">{videoPack.title}</div>
+                  <div className="booster-item-credits">{videoPack.videos} AI Videos</div>
+                  <div className="booster-item-price">{formatMoney(videoPack.amount, catalog.currency)}</div>
+                  <p>{videoPack.credits} credits · {catalog.credit_costs.video} credits per 8-second video</p>
+                  <Link to={primaryPath} className="booster-item-btn">Get Video Pack</Link>
+                </div>
+              )}
               {pricingError && <p role="alert">{pricingError}</p>}
             </div>
           </div>

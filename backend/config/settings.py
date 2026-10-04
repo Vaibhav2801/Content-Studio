@@ -265,7 +265,7 @@ else:
     if database_url:
         default_db_config = dj_database_url.parse(
             database_url,
-            conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 0)),
+            conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 300)),
             ssl_require=os.environ.get("DB_SSL_REQUIRE", "False").lower() in ("true", "1", "yes") or "supabase" in database_url,
         )
     else:
@@ -571,6 +571,19 @@ GEMINI_API_KEYS = tuple(
 )
 GEMINI_IMAGE_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image").strip()
 GEMINI_IMAGE_SIZE = os.environ.get("GEMINI_IMAGE_SIZE", "1K").strip().upper()
+SOCIAL_GENERATE_VIDEOS = _env_bool("SOCIAL_GENERATE_VIDEOS", False)
+GEMINI_VIDEO_MODEL = os.environ.get(
+    "GEMINI_VIDEO_MODEL", "veo-3.1-fast-generate-preview"
+).strip()
+SOCIAL_VIDEO_HTTP_TIMEOUT_SECONDS = _bounded_env_int(
+    "SOCIAL_VIDEO_HTTP_TIMEOUT_SECONDS", 30, 5, 120
+)
+SOCIAL_VIDEO_DOWNLOAD_TIMEOUT_SECONDS = _bounded_env_int(
+    "SOCIAL_VIDEO_DOWNLOAD_TIMEOUT_SECONDS", 120, 30, 300
+)
+SOCIAL_VIDEO_POLL_INTERVAL_SECONDS = _bounded_env_int(
+    "SOCIAL_VIDEO_POLL_INTERVAL_SECONDS", 10, 5, 60
+)
 CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
 CLOUDFLARE_ACCOUNT_IDS = tuple(

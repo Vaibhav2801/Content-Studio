@@ -58,6 +58,8 @@ from integrations.social.models import (
     SocialWorkspaceSettings,
     SocialAuditEventType,
     StoryInterview,
+    VideoGenerationJob,
+    VideoGenerationState,
     VoiceRuleSuggestion,
     VoiceRuleSuggestionState,
 )
@@ -162,6 +164,8 @@ from integrations.social.services.billing import (
     finalize_credit_reservation,
     reserve_credits,
 )
+from integrations.social.services.videos import video_provider_status
+from integrations.social.tasks import process_video_generation
 
 
 logger = logging.getLogger(__name__)
@@ -1550,6 +1554,143 @@ class SocialMediaRegenerateAPIView(SocialWorkspaceScopedAPIView):
         finalize_credit_reservation(reservation.id, success=True)
 
         return Response(MediaAssetSerializer(asset).data, status=201)
+
+
+def serialize_video_generation_job(job):
+    return {
+        "id": str(job.id),
+        "variant_id": str(job.variant_id),
+        "status": job.status,
+        "prompt": job.prompt,
+        "aspect_ratio": job.aspect_ratio,
+        "resolution": job.resolution,
+        "duration_seconds": job.duration_seconds,
+        "credits_charged": job.credits_charged,
+        "error_message": job.error_message,
+        "asset": MediaAssetSerializer(job.output_asset).data if job.output_asset_id else None,
+        "created_at": job.created_at.isoformat(),
+        "updated_at": job.updated_at.isoformat(),
+    }
+
+
+class SocialVideoGenerateAPIView(SocialWorkspaceScopedAPIView):
+    parser_classes = [JSONParser]
+
+    def post(self, request, variant_id):
+        variant = self.variant(request, variant_id)
+        workspace = variant.post.workspace
+        provider = video_provider_status()
+        if not provider["ready"]:
+            return Response(
+                {"detail": provider["detail"], "code": "video_generation_not_configured"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if variant.media_assets.exists():
+            return Response(
+                {
+                    "detail": "Remove the current image, video, or document before generating a video.",
+                    "code": "media_already_exists",
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        prompt = str(request.data.get("prompt") or "").strip()
+        if len(prompt) < 10:
+            return Response({"prompt": ["Describe the video in at least 10 characters."]}, status=400)
+        if len(prompt) > 1500:
+            return Response({"prompt": ["Keep the video prompt to 1,500 characters or fewer."]}, status=400)
+        aspect_ratio = str(request.data.get("aspect_ratio") or "").strip()
+        if not aspect_ratio:
+            aspect_ratio = "9:16" if variant.network == SocialNetwork.INSTAGRAM else "16:9"
+        if aspect_ratio not in {"16:9", "9:16"}:
+            return Response({"aspect_ratio": ["Choose landscape (16:9) or vertical (9:16)."]}, status=400)
+
+        active = variant.video_generation_jobs.filter(
+            status__in=(
+                VideoGenerationState.QUEUED,
+                VideoGenerationState.SUBMITTED,
+                VideoGenerationState.PROCESSING,
+            )
+        ).first()
+        if active:
+            return Response(serialize_video_generation_job(active), status=200)
+
+        video_cost = PRICING_CATALOG["credit_costs"]["video"]
+        has_credits, balance = check_credit_quota(workspace, video_cost, request.user)
+        if not has_credits:
+            return Response(
+                {
+                    "detail": f"Insufficient AI credits. One video requires {video_cost} credits.",
+                    "code": "insufficient_credits",
+                    "balance": balance,
+                    "required": video_cost,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+        request_key = str(request.headers.get("Idempotency-Key") or uuid.uuid4())[:120]
+        idempotency_key = f"video-generation:{variant.id}:{request_key}"
+        existing = VideoGenerationJob.objects.filter(
+            workspace=workspace, idempotency_key=idempotency_key
+        ).first()
+        if existing:
+            return Response(serialize_video_generation_job(existing), status=200)
+
+        reservation, balance = reserve_credits(
+            workspace=workspace,
+            amount=video_cost,
+            action_type="VIDEO_GENERATION",
+            description=f"Generated AI video for post '{variant.post.idea_title or 'Untitled Post'}'",
+            post=variant.post,
+            user=request.user if request.user and request.user.is_authenticated else None,
+            idempotency_key=idempotency_key,
+        )
+        if reservation is None:
+            return Response(
+                {
+                    "detail": "Insufficient AI credits.",
+                    "code": "insufficient_credits",
+                    "balance": balance,
+                    "required": video_cost,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+        job = VideoGenerationJob.objects.create(
+            workspace=workspace,
+            variant=variant,
+            credit_reservation=reservation,
+            idempotency_key=idempotency_key,
+            prompt=prompt,
+            model=django_settings.GEMINI_VIDEO_MODEL,
+            aspect_ratio=aspect_ratio,
+            resolution="720p",
+            duration_seconds=8,
+            credits_charged=video_cost,
+        )
+        try:
+            process_video_generation.delay(str(job.id))
+        except Exception:
+            logger.exception("Could not dispatch video generation job %s", job.id)
+            job.status = VideoGenerationState.FAILED
+            job.error_message = "Video generation could not be started. Your credits were refunded."
+            job.completed_at = timezone.now()
+            job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+            finalize_credit_reservation(reservation.id, success=False)
+            return Response(
+                {"detail": job.error_message, "code": "video_dispatch_failed"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(serialize_video_generation_job(job), status=status.HTTP_202_ACCEPTED)
+
+
+class SocialVideoGenerationJobAPIView(SocialWorkspaceScopedAPIView):
+    def get(self, request, variant_id, job_id):
+        variant = self.variant(request, variant_id)
+        job = get_object_or_404(
+            VideoGenerationJob.objects.select_related("output_asset"),
+            pk=job_id,
+            variant=variant,
+            workspace=variant.post.workspace,
+        )
+        return Response(serialize_video_generation_job(job))
 
 
 class SocialVariantApproveAPIView(SocialWorkspaceScopedAPIView):

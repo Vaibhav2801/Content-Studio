@@ -484,3 +484,14 @@
   background: #f9fafb;
   border-top: 1px solid #f3f4f6;
 }
+.video-pack-card {
+  border-color: #8b7bea !important;
+  background: linear-gradient(145deg, #fbfaff, #f2efff) !important;
+}
+
+.video-pack-card .booster-credits-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5e49c8;
+}

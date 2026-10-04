@@ -20,7 +20,7 @@ const catalog: PricingCatalog = {
   currency: 'USD',
   checkout_available: true,
   availability_message: '',
-  credit_costs: { draft: 2, image: 1, image_regeneration: 1 },
+  credit_costs: { draft: 2, image: 1, image_regeneration: 1, video: 10 },
   simulated_checkout_enabled: false,
   plans: [
     { id: 'free', name: 'Free', product_id: null, price: 0, credits: 15, connections: 0, engage: false },
