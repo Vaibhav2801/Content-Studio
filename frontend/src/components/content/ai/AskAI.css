@@ -561,3 +561,33 @@
     max-height: calc(100vh - 78px);
   }
 }
+
+@media (max-width: 400px) {
+  .ask-ai-header-trigger,
+  .ask-ai-floating-trigger {
+    width: 33px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .ask-ai-trigger-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ask-ai-drawer {
+    inset: 60px 0 0;
+    max-width: none;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+}

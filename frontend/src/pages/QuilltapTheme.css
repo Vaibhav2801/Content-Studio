@@ -464,6 +464,15 @@ body {
   .studio-page-heading h1 { font-size: 1.8rem; }
 }
 
+/* Keep the themed width override from defeating the shell's mobile drawer. */
+@media (max-width: 820px) {
+  .studio-sidebar {
+    flex-basis: auto;
+    width: min(290px, 86vw);
+    max-width: calc(100vw - 24px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-brand .brand-icon,
   .pricing-brand > span,
