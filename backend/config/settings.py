@@ -126,6 +126,8 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL", "Quilltap <visiofytech@gmail.com>"
 ).strip()
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "visiofytech@gmail.com").strip()
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", DEFAULT_FROM_EMAIL).strip()
 
 
 # Application definition
