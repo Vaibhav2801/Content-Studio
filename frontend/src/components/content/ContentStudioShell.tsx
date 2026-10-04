@@ -206,7 +206,7 @@ export function ContentStudioShell() {
       <aside className={`studio-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="studio-sidebar-top">
           <Link className="studio-brand" to="/content" aria-label="Quilltap home">
-            <img className="studio-brand-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+            <img className="studio-brand-icon" src="/sidebar-logo.svg" alt="" aria-hidden="true" />
             <span className="studio-brand-wordmark" aria-hidden="true">
               Quill<span>tap</span>
             </span>

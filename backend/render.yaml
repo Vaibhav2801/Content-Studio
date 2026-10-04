@@ -49,7 +49,7 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
-        value: "Quilltap Support <support@mail.quilltap.com>"
+        value: "Quilltap Support <support@quilltap.com>"
       - key: SUPPORT_EMAIL
         value: visiofytech@gmail.com
       - key: GEMINI_API_KEY
