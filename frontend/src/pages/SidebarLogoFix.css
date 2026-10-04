@@ -1,0 +1,7 @@
+.studio-brand .quilltap-logo {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 4px 10px rgba(13, 8, 20, 0.2));
+}
