@@ -315,6 +315,19 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       const saved = isDemo ? settingsDraft : await linkedinApi.saveSettings(settingsDraft)
       setDashboard((current) => current ? { ...current, settings: saved } : current)
       setSettingsDraft(saved)
+      setOnboarding((current) => current ? {
+        ...current,
+        business: {
+          name: saved.page_name,
+          description: saved.company_description,
+          audience: saved.audience,
+          language: saved.language,
+        },
+        business_profile_configured: Boolean(
+          saved.page_name.trim() && saved.page_name.trim() !== 'Your business'
+          && saved.company_description.trim() && saved.audience.trim(),
+        ),
+      } : current)
       setNotice(isDemo ? 'Demo settings updated for this visit.' : 'Quilltap settings saved.')
       return true
     } catch (error) { fail(error, 'Could not save settings.'); return false }

@@ -23,6 +23,8 @@
 .auth-form-kicker { color: #7165bb; }
 .auth-form-wrap h2 { margin: 17px 0 8px; font-family: Manrope, 'DM Sans', sans-serif; font-size: clamp(29px, 3vw, 39px); font-weight: 650; letter-spacing: -.05em; line-height: 1.17; }
 .auth-form-intro { margin: 0 0 33px; color: #73758b; font-size: 15px; line-height: 1.6; }
+.auth-next-step { display: flex; align-items: flex-start; gap: 9px; margin: -20px 0 27px; padding: 11px 13px; border: 1px solid #e3defb; border-radius: 10px; color: #635c80; background: #f6f3ff; font-size: 12px; line-height: 1.5; }
+.auth-next-step svg { flex: none; margin-top: 1px; color: #6656df; }
 .auth-form-wrap form { display: grid; gap: 18px; }
 .auth-form-wrap label { display: grid; gap: 9px; color: #33364c; font-size: 13px; font-weight: 600; }
 .auth-form-wrap label small { color: #989bad; font-weight: 400; }

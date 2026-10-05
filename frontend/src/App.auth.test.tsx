@@ -83,6 +83,7 @@ describe('Quilltap authentication routes', () => {
     window.history.replaceState({}, '', '/signup')
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
+    expect(screen.getByText(/Next, you’ll add a short brand profile/i)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Alex Morgan' } })
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'alex@example.com' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'AnEvenStrongerPassword42!' } })

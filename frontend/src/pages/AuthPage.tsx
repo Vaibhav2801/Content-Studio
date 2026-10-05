@@ -65,6 +65,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
         <span className="auth-form-kicker">{isSignup ? 'START YOUR WORKSPACE' : 'WELCOME BACK'}</span>
         <h2>{isSignup ? 'Create your account' : 'Sign in to Quilltap'}</h2>
         <p className="auth-form-intro">{isSignup ? 'A fresh space for your ideas, drafts, and connected channels.' : 'Pick up where your last great idea left off.'}</p>
+        {isSignup && <p className="auth-next-step"><Check size={15} /> Next, you’ll add a short brand profile so Quilltap can write for your business and audience.</p>}
         <form onSubmit={(event) => void submit(event)}>
           {isSignup && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex Morgan" required maxLength={150} /></label>}
           <label>Email address<span className="auth-input-icon"><Mail size={18} /><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required maxLength={150} /></span></label>

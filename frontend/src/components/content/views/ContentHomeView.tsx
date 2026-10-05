@@ -6,6 +6,7 @@ import {
   CircleAlert,
   FileText,
   Link2,
+  Palette,
   Plus,
   Settings2,
   Sparkles,
@@ -25,7 +26,7 @@ const workflow = [
 ]
 
 export function ContentHomeView() {
-  const { settingsDraft, isDemo, busy, toggleAutomation } = useContentStudio()
+  const { onboarding, settingsDraft, isDemo, busy, toggleAutomation } = useContentStudio()
   const [summary, setSummary] = useState<HomeSummary | null>(null)
   const [error, setError] = useState('')
   const [retryKey, setRetryKey] = useState(0)
@@ -54,6 +55,7 @@ export function ContentHomeView() {
   const attentionCount = failures.length + (summary?.connections_needing_attention ?? 0)
   const hasActivity = Boolean(summary && (summary.needs_approval.length || summary.upcoming.length || summary.recent_drafts?.length || failures.length))
   const totals = summary?.totals
+  const needsBrandProfile = !onboarding.business_profile_configured && !onboarding.business_prompt_skipped
 
   return <section className="studio-screen studio-home" aria-label="Quilltap overview">
     <section className="studio-home-hero" aria-labelledby="studio-home-hero-title">
@@ -77,6 +79,16 @@ export function ContentHomeView() {
         </div>
       </div>
     </section>
+
+    {needsBrandProfile && <section className="card studio-brand-profile-prompt" aria-labelledby="brand-profile-prompt-title">
+      <span className="studio-brand-profile-icon"><Palette size={22} /></span>
+      <div>
+        <span className="studio-brand-profile-eyebrow">RECOMMENDED BEFORE YOUR FIRST POST</span>
+        <h2 id="brand-profile-prompt-title">Create your brand profile</h2>
+        <p>Add your business, audience, and voice so Quilltap can create content that sounds like you. You can update it anytime.</p>
+      </div>
+      <Link className="button button-dark" to="/content/library?panel=brand">Create brand profile <ArrowRight size={16} /></Link>
+    </section>}
 
     <div className="studio-publishing-bar card">
       <div className="studio-publishing-state">

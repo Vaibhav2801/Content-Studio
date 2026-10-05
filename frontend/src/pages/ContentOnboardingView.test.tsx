@@ -39,11 +39,28 @@ describe('Quilltap onboarding', () => {
   })
 
   it('opens Home without forcing the four-step wizard on first use', async () => {
-    vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({ status: 'NOT_STARTED' }))
+    vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({
+      status: 'NOT_STARTED',
+      business_profile_configured: false,
+      business_prompt_skipped: false,
+    }))
     renderOnboarding()
     expect(await screen.findByRole('heading', { name: 'Good content starts here.' }, { timeout: 5000 })).toBeInTheDocument()
     expect(contentOnboardingApi.start).not.toHaveBeenCalled()
     expect(screen.queryByText('Step 1 of 4')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Create your brand profile' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Create brand profile/i })).toHaveAttribute('href', '/content/library?panel=brand')
+  })
+
+  it('hides the brand profile prompt after the user skips it', async () => {
+    vi.spyOn(contentOnboardingApi, 'get').mockResolvedValue(inProgress({
+      status: 'NOT_STARTED',
+      business_profile_configured: false,
+      business_prompt_skipped: true,
+    }))
+    renderOnboarding()
+    expect(await screen.findByRole('heading', { name: 'Good content starts here.' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Create your brand profile' })).not.toBeInTheDocument()
   })
 
   it('goes back to saved business data without losing it', async () => {

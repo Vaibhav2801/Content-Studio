@@ -192,6 +192,13 @@ button, input, select, textarea { font-family: var(--font-geist-sans); }
 .studio-art-card i { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; color: #6b56d6; background: #ede7ff; font-size: 9px; font-style: normal; font-weight: 650; }
 .studio-art-card strong { color: #363152; font-size: 11px; }
 .studio-art-card small { margin-left: auto; color: #8985a2; font-size: 9px; }
+.studio-brand-profile-prompt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 15px; padding: 18px 20px; border-color: #dcd4fb; background: linear-gradient(105deg, #fbf9ff, #f4f0ff); }
+.studio-brand-profile-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; color: #6754d8; background: #fff; box-shadow: 0 7px 18px #51449918; }
+.studio-brand-profile-prompt > div { min-width: 0; }
+.studio-brand-profile-eyebrow { color: #806fd0; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.studio-brand-profile-prompt h2 { margin: 4px 0 3px; color: #302b4b; font-size: 15px; letter-spacing: -.025em; }
+.studio-brand-profile-prompt p { max-width: 680px; margin: 0; color: #77758a; font-size: 11px; line-height: 1.5; }
+.studio-brand-profile-prompt .button { white-space: nowrap; }
 .studio-publishing-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 72px; padding: 13px 20px; }
 .studio-publishing-state, .studio-publishing-actions { display: flex; align-items: center; gap: 12px; }
 .studio-publishing-state > div { display: grid; gap: 3px; }
@@ -1456,6 +1463,8 @@ button, input, select, textarea { font-family: var(--font-geist-sans); }
   .connections-hero-card { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 620px) {
+  .studio-brand-profile-prompt { grid-template-columns: auto minmax(0, 1fr); }
+  .studio-brand-profile-prompt .button { grid-column: 2; justify-self: start; }
   .connect-options-head { padding: 20px 18px 17px; }
   .connect-options-title { align-items: flex-start; gap: 11px; }
   .connect-options-icon { width: 38px; height: 38px; border-radius: 11px; }
