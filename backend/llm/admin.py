@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
-from unfold.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin
 from llm.models import LLMPrompt, PromptRun, AgentConfig
 
 

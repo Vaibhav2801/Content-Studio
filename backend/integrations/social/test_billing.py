@@ -217,6 +217,18 @@ class BillingApiTests(TestCase):
             response = self.client.get(reverse("social-billing-invoices"))
             self.assertEqual(response.status_code, expected)
 
+    def test_subscription_overview_returns_free_plan_for_non_admin_user(self):
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(reverse("social-billing-subscription"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["tier"], WorkspaceTier.FREE)
+        self.assertEqual(response.data["role_label"], "Free")
+        self.assertTrue(response.data["can_manage_billing"])
+        self.assertEqual(response.data["credits"]["balance"], 15)
+        self.assertEqual(response.data["connections"]["limit"], 0)
+
     def test_webhook_rejects_invalid_signature(self):
         response = self.client.post(
             reverse("social-billing-webhook"), b"{}", content_type="application/json",

@@ -134,9 +134,6 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", DEFAULT_FROM_EMAIL).stri
 
 INSTALLED_APPS = [
     'daphne',
-    'unfold',
-    'unfold.contrib.filters',
-    'unfold.contrib.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -169,20 +166,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
-
-# ── Django Unfold Admin UI Configuration ──────────────────────────────────────
-UNFOLD = {
-    "SITE_TITLE": "Quilltap",
-    "SITE_HEADER": "Quilltap Admin",
-    "SITE_SUBHEADER": "Content publishing and workspace management",
-    "SITE_URL": "/",
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": False,
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": True,
-    },
-}
 
 TEMPLATES = [
     {

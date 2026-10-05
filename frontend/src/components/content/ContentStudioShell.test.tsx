@@ -64,6 +64,10 @@ describe('Quilltap sidebar', () => {
     expect(screen.queryByRole('link', { name: 'Create post' })).not.toBeInTheDocument()
     expect(screen.queryByText('Ready when you are')).not.toBeInTheDocument()
     expect(within(navigation).queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Plan & usage/i })).toHaveAttribute(
+      'href',
+      '/content/settings?tab=plan',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Open profile menu' }))
     const menu = screen.getByRole('menu', { name: 'Profile and settings' })

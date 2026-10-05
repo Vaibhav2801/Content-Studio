@@ -8,11 +8,19 @@ services:
     dockerfilePath: ./Dockerfile
     dockerCommand: bash scripts/run_web.sh
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: DB_CONN_MAX_AGE
         value: "300"
+      # GitHub scheduled workflows can be delayed for hours. While this free
+      # instance is running, a small self-request keeps its inbound idle timer
+      # below Render's 15-minute spin-down threshold.
+      - key: RENDER_SELF_KEEPALIVE_ENABLED
+        value: "True"
+      - key: RENDER_SELF_KEEPALIVE_INTERVAL_SECONDS
+        value: "600"
       - key: REDIS_URL
         fromService:
           type: redis

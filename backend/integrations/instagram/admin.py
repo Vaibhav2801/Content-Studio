@@ -1,5 +1,5 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin
 from integrations.instagram.models import (
     InstagramAccount,
     InstagramOAuthState,

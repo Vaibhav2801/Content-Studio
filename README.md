@@ -28,6 +28,8 @@ Zernio is the default provider for every Content Studio social network. Configur
 
 The Direct Assistance form uses Resend's HTTPS API in production because Render Free blocks outbound SMTP ports. Verify `quilltap.com` in Resend, then add `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `SUPPORT_EMAIL` to the `nomad-bot-web` environment. SMTP remains available as a fallback on hosts that permit it.
 
+The Render web service enables a lightweight self keep-alive every 10 minutes, with the scheduled GitHub health check as a backup. This prevents normal 15-minute idle spin-downs on the free plan, but Render can still restart free instances and continuously running the service consumes the workspace's included free instance hours. Use a paid Render instance when guaranteed production uptime is required.
+
 The backend retains legacy workspace models and historical migrations because Content Studio data depends on them. The public prospecting and separate LLM analytics routes are disabled.
 
 ## Verify

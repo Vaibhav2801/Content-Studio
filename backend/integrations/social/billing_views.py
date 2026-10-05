@@ -15,7 +15,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from integrations.social.models import BillingInvoice, ConnectionState, SocialConnection
+from integrations.social.models import (
+    BillingInvoice,
+    ConnectionState,
+    SocialConnection,
+    WorkspaceTier,
+)
 from integrations.social.services.billing import (
     PRICING_CATALOG,
     can_manage_billing,

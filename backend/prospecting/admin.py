@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.db.models import Count
-from unfold.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin
 
 from integrations.social.models import ContentStudioOnboarding, SocialWorkspaceSettings
 from .models import Workspace, WorkspaceMembership

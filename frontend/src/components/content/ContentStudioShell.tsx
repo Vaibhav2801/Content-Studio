@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
+  CreditCard,
   Home,
   Link2,
   MessageCircleMore,
@@ -250,6 +251,26 @@ export function ContentStudioShell() {
         </nav>
 
         <div className="studio-sidebar-bottom">
+          <Link
+            className="studio-plan-shortcut"
+            to="/content/settings?tab=plan"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <span className="studio-plan-shortcut-icon"><CreditCard size={17} /></span>
+            <span className="studio-plan-shortcut-copy">
+              <strong>Plan &amp; usage</strong>
+              <small>
+                {billingOverview
+                  ? billingOverview.credits.unlimited
+                    ? `${billingOverview.role_label} plan · Unlimited credits`
+                    : `${billingOverview.role_label} plan · ${billingOverview.credits.balance} credits left`
+                  : 'Credits, limits, and upgrades'}
+              </small>
+            </span>
+            {billingOverview && !billingOverview.is_admin && billingOverview.tier === 'FREE'
+              ? <span className="studio-plan-shortcut-badge">Upgrade</span>
+              : <ChevronRight size={15} />}
+          </Link>
           {auth?.user && <div className="studio-profile" ref={profileMenuRef}>
             {profileMenuOpen && <div className="studio-profile-menu" role="menu" aria-label="Profile and settings">
               <div className="studio-profile-summary">

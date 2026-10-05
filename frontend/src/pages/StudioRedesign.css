@@ -67,6 +67,15 @@ button, input, select, textarea { font-family: var(--font-geist-sans); }
 .studio-nav-count { display: grid; place-items: center; min-width: 21px; height: 20px; margin-left: auto; padding: 0 5px; border-radius: 7px; color: #fff; background: #7665ec; font-size: 10px; }
 .studio-setup-link { margin-top: -7px; }
 .studio-sidebar-bottom { position: relative; z-index: 1; flex: none; display: grid; margin-top: 0; padding-top: 11px; border-top: 1px solid #ffffff12; background: linear-gradient(180deg, #14162e 0%, #101226 100%); }
+.studio-plan-shortcut { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 9px; margin-bottom: 6px; padding: 8px 7px; border: 1px solid #ffffff12; border-radius: 11px; color: #fff; background: linear-gradient(110deg, #8169eb24, #ff9f8420); text-decoration: none; }
+.studio-plan-shortcut:hover { border-color: #b8a9ff55; background: linear-gradient(110deg, #8169eb36, #ff9f8430); }
+.studio-plan-shortcut-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: #d8d0ff; background: #8e76ef2b; }
+.studio-plan-shortcut-copy { display: grid; min-width: 0; gap: 1px; }
+.studio-plan-shortcut-copy strong, .studio-plan-shortcut-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-plan-shortcut-copy strong { font-size: 11.5px; }
+.studio-plan-shortcut-copy small { color: #9da0ba; font-size: 9px; }
+.studio-plan-shortcut > svg { color: #858aa9; }
+.studio-plan-shortcut-badge { padding: 3px 6px; border-radius: 99px; color: #fff4ef; background: #d96f5680; font-size: 8.5px; font-weight: 700; letter-spacing: .02em; }
 .studio-profile { position: relative; }
 .studio-profile-trigger { display: grid; grid-template-columns: 34px minmax(0, 1fr) 18px; align-items: center; gap: 9px; width: 100%; padding: 7px; border: 1px solid transparent; border-radius: 11px; color: #fff; background: transparent; text-align: left; cursor: pointer; }
 .studio-profile-trigger:hover, .studio-profile-trigger[aria-expanded="true"] { border-color: #ffffff16; background: #ffffff0d; }
