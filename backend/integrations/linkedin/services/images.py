@@ -5,7 +5,9 @@ from django.conf import settings
 
 
 GEMINI_ASPECT_RATIOS = {
-    "4:5": "ASPECT_RATIO_FOUR_BY_FIVE",
+    "4:5": "4:5",
+    "1.91:1": "16:9",
+    "16:9": "16:9",
 }
 PLATFORM_IMAGE_SPECS = {
     "LINKEDIN": {"ratio": "1.91:1", "width": 1024, "height": 536},
@@ -13,10 +15,10 @@ PLATFORM_IMAGE_SPECS = {
     "INSTAGRAM": {"ratio": "4:5", "width": 1024, "height": 1280},
 }
 GEMINI_IMAGE_SIZES = {
-    "512": "IMAGE_SIZE_FIVE_TWELVE",
-    "1K": "IMAGE_SIZE_ONE_K",
-    "2K": "IMAGE_SIZE_TWO_K",
-    "4K": "IMAGE_SIZE_FOUR_K",
+    "512": "512",
+    "1K": "1K",
+    "2K": "2K",
+    "4K": "4K",
 }
 
 
@@ -157,19 +159,23 @@ class LinkedInImageGenerator:
         }.get(str(network), "social media")
         spec = PLATFORM_IMAGE_SPECS.get(str(network), PLATFORM_IMAGE_SPECS["LINKEDIN"])
         return f"""
-Create one premium editorial image for a {platform} post.
-
-CORE VISUAL IDEA
+Create one finished, visually engaging artwork for a {platform} post depicting the following scene.
 {prompt.strip()}
 
-ART DIRECTION
-- Use a single clear focal concept that communicates the idea in under two seconds.
-- Compose specifically for a {spec['ratio']} feed canvas with generous breathing room and safe margins.
-- Make the subject concrete and relevant; avoid generic office teams, handshakes, floating UI screens, and random charts.
-- Use restrained, intentional colors, realistic materials and lighting, and a polished campaign-quality finish.
-- Keep the background simple enough that the image remains legible on a phone.
-- No words, captions, letters, numbers, logos, watermarks, interface chrome, borders, or split-screen collage.
-- Do not invent product screenshots, customer identities, statistics, awards, or brand marks.
+Use a single clear focal concept that communicates the idea in under two seconds.
+Compose for a {spec['ratio']} feed canvas with breathing room and safe margins. Keep essential details in the central 80% of the frame.
+Follow the supplied brand visual style, palette and medium: photography, illustration or dimensional artwork
+according to that direction. Make the subject concrete and recognizable, with a purposeful action or meaningful
+detail connected to the post. Establish hierarchy through intentional color contrast, depth, believable textures,
+and deliberate lighting. Keep the background simple enough to read on a phone. Produce a polished campaign-quality finish.
+
+The finished artwork is entirely pictorial: any paper, cards or other surfaces are blank and unmarked.
+Use coherent, physically plausible objects. If people appear, use natural anatomy; exclude disconnected hands,
+extra fingers or limbs, and impossible object intersections.
+Exclude all lettering, printed documents, words, captions, numbers, logos, watermarks and interface screens.
+Do not depict this prompt, its headings, a page of instructions, or a screenshot. Avoid generic office teams,
+handshakes, random charts, unrelated props, borders, or split-screen collage. Never invent customer identities,
+product screenshots, statistics, awards or brand marks.
 
 Return only the final image.
 """.strip()
@@ -212,12 +218,16 @@ Return only the final image.
 
     def _generate_cloudflare(self, post_id, prompt, *, spec):
         model = settings.CLOUDFLARE_IMAGE_MODEL
+        steps = settings.CLOUDFLARE_IMAGE_STEPS
+        # FLUX.2 dev needs more than the four-step setting intended for distilled models.
+        if model == "@cf/black-forest-labs/flux-2-dev":
+            steps = max(25, steps)
         # FLUX.2 models require multipart form data, including for prompt-only requests.
         if model.startswith("@cf/black-forest-labs/flux-2"):
             response_kwargs = {
                 "files": {
                     "prompt": (None, prompt),
-                    "steps": (None, str(settings.CLOUDFLARE_IMAGE_STEPS)),
+                    "steps": (None, str(steps)),
                     "width": (None, str(spec["width"])),
                     "height": (None, str(spec["height"])),
                 },
@@ -226,7 +236,7 @@ Return only the final image.
             response_kwargs = {
                 "json": {
                     "prompt": prompt,
-                    "steps": settings.CLOUDFLARE_IMAGE_STEPS,
+                    "steps": steps,
                 },
             }
         credentials = _cloudflare_credentials()
@@ -286,8 +296,8 @@ Return only the final image.
             "generationConfig": {
                 "responseModalities": ["IMAGE"],
                 "responseFormat": {"image": {
-                    "aspectRatio": GEMINI_ASPECT_RATIOS["4:5"],
-                    "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "IMAGE_SIZE_ONE_K"),
+                    "aspectRatio": GEMINI_ASPECT_RATIOS[spec["ratio"]],
+                    "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "1K"),
                 }},
             },
         }
@@ -328,7 +338,7 @@ Return only the final image.
                 json={
                     "model": settings.OPENAI_IMAGE_MODEL,
                     "prompt": prompt,
-                    "size": "1024x1536",
+                    "size": "1024x1536" if spec["height"] > spec["width"] else "1536x1024",
                     "quality": settings.OPENAI_IMAGE_QUALITY,
                     "output_format": "png",
                 },

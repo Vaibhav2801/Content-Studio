@@ -106,6 +106,36 @@ class LinkedInContentGeneratorTests(TestCase):
 
 
 class LinkedInImageGeneratorTests(TestCase):
+    @override_settings(LINKEDIN_GENERATE_IMAGES=True, LINKEDIN_IMAGE_PROVIDER="openai", OPENAI_API_KEY="test-key")
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_openai_uses_platform_orientation_and_brand_aware_art_direction(self, request_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"data": [{"b64_json": base64.b64encode(b"image-bytes").decode("ascii")}]}
+        request_post.return_value = response
+        for network, expected_size in (("LINKEDIN", "1536x1024"), ("X", "1536x1024"), ("INSTAGRAM", "1024x1536")):
+            with self.subTest(network=network):
+                LinkedInImageGenerator().generate("post-id", "Navy cut-paper route illustration", network=network)
+                payload = request_post.call_args.kwargs["json"]
+                self.assertEqual(payload["size"], expected_size)
+                self.assertIn("supplied brand visual style", payload["prompt"])
+                self.assertIn("central 80%", payload["prompt"])
+
+    @override_settings(LINKEDIN_GENERATE_IMAGES=True, LINKEDIN_IMAGE_PROVIDER="gemini", GEMINI_API_KEY="test-key", GEMINI_IMAGE_SIZE="2K")
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_gemini_uses_supported_platform_aspect_ratio_values(self, request_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"candidates": [{"content": {"parts": [{"inlineData": {
+            "data": base64.b64encode(b"image-bytes").decode("ascii"), "mimeType": "image/png",
+        }}]}}]}
+        request_post.return_value = response
+        for network, expected_ratio in (("LINKEDIN", "16:9"), ("X", "16:9"), ("INSTAGRAM", "4:5")):
+            with self.subTest(network=network):
+                LinkedInImageGenerator().generate("post-id", "An intentional route illustration", network=network)
+                image_format = request_post.call_args.kwargs["json"]["generationConfig"]["responseFormat"]["image"]
+                self.assertEqual(image_format, {"aspectRatio": expected_ratio, "imageSize": "2K"})
+
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,
         LINKEDIN_IMAGE_PROVIDER="cloudflare",
@@ -136,6 +166,7 @@ class LinkedInImageGeneratorTests(TestCase):
         self.assertEqual(request.kwargs["headers"], {"Authorization": "Bearer cloudflare-token"})
         self.assertEqual(request.kwargs["files"]["width"], (None, "1024"))
         self.assertEqual(request.kwargs["files"]["height"], (None, "536"))
+        self.assertEqual(request.kwargs["files"]["steps"], (None, "25"))
         self.assertEqual(image_data, b"cloudflare-image")
         self.assertEqual(metadata["provider"], "cloudflare")
         self.assertEqual(metadata["model"], "@cf/black-forest-labs/flux-2-dev")
@@ -238,12 +269,12 @@ class LinkedInImageGeneratorTests(TestCase):
         }
         request_post.return_value = response
 
-        url, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A bridge representing trust")
+        url, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A bridge representing trust", network="INSTAGRAM")
 
         payload = request_post.call_args.kwargs["json"]
         image_format = payload["generationConfig"]["responseFormat"]["image"]
-        self.assertEqual(image_format["aspectRatio"], "ASPECT_RATIO_FOUR_BY_FIVE")
-        self.assertEqual(image_format["imageSize"], "IMAGE_SIZE_ONE_K")
+        self.assertEqual(image_format["aspectRatio"], "4:5")
+        self.assertEqual(image_format["imageSize"], "1K")
         self.assertIn("single clear focal concept", payload["contents"][0]["parts"][0]["text"])
         self.assertEqual(image_data, b"image-bytes")
         self.assertEqual(metadata["provider"], "gemini")

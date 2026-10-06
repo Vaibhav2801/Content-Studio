@@ -74,6 +74,26 @@ describe('Quilltap', () => {
     expect(screen.queryByRole('link', { name: /new post/i })).not.toBeInTheDocument()
   })
 
+  it('explains brand defaults and preserves chosen length when the objective changes', async () => {
+    const options = structuredClone(socialComposerMockOptions)
+    options.generation_controls.length_targets = {
+      LINKEDIN: {
+        Short: { minimum_characters: 250, maximum_characters: 600 },
+        Medium: { minimum_characters: 800, maximum_characters: 1400 },
+        Long: { minimum_characters: 1800, maximum_characters: 2600 },
+      },
+    }
+    vi.mocked(socialComposerApi.options).mockResolvedValue(options)
+    renderStudio('/content/create?new=1')
+    await screen.findByRole('heading', { name: 'Create a social post' })
+    fireEvent.click(screen.getByText('Customize this post'))
+    const length = screen.getByLabelText('Length')
+    fireEvent.change(length, { target: { value: 'Long' } })
+    fireEvent.change(screen.getByLabelText('Objective'), { target: { value: 'Engagement' } })
+    expect(length).toHaveValue('Long')
+    expect(screen.getByRole('link', { name: 'Brand Profile' })).toHaveAttribute('href', '/content/library?panel=brand')
+  })
+
   it('creates a reviewable sequence from one series brief', async () => {
     const first = { ...makeDemoPost('Launch guide — Part 1', 'First lesson', ['LINKEDIN']), id: 'series-1' }
     const second = { ...makeDemoPost('Launch guide — Part 2', 'Second lesson', ['LINKEDIN']), id: 'series-2' }

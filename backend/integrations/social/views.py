@@ -108,6 +108,7 @@ from integrations.social.services.composer import (
     sync_draft_networks,
     update_post,
 )
+from integrations.social.services.editorial import LENGTH_TARGETS, length_requirement
 from integrations.social.services.knowledge import (
     approve_story,
     brand_brain_for,
@@ -431,6 +432,10 @@ class SocialComposerOptionsAPIView(SocialWorkspaceScopedAPIView):
                 "tones": ["Professional", "Friendly", "Bold", "Educational"],
                 "goals": ["Awareness", "Engagement", "Education", "Leads"],
                 "lengths": ["Short", "Medium", "Long"],
+                "length_targets": {
+                    network: {length: length_requirement(network, length) for length in targets}
+                    for network, targets in LENGTH_TARGETS.items()
+                },
             },
         })
 

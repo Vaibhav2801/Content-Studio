@@ -53,7 +53,12 @@ export interface ComposerOptions {
   connections: ComposerConnection[]
   sources: ComposerSource[]
   drafts: ComposerDraftSummary[]
-  generation_controls: { tones: GenerationControls['tone'][]; goals: GenerationControls['goal'][]; lengths: GenerationControls['length'][] }
+  generation_controls: {
+    tones: GenerationControls['tone'][]
+    goals: GenerationControls['goal'][]
+    lengths: GenerationControls['length'][]
+    length_targets?: Partial<Record<SocialNetwork, Record<GenerationControls['length'], { minimum_characters: number; maximum_characters: number }>>>
+  }
 }
 
 export interface VariantValidation {
