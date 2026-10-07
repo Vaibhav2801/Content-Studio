@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { linkedinApi, LinkedInApiError } from '../api/linkedin'
@@ -279,6 +279,29 @@ describe('Quilltap', () => {
     expect(await screen.findByText('Created 2 platform-specific drafts.')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'LinkedIn' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'X' })).toBeInTheDocument()
+  })
+
+  it('keeps the composer visibly generating when the API returns a pending blank draft', async () => {
+    const pending = { ...makeDemoPost('Customer onboarding', 'New customer onboarding workflow', ['LINKEDIN']), generation_status: 'GENERATING' as const }
+    pending.variants = pending.variants.map((variant) => ({ ...variant, copy: '' }))
+    vi.mocked(socialComposerApi.createDraft).mockResolvedValue(pending)
+    vi.spyOn(socialComposerApi, 'generate').mockResolvedValue(pending)
+    vi.mocked(socialComposerApi.getPost).mockResolvedValue(pending)
+
+    renderStudio('/content/create?new=1')
+    fireEvent.change(await screen.findByPlaceholderText(/Share the point/i), { target: { value: 'New customer onboarding workflow' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Generate$/i }))
+
+    await waitFor(() => expect(socialComposerApi.generate).toHaveBeenCalled())
+    await act(async () => { await Promise.resolve() })
+
+    expect(screen.getByText('Creating your platform drafts')).toBeInTheDocument()
+    expect(screen.getByText('Generating post…')).toBeInTheDocument()
+    expect(screen.queryByText('All changes saved')).not.toBeInTheDocument()
+    const generateButton = screen.getByRole('button', { name: 'Generating' })
+    expect(generateButton).toBeDisabled()
+    expect(generateButton).toHaveAttribute('aria-busy', 'true')
+    expect(generateButton).toHaveTextContent('Generating…')
   })
 
   it('starts a blank post from Home while Create remains resumable', async () => {

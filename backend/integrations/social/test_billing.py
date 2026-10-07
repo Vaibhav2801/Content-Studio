@@ -356,8 +356,10 @@ class GenerationCreditRefundTests(TestCase):
             )
         post.refresh_from_db()
         reservation.refresh_from_db()
-        self.assertEqual(result["status"], "FAILED")
-        self.assertEqual(post.metadata["generation_status"], "FAILED")
+        self.assertEqual(result["status"], "READY")
+        self.assertIn("warning", result)
+        self.assertEqual(post.metadata["generation_status"], "READY")
+        self.assertIn("image provider", post.metadata["generation_warning"])
         self.assertEqual(reservation.status, CreditReservationStatus.REFUNDED)
         self.assertEqual(CreditAccount.objects.get(workspace=workspace).balance, 15)
 

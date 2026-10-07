@@ -272,6 +272,7 @@ class IntelligentRouter(BaseLLMProvider):
 
         # Cost estimation per 1k tokens
         cost_map = {
+            "gemini-3.8-flash": (0.00075, 0.00375),
             "gemini-3.7-flash": (0.0001, 0.0004),
             "gemini-3.6-flash": (0.0001, 0.0004),
             "gemini-3.5-flash": (0.0001, 0.0004),

@@ -237,6 +237,7 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
         # Generate images if requested or required for the platform
         should_gen_image = bool(controls.get("include_image")) if controls else False
         image_gen = None
+        image_errors = []
         for variant in post.variants.all():
             if (should_gen_image or variant.network == "INSTAGRAM") and not variant.media_assets.exists():
                 try:
@@ -274,20 +275,37 @@ def generate_post_variants(post_id, networks=None, controls=None, connection_ids
                         source=MediaAssetSource.AI,
                     )
                     logger.info("Successfully generated image for variant %s", variant.id)
-                except Exception:
+                except Exception as image_exc:
                     logger.exception("Required image generation failed for variant %s", variant.id)
-                    raise
+                    image_errors.append(f"{variant.network}: {image_exc}")
+                    variant.refresh_from_db()
+                    variant_metadata = dict(variant.metadata or {})
+                    variant_metadata["image_generation_status"] = "FAILED"
+                    variant_metadata["image_generation_error"] = str(image_exc)[:1000]
+                    variant.metadata = variant_metadata
+                    variant.save(update_fields=["metadata", "updated_at"])
 
         post.refresh_from_db()
         metadata = dict(post.metadata or {})
         metadata["generation_status"] = "READY"
         metadata["generation_error"] = ""
+        if image_errors:
+            metadata["generation_warning"] = "Text was generated, but the image provider could not create the requested media."
+        else:
+            metadata.pop("generation_warning", None)
         post.metadata = metadata
         post.save(update_fields=["metadata", "updated_at"])
         if reservation_id:
-            finalize_credit_reservation(reservation_id, success=True)
+            # The reservation includes both copy and media. Refund it when the
+            # requested image was not delivered instead of charging for a
+            # partially completed generation.
+            finalize_credit_reservation(reservation_id, success=not image_errors)
         logger.info("Successfully generated post variants for post %s", post_id)
-        return {"status": "READY", "post_id": post_id}
+        return {
+            "status": "READY",
+            "post_id": post_id,
+            **({"warning": metadata["generation_warning"]} if image_errors else {}),
+        }
     except Exception as exc:
         logger.exception("Failed to generate post variants for post %s: %s", post_id, exc)
         post.refresh_from_db()

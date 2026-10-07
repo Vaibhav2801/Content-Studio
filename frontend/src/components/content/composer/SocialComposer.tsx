@@ -210,7 +210,7 @@ export function SocialComposer({ onPostChange }: Props) {
       if (custom.detail && (!livePost.current || custom.detail.id === livePost.current.id)) {
         adoptPost(custom.detail)
         setBusy('')
-        setNotice('Your generated post is ready to review.')
+        setNotice(custom.detail.generation_warning || 'Your generated post is ready to review.')
       }
     }
     const onFailed = (event: Event) => {
@@ -340,7 +340,7 @@ export function SocialComposer({ onPostChange }: Props) {
       if (isReady && current.variants.some((variant) => variant.copy.trim())) {
         if (recovery.generating) finishComposerGeneration(recoveryKey, id)
         setBusy('')
-        setNotice(recovery.generating ? 'Your generated post is ready to review.' : '')
+        setNotice(current.generation_warning || (recovery.generating ? 'Your generated post is ready to review.' : ''))
         return
       }
 
@@ -489,6 +489,8 @@ export function SocialComposer({ onPostChange }: Props) {
 
     let generatingId = ''
 
+    let generationPending = false
+
     try {
 
       let current = livePost.current
@@ -516,6 +518,7 @@ export function SocialComposer({ onPostChange }: Props) {
       const isStillGenerating = !isDemo && (generated.generation_status === 'GENERATING' || !generated.variants.some((v) => v.copy.trim()))
 
       if (isStillGenerating) {
+        generationPending = true
         adoptPost(generated)
         setSaveState('SAVED')
         setBusy('generate')
@@ -534,7 +537,7 @@ export function SocialComposer({ onPostChange }: Props) {
       if (generatingId) finishComposerGeneration(recoveryKey, generatingId)
       adoptPost(generated); setSaveState('SAVED')
       const usedFallback = generated.variants.some((variant) => variant.metadata.generation_status === 'FALLBACK')
-      setNotice(imageWarning ? 'The drafts are ready, but one or more images need attention.' : usedFallback ? 'Drafts were created, but one or more used the safe fallback because AI output could not be validated.' : 'Created ' + generated.variants.length + ' platform-specific ' + (generated.variants.length === 1 ? 'draft' : 'drafts') + '.')
+      setNotice(imageWarning ? 'The drafts are ready, but one or more images need attention.' : generated.generation_warning || (usedFallback ? 'Drafts were created, but one or more used the safe fallback because AI output could not be validated.' : 'Created ' + generated.variants.length + ' platform-specific ' + (generated.variants.length === 1 ? 'draft' : 'drafts') + '.'))
 
 
     } catch (generateError) {
@@ -545,7 +548,12 @@ export function SocialComposer({ onPostChange }: Props) {
 
       setError(message)
 
-    } finally { setBusy('') }
+    } finally {
+      // A 202 response only acknowledges that the worker has started. Keep the
+      // composer in its generating state until the shared poller reports READY
+      // or FAILED; otherwise an empty draft is exposed as if generation ended.
+      if (!generationPending) setBusy('')
+    }
 
   }
 
@@ -858,13 +866,13 @@ export function SocialComposer({ onPostChange }: Props) {
     </div>
 
     <div className="composer-action-bar" aria-label="Composer actions">
-      <div className="composer-action-status"><span className={`save-indicator ${saveState.toLowerCase()}`}>{saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : generationReady ? 'Ready to create' : 'Finish the essentials above'}</span><small>{!hasChannels ? 'Select at least one social account.' : !hasDirection ? 'Add an idea or select a saved source.' : mode === 'manual' ? 'Start writing, then preview and publish.' : `Generation will use ${generationCost} credits.`}</small></div>
+      <div className="composer-action-status"><span className={`save-indicator ${saveState.toLowerCase()}`}>{busy === 'generate' ? 'Generating post…' : saveState === 'SAVING' ? 'Saving changes…' : saveState === 'UNSAVED' ? 'Unsaved changes' : post ? 'All changes saved' : generationReady ? 'Ready to create' : 'Finish the essentials above'}</span><small>{busy === 'generate' ? 'Your saved draft will update when generation finishes.' : !hasChannels ? 'Select at least one social account.' : !hasDirection ? 'Add an idea or select a saved source.' : mode === 'manual' ? 'Start writing, then preview and publish.' : `Generation will use ${generationCost} credits.`}</small></div>
       <button className="li-quiet-button" type="button" disabled={Boolean(busy) || saveState === 'SAVING' || !networks.length} aria-busy={saveState === 'SAVING'} onClick={() => void persist()}>
         {saveState === 'SAVING' ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {mode === 'manual' && !post ? 'Start writing' : 'Save draft'}
       </button>
       {mode !== 'manual' && (
         <div className="composer-generate-action">
-          <button className="button button-dark" type="button" aria-label={post ? 'Regenerate' : 'Generate'} disabled={Boolean(busy) || !generationReady} aria-busy={busy === 'generate'} onClick={() => void generate()}>
+          <button className="button button-dark" type="button" aria-label={busy === 'generate' ? 'Generating' : post ? 'Regenerate' : 'Generate'} disabled={Boolean(busy) || !generationReady} aria-busy={busy === 'generate'} onClick={() => void generate()}>
             {busy === 'generate' ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}
             {busy === 'generate' ? ' Generating…' : post ? ' Regenerate' : ' Generate drafts'}
           </button>

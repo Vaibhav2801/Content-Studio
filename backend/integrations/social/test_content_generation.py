@@ -104,6 +104,21 @@ class SocialContentQualityTests(TestCase):
         variant.refresh_from_db()
         self.assertEqual(variant.copy, "An existing draft to keep.")
 
+    def test_usable_output_is_preserved_as_fallback_after_editorial_revision(self):
+        first = self.draft(500, hook=self.post.idea_title)
+        revised = self.draft(380, hook=self.post.idea_title)
+        self.router.generate.side_effect = [
+            {"type": "structured", "data": {"LINKEDIN": first}, "provider": "google", "model": "gemini-test"},
+            {"type": "structured", "data": {"LINKEDIN": revised}, "provider": "google", "model": "gemini-test"},
+        ]
+
+        result = self.generate("Short")["LINKEDIN"]
+
+        self.assertEqual(normalized_text(result["copy"]), normalized_text(first["copy"]))
+        self.assertEqual(result["metadata"]["generation_status"], "FALLBACK")
+        self.assertEqual(result["metadata"]["generation_provider"], "google")
+        self.assertTrue(result["metadata"]["editorial_issues"])
+
     def test_provider_failure_is_reported_without_another_editorial_request(self):
         self.router.generate.return_value = {"type": "error", "text": "Provider unavailable"}
         with self.assertRaisesRegex(RuntimeError, "generation is unavailable"):

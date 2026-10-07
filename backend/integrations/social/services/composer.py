@@ -371,6 +371,7 @@ class SocialContentGenerator:
         prompt = self._prompt(post, networks, controls, settings, brand, source_text, recent_posts)
         generated = {}
         pending = list(networks)
+        fallback_candidates = {}
         # One targeted editorial revision; the router already handles provider failover.
         for attempt in range(2):
             try:
@@ -396,6 +397,24 @@ class SocialContentGenerator:
                     platform_limit=COPY_LIMITS[network],
                 )
                 if issues:
+                    requirement = length_requirement(network, controls["length"])
+                    copy_length = len(item["copy"])
+                    length_distance = (
+                        requirement["minimum_characters"] - copy_length
+                        if copy_length < requirement["minimum_characters"]
+                        else max(0, copy_length - requirement["maximum_characters"])
+                    )
+                    candidate = {
+                        "item": item,
+                        "issues": issues,
+                        "provider": str(result.get("provider") or ""),
+                        "model": str(result.get("model") or ""),
+                        "attempt": attempt,
+                        "score": (len(issues), length_distance),
+                    }
+                    existing = fallback_candidates.get(network)
+                    if existing is None or candidate["score"] < existing["score"]:
+                        fallback_candidates[network] = candidate
                     revisions[network] = issues
                     previous[network] = item
                     continue
@@ -416,7 +435,46 @@ class SocialContentGenerator:
             prompt += f"\nPREVIOUS DRAFTS TO REVISE (reference only)\n{json.dumps(previous, ensure_ascii=False)}"
             prompt += f"\nOPENINGS ALREADY ACCEPTED; DO NOT REPEAT\n{json.dumps([first_line(entry['copy']) for entry in generated.values()], ensure_ascii=False)}"
             prompt += "\nReturn complete revised drafts only for the requested networks. Fix every listed issue while retaining verified meaning and brand voice."
-        labels = ", ".join(NETWORK_LABELS[network] for network in pending)
+
+        # Do not throw away useful, platform-safe copy just because a soft
+        # editorial target (for example exact length or hook originality) was
+        # still missed after the revision request. Return the best candidate as
+        # an explicit fallback so the user can edit it and image generation can
+        # continue. Empty, tiny, over-limit, or image-incomplete output remains
+        # a hard failure.
+        fallback_failed = []
+        for network in pending:
+            candidate = fallback_candidates.get(network)
+            if candidate is None:
+                fallback_failed.append(network)
+                continue
+            item = candidate["item"]
+            requirement = length_requirement(network, controls["length"])
+            copy_length = len(item["copy"])
+            minimum_usable_length = max(40, int(requirement["minimum_characters"] * 0.4))
+            complete_length = copy_length + sum(len(tag) + 1 for tag in item["hashtags"])
+            needs_image = controls["include_image"] or network == SocialNetwork.INSTAGRAM
+            if (
+                copy_length < minimum_usable_length
+                or complete_length > COPY_LIMITS[network]
+                or (needs_image and len(item["metadata"]["image_prompt"]) < 120)
+            ):
+                fallback_failed.append(network)
+                continue
+            item["metadata"].update({
+                "generation_status": "FALLBACK",
+                "generation_provider": candidate["provider"],
+                "generation_model": candidate["model"],
+                "editorial_revision": bool(candidate["attempt"]),
+                "editorial_issues": candidate["issues"],
+                "length_target": requirement,
+                "character_count": copy_length,
+            })
+            generated[network] = item
+        if not fallback_failed:
+            return generated
+
+        labels = ", ".join(NETWORK_LABELS[network] for network in fallback_failed)
         raise RuntimeError(f"The {labels} draft did not meet the requested length or editorial requirements after revision. Your draft is saved; please try again or add more specific source details.")
 
     @staticmethod

@@ -130,11 +130,15 @@ class LinkedInImageGeneratorTests(TestCase):
             "data": base64.b64encode(b"image-bytes").decode("ascii"), "mimeType": "image/png",
         }}]}}]}
         request_post.return_value = response
-        for network, expected_ratio in (("LINKEDIN", "16:9"), ("X", "16:9"), ("INSTAGRAM", "4:5")):
+        for network, expected_ratio in (
+            ("LINKEDIN", "ASPECT_RATIO_SIXTEEN_BY_NINE"),
+            ("X", "ASPECT_RATIO_SIXTEEN_BY_NINE"),
+            ("INSTAGRAM", "ASPECT_RATIO_FOUR_BY_FIVE"),
+        ):
             with self.subTest(network=network):
                 LinkedInImageGenerator().generate("post-id", "An intentional route illustration", network=network)
                 image_format = request_post.call_args.kwargs["json"]["generationConfig"]["responseFormat"]["image"]
-                self.assertEqual(image_format, {"aspectRatio": expected_ratio, "imageSize": "2K"})
+                self.assertEqual(image_format, {"aspectRatio": expected_ratio, "imageSize": "IMAGE_SIZE_TWO_K"})
 
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,
@@ -241,14 +245,59 @@ class LinkedInImageGeneratorTests(TestCase):
         OPENAI_API_KEY="",
     )
     @patch("integrations.linkedin.services.images.requests.post")
-    def test_auto_does_not_fall_back_to_gemini(self, request_post):
+    def test_auto_uses_gemini_when_other_providers_are_unavailable(self, request_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "candidates": [{"content": {"parts": [{"inlineData": {
+                "mimeType": "image/png",
+                "data": base64.b64encode(b"gemini-image").decode("ascii"),
+            }}]}}],
+        }
+        request_post.return_value = response
+
         url, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A delivery route")
 
-        request_post.assert_not_called()
-        self.assertEqual(metadata["status"], "not_configured")
-        self.assertIn("CLOUDFLARE_ACCOUNT_ID", metadata["detail"])
-        self.assertEqual(url, "")
-        self.assertEqual(image_data, b"")
+        self.assertIn("gemini-3.1-flash-image", request_post.call_args.args[0])
+        self.assertEqual(metadata["provider"], "gemini")
+        self.assertEqual(image_data, b"gemini-image")
+        self.assertIn("post-id", url)
+
+    @override_settings(
+        LINKEDIN_GENERATE_IMAGES=True,
+        LINKEDIN_IMAGE_PROVIDER="auto",
+        CLOUDFLARE_ACCOUNT_ID="account-id",
+        CLOUDFLARE_ACCOUNT_IDS=("account-id",),
+        CLOUDFLARE_API_TOKEN="exhausted-token",
+        CLOUDFLARE_API_TOKENS=("exhausted-token",),
+        CLOUDFLARE_IMAGE_MODEL="@cf/black-forest-labs/flux-2-dev",
+        GEMINI_API_KEY="gemini-key",
+        GEMINI_API_KEYS=(),
+        GEMINI_IMAGE_MODEL="gemini-3.1-flash-image",
+        OPENAI_API_KEY="",
+    )
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_auto_falls_back_to_gemini_after_cloudflare_quota_error(self, request_post):
+        exhausted = Mock(status_code=429)
+        exhausted.raise_for_status.side_effect = requests.HTTPError(response=exhausted)
+        exhausted.json.return_value = {"errors": [{"message": "Quota exhausted"}]}
+        available = Mock()
+        available.raise_for_status.return_value = None
+        available.json.return_value = {
+            "candidates": [{"content": {"parts": [{"inlineData": {
+                "mimeType": "image/png",
+                "data": base64.b64encode(b"gemini-fallback-image").decode("ascii"),
+            }}]}}],
+        }
+        request_post.side_effect = [exhausted, available]
+
+        _, metadata, image_data = LinkedInImageGenerator().generate("post-id", "A delivery route")
+
+        self.assertEqual(request_post.call_count, 2)
+        self.assertIn("api.cloudflare.com", request_post.call_args_list[0].args[0])
+        self.assertIn("generativelanguage.googleapis.com", request_post.call_args_list[1].args[0])
+        self.assertEqual(metadata["provider"], "gemini")
+        self.assertEqual(image_data, b"gemini-fallback-image")
 
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,
@@ -273,8 +322,8 @@ class LinkedInImageGeneratorTests(TestCase):
 
         payload = request_post.call_args.kwargs["json"]
         image_format = payload["generationConfig"]["responseFormat"]["image"]
-        self.assertEqual(image_format["aspectRatio"], "4:5")
-        self.assertEqual(image_format["imageSize"], "1K")
+        self.assertEqual(image_format["aspectRatio"], "ASPECT_RATIO_FOUR_BY_FIVE")
+        self.assertEqual(image_format["imageSize"], "IMAGE_SIZE_ONE_K")
         self.assertIn("single clear focal concept", payload["contents"][0]["parts"][0]["text"])
         self.assertEqual(image_data, b"image-bytes")
         self.assertEqual(metadata["provider"], "gemini")

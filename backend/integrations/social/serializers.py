@@ -113,6 +113,7 @@ class SocialPostSerializer(serializers.ModelSerializer):
     creative_brief = serializers.SerializerMethodField()
     generation_status = serializers.SerializerMethodField()
     generation_error = serializers.SerializerMethodField()
+    generation_warning = serializers.SerializerMethodField()
     variants = SocialPostVariantSerializer(many=True, read_only=True)
 
     class Meta:
@@ -127,6 +128,7 @@ class SocialPostSerializer(serializers.ModelSerializer):
             "state",
             "generation_status",
             "generation_error",
+            "generation_warning",
             "controls",
             "creative_brief",
             "variants",
@@ -146,6 +148,10 @@ class SocialPostSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_generation_error(obj):
         return obj.metadata.get("generation_error", "")
+
+    @staticmethod
+    def get_generation_warning(obj):
+        return obj.metadata.get("generation_warning", "")
 
     @staticmethod
     def get_controls(obj):

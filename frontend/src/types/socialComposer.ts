@@ -143,6 +143,7 @@ export interface SocialPost {
   state: SocialPostState
   generation_status?: PostGenerationStatus
   generation_error?: string
+  generation_warning?: string
   controls: GenerationControls
   creative_brief: CreativeBrief
   variants: SocialVariant[]

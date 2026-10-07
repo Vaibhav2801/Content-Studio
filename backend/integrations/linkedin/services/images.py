@@ -5,9 +5,9 @@ from django.conf import settings
 
 
 GEMINI_ASPECT_RATIOS = {
-    "4:5": "4:5",
-    "1.91:1": "16:9",
-    "16:9": "16:9",
+    "4:5": "ASPECT_RATIO_FOUR_BY_FIVE",
+    "1.91:1": "ASPECT_RATIO_SIXTEEN_BY_NINE",
+    "16:9": "ASPECT_RATIO_SIXTEEN_BY_NINE",
 }
 PLATFORM_IMAGE_SPECS = {
     "LINKEDIN": {"ratio": "1.91:1", "width": 1024, "height": 536},
@@ -15,10 +15,10 @@ PLATFORM_IMAGE_SPECS = {
     "INSTAGRAM": {"ratio": "4:5", "width": 1024, "height": 1280},
 }
 GEMINI_IMAGE_SIZES = {
-    "512": "512",
-    "1K": "1K",
-    "2K": "2K",
-    "4K": "4K",
+    "512": "IMAGE_SIZE_FIVE_TWELVE",
+    "1K": "IMAGE_SIZE_ONE_K",
+    "2K": "IMAGE_SIZE_TWO_K",
+    "4K": "IMAGE_SIZE_FOUR_K",
 }
 
 
@@ -124,18 +124,22 @@ def image_provider_status():
         ready, label, missing = bool(settings.OPENAI_API_KEY), "OpenAI image", "OPENAI_API_KEY"
     else:
         cloudflare_ready = bool(_cloudflare_credentials())
+        gemini_ready = bool(_gemini_keys())
         ready = bool(
             cloudflare_ready
+            or gemini_ready
             or settings.OPENAI_API_KEY
         )
         label = (
             "Cloudflare AI image"
             if cloudflare_ready
+            else "Gemini image"
+            if gemini_ready
             else "OpenAI image"
             if settings.OPENAI_API_KEY
             else "Automatic image provider"
         )
-        missing = "Cloudflare account/token credentials or OPENAI_API_KEY"
+        missing = "Cloudflare account/token credentials, GEMINI_API_KEY, or OPENAI_API_KEY"
     return {
         "ready": ready,
         "label": label,
@@ -194,8 +198,7 @@ Return only the final image.
                 if provider == "cloudflare":
                     raise
                 errors.append(f"Cloudflare: {exc}")
-        # Gemini remains available only for installations that explicitly select it.
-        if provider == "gemini" and _gemini_keys():
+        if provider in {"auto", "gemini"} and _gemini_keys():
             try:
                 return self._generate_gemini(post_id, directed_prompt, spec=spec)
             except Exception as exc:
@@ -213,7 +216,7 @@ Return only the final image.
             raise RuntimeError("; ".join(errors))
         return "", {
             "status": "not_configured",
-            "detail": "Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN or OPENAI_API_KEY",
+            "detail": "Add Cloudflare account/token credentials, GEMINI_API_KEY, or OPENAI_API_KEY",
         }, b""
 
     def _generate_cloudflare(self, post_id, prompt, *, spec):
@@ -297,7 +300,7 @@ Return only the final image.
                 "responseModalities": ["IMAGE"],
                 "responseFormat": {"image": {
                     "aspectRatio": GEMINI_ASPECT_RATIOS[spec["ratio"]],
-                    "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "1K"),
+                    "imageSize": GEMINI_IMAGE_SIZES.get(settings.GEMINI_IMAGE_SIZE, "IMAGE_SIZE_ONE_K"),
                 }},
             },
         }

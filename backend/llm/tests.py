@@ -569,13 +569,13 @@ class LLMGenericModelRoutingTestCase(TestCase):
         from llm.registry import get_pool_models
 
         simple_models = [m.model_name for m in get_pool_models(LLMComplexity.SIMPLE)]
-        self.assertEqual(simple_models[0], "gemini-3.1-flash-lite")
+        self.assertEqual(simple_models[0], "gemini-3.5-flash-lite")
 
         standard_models = [m.model_name for m in get_pool_models(LLMComplexity.STANDARD)]
-        self.assertEqual(standard_models[0], "gemini-3.5-flash")
+        self.assertEqual(standard_models[0], "gemini-3.5-flash-lite")
 
         complex_models = [m.model_name for m in get_pool_models(LLMComplexity.COMPLEX)]
-        self.assertEqual(complex_models[0], "gemini-3.7-flash")
+        self.assertEqual(complex_models[0], "gemini-3.5-flash-lite")
 
     def test_structured_output_schema_validation_and_fallback(self):
         from llm.router import IntelligentRouter
@@ -587,15 +587,15 @@ class LLMGenericModelRoutingTestCase(TestCase):
 
         # Mock adapters: first model returns bad json schema, second returns valid schema
         bad_adapter = MagicMock()
-        bad_adapter.model_name = "gemini-3.7-flash"
+        bad_adapter.model_name = "gemini-3.5-flash-lite"
         bad_adapter.generate.return_value = {"type": "text", "text": "{\"invalid\": \"json\"}"}
 
         good_adapter = MagicMock()
-        good_adapter.model_name = "gemini-3.6-flash"
+        good_adapter.model_name = "gemini-3.8-flash"
         good_adapter.generate.return_value = {"type": "text", "text": "{\"summary\": \"Valid\", \"score\": 95}"}
 
         def mock_get_adapter(cfg):
-            if cfg.model_name == "gemini-3.7-flash":
+            if cfg.model_name == "gemini-3.5-flash-lite":
                 return bad_adapter
             return good_adapter
 
@@ -620,7 +620,7 @@ class LLMGenericModelRoutingTestCase(TestCase):
 
         router = IntelligentRouter()
         auth_adapter = MagicMock()
-        auth_adapter.model_name = "gemini-3.7-flash"
+        auth_adapter.model_name = "gemini-3.5-flash-lite"
         auth_adapter.generate.return_value = {"type": "error", "status_code": 401, "text": "Unauthorized API Key"}
 
         with patch.object(router, "_get_adapter_for_model", return_value=auth_adapter):
@@ -647,7 +647,7 @@ class LLMGenericModelRoutingTestCase(TestCase):
 
         # Mock adapter to return quota exceeded error
         quota_adapter = MagicMock()
-        quota_adapter.model_name = "gemini-3.7-flash"
+        quota_adapter.model_name = "gemini-3.5-flash-lite"
         quota_adapter.generate.return_value = {
             "type": "error",
             "status_code": 429,
@@ -656,18 +656,18 @@ class LLMGenericModelRoutingTestCase(TestCase):
 
         # Mock second adapter in the pool to succeed
         success_adapter = MagicMock()
-        success_adapter.model_name = "gemini-3.6-flash"
+        success_adapter.model_name = "gemini-3.8-flash"
         success_adapter.generate.return_value = {"type": "text", "text": "Success fallback"}
 
         def mock_get_adapter(cfg):
-            if cfg.model_name == "gemini-3.7-flash":
+            if cfg.model_name == "gemini-3.5-flash-lite":
                 return quota_adapter
             return success_adapter
 
         with patch.object(router, "_get_adapter_for_model", side_effect=mock_get_adapter), \
              patch('time.sleep') as mock_sleep:
             
-            # First request: gemini-3.7-flash fails with quota exceeded, router should fall back to gemini-3.6-flash
+            # First request: the lite model fails with quota, then the router uses Gemini 3.8 Flash.
             req = LLMRequest(
                 operation=LLMOperation.GENERATE,
                 complexity=LLMComplexity.COMPLEX,
@@ -678,23 +678,23 @@ class LLMGenericModelRoutingTestCase(TestCase):
             # Assertions for the first execution
             self.assertTrue(res.is_success())
             self.assertEqual(res.output, "Success fallback")
-            self.assertEqual(res.model, "gemini-3.6-flash")
+            self.assertEqual(res.model, "gemini-3.8-flash")
             
             # Verify no sleep retries were attempted for quota exceeded (since attempt is 1, sleep is 0 times)
             mock_sleep.assert_not_called()
             
-            # Verify the failed model (gemini-3.7-flash) is blacklisted/cooldown in health monitor
-            self.assertFalse(router.health_monitor.is_healthy("google", "gemini-3.7-flash"))
+            # Verify the failed model is blacklisted/cooldown in health monitor
+            self.assertFalse(router.health_monitor.is_healthy("google", "gemini-3.5-flash-lite"))
             
             # Verify the cooldown is custom: 12 hours (43200s)
-            status = router.health_monitor.health_status.get("google:gemini-3.7-flash")
+            status = router.health_monitor.health_status.get("google:gemini-3.5-flash-lite")
             self.assertIsNotNone(status)
             cooldown_until = status.get("cooldown_until", 0)
             failed_at = status.get("failed_at", 0)
             # Difference should be exactly 43200 seconds
             self.assertAlmostEqual(cooldown_until - failed_at, 43200, places=1)
 
-            # Second request: router should immediately skip gemini-3.7-flash without executing its adapter
+            # Second request should immediately skip the cooling-down model.
             quota_adapter.generate.reset_mock()
             res2 = router.execute(req)
             

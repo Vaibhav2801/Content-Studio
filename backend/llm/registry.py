@@ -16,6 +16,14 @@ class ModelConfig:
 # Centralized Model Registry
 MODEL_REGISTRY: Dict[str, ModelConfig] = {
     # --- COMPLEX POOL ---
+    "gemini-3.8-flash": ModelConfig(
+        model_name="gemini-3.8-flash",
+        provider_key="google",
+        enabled=True,
+        capabilities={LLMCapability.STRUCTURED_OUTPUT, LLMCapability.REASONING, LLMCapability.EXTRACTION, LLMCapability.CLASSIFICATION, LLMCapability.GENERATION, LLMCapability.SUMMARIZATION},
+        pools={LLMComplexity.COMPLEX, LLMComplexity.STANDARD, LLMComplexity.SIMPLE},
+        priority=2,
+    ),
     "gemini-3.7-flash": ModelConfig(
         model_name="gemini-3.7-flash",
         provider_key="google",
@@ -40,8 +48,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         pools={LLMComplexity.COMPLEX, LLMComplexity.STANDARD},
         priority=3,  # priority 3 in Complex, priority 1 in Standard
     ),
-    "gemini-3-flash": ModelConfig(
-        model_name="gemini-3-flash",
+    "gemini-3-flash-preview": ModelConfig(
+        model_name="gemini-3-flash-preview",
         provider_key="google",
         enabled=True,
         capabilities={LLMCapability.STRUCTURED_OUTPUT, LLMCapability.REASONING, LLMCapability.EXTRACTION, LLMCapability.CLASSIFICATION, LLMCapability.GENERATION, LLMCapability.SUMMARIZATION},
@@ -51,7 +59,7 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     "gemini-2.5-flash": ModelConfig(
         model_name="gemini-2.5-flash",
         provider_key="google",
-        enabled=True,
+        enabled=False,
         capabilities={LLMCapability.STRUCTURED_OUTPUT, LLMCapability.REASONING, LLMCapability.EXTRACTION, LLMCapability.CLASSIFICATION, LLMCapability.GENERATION, LLMCapability.SUMMARIZATION},
         pools={LLMComplexity.COMPLEX, LLMComplexity.STANDARD, LLMComplexity.SIMPLE},
         priority=5,
@@ -63,8 +71,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         provider_key="google",
         enabled=True,
         capabilities={LLMCapability.STRUCTURED_OUTPUT, LLMCapability.EXTRACTION, LLMCapability.CLASSIFICATION, LLMCapability.GENERATION, LLMCapability.SUMMARIZATION},
-        pools={LLMComplexity.STANDARD, LLMComplexity.SIMPLE},
-        priority=4,
+        pools={LLMComplexity.COMPLEX, LLMComplexity.STANDARD, LLMComplexity.SIMPLE},
+        priority=1,
     ),
     "gemini-3.1-flash-lite": ModelConfig(
         model_name="gemini-3.1-flash-lite",
@@ -77,7 +85,7 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     "gemini-2.5-flash-lite": ModelConfig(
         model_name="gemini-2.5-flash-lite",
         provider_key="google",
-        enabled=True,
+        enabled=False,
         capabilities={LLMCapability.STRUCTURED_OUTPUT, LLMCapability.EXTRACTION, LLMCapability.CLASSIFICATION, LLMCapability.GENERATION, LLMCapability.SUMMARIZATION},
         pools={LLMComplexity.SIMPLE},
         priority=3,
@@ -141,25 +149,26 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
 # Pre-defined Model Pools per Complexity Level
 MODEL_POOLS: Dict[LLMComplexity, List[str]] = {
     LLMComplexity.COMPLEX: [
+        "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
         "gemini-3.7-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash",
-        "gemini-3-flash",
-        "gemini-2.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview",
     ],
     LLMComplexity.STANDARD: [
-        "gemini-3.5-flash",
-        "gemini-3-flash",
-        "gemini-2.5-flash",
         "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
         "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview",
     ],
     LLMComplexity.SIMPLE: [
-        "gemini-3.1-flash-lite",
         "gemini-3.5-flash-lite",
-        "gemini-2.5-flash-lite",
-        "gemini-3-flash",
-        "gemini-2.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-3-flash-preview",
     ],
 }
 
