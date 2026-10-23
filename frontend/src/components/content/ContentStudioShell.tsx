@@ -56,9 +56,8 @@ const icons: Record<ContentStudioSection, LucideIcon> = {
 }
 
 const navigationGroups: { label: string; sections: ContentStudioSection[] }[] = [
-  { label: 'Decide', sections: ['home', 'strategy'] },
-  { label: 'Execute', sections: ['campaigns', 'approvals'] },
-  { label: 'Improve', sections: ['results', 'brand'] },
+  { label: 'Workspace', sections: ['home', 'strategy', 'campaigns'] },
+  { label: 'Business', sections: ['brand'] },
 ]
 
 export function ContentStudioShell() {
@@ -104,7 +103,7 @@ export function ContentStudioShell() {
   const navigate = useNavigate()
   const current = CONTENT_STUDIO_NAV.find((item) => item.path === location.pathname) ?? CONTENT_STUDIO_NAV[0]
   const isOnboarding = location.pathname === '/content/onboarding'
-  const pageLabel = isOnboarding ? 'Set up Quilltap' : current.label === 'Home' ? 'Quilltap' : current.label
+  const pageLabel = isOnboarding ? 'Set up Quilltap' : current.section === 'home' ? 'Quilltap' : current.label
   const pageDescription = isOnboarding ? 'Teach Quilltap about your business and goals.' : current.description
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 

@@ -57,10 +57,10 @@ describe('Quilltap sidebar', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
-    for (const group of ['Decide', 'Execute', 'Improve']) {
+    for (const group of ['Workspace', 'Business']) {
       expect(within(navigation).getByText(group)).toBeInTheDocument()
     }
-    for (const label of ['Home', 'Strategy', 'Campaigns', 'Approvals', 'Results', 'Brand']) {
+    for (const label of ['Today', 'Strategy', 'Campaigns', 'Brand']) {
       expect(within(navigation).getByRole('link', { name: new RegExp(`^${label}`, 'i') })).toBeInTheDocument()
     }
     expect(screen.getByRole('link', { name: 'Create' })).toHaveAttribute('href', '/content/create')

@@ -63,13 +63,13 @@ describe('Quilltap', () => {
     renderStudio()
     expect(await screen.findByRole('heading', { name: 'Quilltap' })).toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
-    for (const label of ['Home', 'Strategy', 'Campaigns', 'Approvals', 'Results', 'Brand']) {
+    for (const label of ['Today', 'Strategy', 'Campaigns', 'Brand']) {
       expect(navigation).toHaveTextContent(label)
     }
     expect(navigation).not.toHaveTextContent('Settings')
     expect(screen.queryByRole('link', { name: /^Create post/i })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Create' })).toHaveAttribute('href', '/content/create')
-    expect(screen.getByRole('link', { name: /Discuss the strategy/i })).toHaveAttribute('href', '/content/strategy')
+    expect(screen.getByRole('link', { name: /Open strategy/i })).toHaveAttribute('href', '/content/strategy')
     cleanup()
     renderStudio('/content/brand')
     await screen.findByRole('heading', { name: 'Brand' })
@@ -305,11 +305,11 @@ describe('Quilltap', () => {
   it('keeps the utility composer resumable and supports starting a new post', async () => {
     renderStudio('/content/create')
     fireEvent.change(await screen.findByPlaceholderText(/Share the point/i), { target: { value: 'Saved unfinished idea' } })
-    fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
+    fireEvent.click(screen.getByRole('link', { name: /^today$/i }))
     await screen.findByRole('heading', { name: 'Quilltap' })
     fireEvent.click(screen.getByRole('link', { name: /^create$/i }))
     expect(await screen.findByDisplayValue('Saved unfinished idea')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
+    fireEvent.click(screen.getByRole('link', { name: /^today$/i }))
     await screen.findByRole('heading', { name: 'Quilltap' })
     fireEvent.click(screen.getByRole('link', { name: /^create$/i }))
     fireEvent.click(await screen.findByRole('button', { name: 'New post' }))

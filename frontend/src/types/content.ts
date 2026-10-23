@@ -75,7 +75,7 @@ export type ContentSettings = LinkedInSettings
 export type ContentSource = ContentBrief
 
 export const CONTENT_STUDIO_NAV: ContentStudioNavItem[] = [
-  { section: 'home', label: 'Home', path: '/content', description: 'See your next best marketing action.' },
+  { section: 'home', label: 'Today', path: '/content', description: 'See the one thing that needs your attention.' },
   { section: 'strategy', label: 'Strategy', path: '/content/strategy', description: 'Decide what to market with your strategy copilot.' },
   { section: 'campaigns', label: 'Campaigns', path: '/content/campaigns', description: 'Plan, create, and run coordinated campaigns.' },
   { section: 'create', label: 'Create', path: '/content/create', description: 'Turn an idea into a post.' },
