@@ -43,7 +43,7 @@ describe('Quilltap sidebar', () => {
     shellMocks.signOut.mockClear()
   })
 
-  it('uses one Create destination and puts account actions in the profile menu', async () => {
+  it('uses the marketing loop navigation and puts account actions in the profile menu', async () => {
     render(
       <MemoryRouter initialEntries={['/content']}>
         <ToastProvider>
@@ -57,10 +57,13 @@ describe('Quilltap sidebar', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
-    for (const group of ['Workspace', 'Publishing', 'Engagement', 'Manage']) {
+    for (const group of ['Decide', 'Execute', 'Improve']) {
       expect(within(navigation).getByText(group)).toBeInTheDocument()
     }
-    expect(within(navigation).getByRole('link', { name: 'Create' })).toHaveAttribute('href', '/content/create')
+    for (const label of ['Home', 'Strategy', 'Campaigns', 'Approvals', 'Results', 'Brand']) {
+      expect(within(navigation).getByRole('link', { name: new RegExp(`^${label}`, 'i') })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('link', { name: 'Create' })).toHaveAttribute('href', '/content/create')
     expect(screen.queryByRole('link', { name: 'Create post' })).not.toBeInTheDocument()
     expect(screen.queryByText('Ready when you are')).not.toBeInTheDocument()
     expect(within(navigation).queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
@@ -75,7 +78,7 @@ describe('Quilltap sidebar', () => {
     expect(within(menu).getByText('Vaibhav workspace')).toBeInTheDocument()
     expect(within(menu).getByText('Owner')).toBeInTheDocument()
     expect(within(menu).getByRole('menuitem', { name: /Settings/i })).toHaveAttribute('href', '/content/settings')
-    expect(within(menu).getByRole('menuitem', { name: /Brand & publishing/i })).toHaveAttribute('href', '/content/library?panel=brand')
+    expect(within(menu).getByRole('menuitem', { name: /Brand brain/i })).toHaveAttribute('href', '/content/brand')
 
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sign out' }))
     await waitFor(() => expect(shellMocks.signOut).toHaveBeenCalledOnce())

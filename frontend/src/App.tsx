@@ -7,7 +7,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage').then((module) => ({
 const PricingPage = lazy(() => import('./pages/PricingPage').then((module) => ({ default: module.PricingPage })))
 const LegalPage = lazy(() => import('./pages/LegalPage').then((module) => ({ default: module.LegalPage })))
 const ContentStudioPage = lazy(() => import('./pages/ContentStudioPage').then((module) => ({ default: module.ContentStudioPage })))
-const ContentHomeView = lazy(() => import('./components/content/views/ContentHomeView').then((module) => ({ default: module.ContentHomeView })))
+const MarketingHomeView = lazy(() => import('./components/content/views/MarketingHomeView').then((module) => ({ default: module.MarketingHomeView })))
 const ContentCreateView = lazy(() => import('./components/content/views/ContentCreateView').then((module) => ({ default: module.ContentCreateView })))
 const ContentSeriesView = lazy(() => import('./components/content/views/ContentSeriesView').then((module) => ({ default: module.ContentSeriesView })))
 const ContentApprovalsView = lazy(() => import('./components/content/views/ContentApprovalsView').then((module) => ({ default: module.ContentApprovalsView })))
@@ -18,6 +18,10 @@ const ContentSettingsView = lazy(() => import('./components/content/views/Conten
 const ContentOnboardingView = lazy(() => import('./components/content/views/ContentOnboardingView').then((module) => ({ default: module.ContentOnboardingView })))
 const ContentAnalyticsView = lazy(() => import('./components/content/views/ContentAnalyticsView').then((module) => ({ default: module.ContentAnalyticsView })))
 const EngagementHubView = lazy(() => import('./components/content/views/EngagementHubView').then((module) => ({ default: module.EngagementHubView })))
+const StrategyChatView = lazy(() => import('./components/content/views/StrategyChatView').then((module) => ({ default: module.StrategyChatView })))
+const CampaignsView = lazy(() => import('./components/content/views/CampaignsView').then((module) => ({ default: module.CampaignsView })))
+const ResultsView = lazy(() => import('./components/content/views/ResultsView').then((module) => ({ default: module.ResultsView })))
+const BrandView = lazy(() => import('./components/content/views/BrandView').then((module) => ({ default: module.BrandView })))
 
 function ProtectedStudio() {
   const { user, ready, error, reload } = useAuth()
@@ -42,7 +46,9 @@ export default function App() {
         <Route path="/signin" element={<AuthPage mode="signin" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/content" element={<ProtectedStudio />}>
-          <Route index element={<ContentHomeView />} />
+          <Route index element={<MarketingHomeView />} />
+          <Route path="strategy" element={<StrategyChatView />} />
+          <Route path="campaigns" element={<CampaignsView />} />
           <Route path="create" element={<ContentCreateView />} />
           <Route path="series" element={<ContentSeriesView />} />
           <Route path="approvals" element={<ContentApprovalsView />} />
@@ -51,6 +57,8 @@ export default function App() {
           <Route path="engage" element={<EngagementHubView />} />
           <Route path="connections" element={<ContentConnectionsView />} />
           <Route path="analytics" element={<ContentAnalyticsView />} />
+          <Route path="results" element={<ResultsView />} />
+          <Route path="brand" element={<BrandView />} />
           <Route path="settings" element={<ContentSettingsView />} />
           <Route path="onboarding" element={<ContentOnboardingView />} />
         </Route>

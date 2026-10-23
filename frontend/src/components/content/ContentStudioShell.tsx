@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BrainCircuit,
   BookOpen,
   CalendarDays,
   CheckSquare,
@@ -13,6 +14,7 @@ import {
   MessageCircleMore,
   Menu,
   Palette,
+  PanelsTopLeft,
   Plus,
   Settings2,
   LogOut,
@@ -38,6 +40,8 @@ import { useToast } from '../notifications/useToast'
 
 const icons: Record<ContentStudioSection, LucideIcon> = {
   home: Home,
+  strategy: BrainCircuit,
+  campaigns: PanelsTopLeft,
   create: Plus,
   series: Sparkles,
   approvals: CheckSquare,
@@ -45,15 +49,16 @@ const icons: Record<ContentStudioSection, LucideIcon> = {
   library: BookOpen,
   engage: MessageCircleMore,
   connections: Link2,
+  results: BarChart3,
+  brand: Palette,
   analytics: BarChart3,
   settings: Settings2,
 }
 
 const navigationGroups: { label: string; sections: ContentStudioSection[] }[] = [
-  { label: 'Workspace', sections: ['home', 'calendar', 'library'] },
-  { label: 'Publishing', sections: ['create', 'series', 'approvals'] },
-  { label: 'Engagement', sections: ['engage'] },
-  { label: 'Manage', sections: ['connections', 'analytics'] },
+  { label: 'Decide', sections: ['home', 'strategy'] },
+  { label: 'Execute', sections: ['campaigns', 'approvals'] },
+  { label: 'Improve', sections: ['results', 'brand'] },
 ]
 
 export function ContentStudioShell() {
@@ -100,7 +105,7 @@ export function ContentStudioShell() {
   const current = CONTENT_STUDIO_NAV.find((item) => item.path === location.pathname) ?? CONTENT_STUDIO_NAV[0]
   const isOnboarding = location.pathname === '/content/onboarding'
   const pageLabel = isOnboarding ? 'Set up Quilltap' : current.label === 'Home' ? 'Quilltap' : current.label
-  const pageDescription = isOnboarding ? 'A few steps to get ready for your first post.' : current.description
+  const pageDescription = isOnboarding ? 'Teach Quilltap about your business and goals.' : current.description
   const workspaceName = auth?.workspace?.name || (onboarding.business.name?.trim() ? onboarding.business.name.trim() + ' workspace' : 'Your workspace')
 
   useEffect(() => {
@@ -288,9 +293,9 @@ export function ContentStudioShell() {
                   <span><strong>Settings</strong><small>Plan, credits, and invoices</small></span>
                   <ChevronRight size={14} />
                 </Link>
-                <Link to="/content/library?panel=brand" role="menuitem">
+                <Link to="/content/brand" role="menuitem">
                   <Palette size={17} />
-                  <span><strong>Brand &amp; publishing</strong><small>Voice, schedule, and approvals</small></span>
+                  <span><strong>Brand brain</strong><small>Business, audience, voice, and goals</small></span>
                   <ChevronRight size={14} />
                 </Link>
               </div>
@@ -319,6 +324,8 @@ export function ContentStudioShell() {
           <button className="studio-menu-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button>
           <div className="studio-breadcrumb"><span>Workspace</span><ChevronRight size={15} /><strong>{isOnboarding ? 'Setup' : current.label}</strong></div>
           <div className="studio-topbar-right">
+            <Link className="studio-topbar-settings studio-quick-tool" to="/content/create" aria-label="Create"><Plus size={18} /></Link>
+            <Link className="studio-topbar-settings studio-quick-tool" to="/content/calendar" aria-label="Calendar"><CalendarDays size={18} /></Link>
             {isDemo && <span className="studio-demo-pill"><span /> Demo mode</span>}
             {billingOverview && (
               <div className="studio-billing-topbar-widget" style={{ position: 'relative' }}>
@@ -441,7 +448,7 @@ export function ContentStudioShell() {
         </header>
         <main className="studio-main" id="studio-main">
           <div className="studio-page-heading content-page-head">
-            <div><span className="studio-page-kicker">CONTENT WORKSPACE</span><h1>{pageLabel}</h1><p>{pageDescription}</p></div>
+            <div><span className="studio-page-kicker">MARKETING WORKSPACE</span><h1>{pageLabel}</h1><p>{pageDescription}</p></div>
             {needsAttention && current.section === 'home' && <Link className="content-attention" to="/content/connections"><CircleAlert size={17} /> Needs attention <ChevronRight size={15} /></Link>}
           </div>
           {isDemo && <div className="li-banner neutral"><Sparkles size={17} /><span>Demo data is on. Changes stay in this preview.</span></div>}

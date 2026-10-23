@@ -8,6 +8,8 @@ import type {
 
 export type ContentStudioSection =
   | 'home'
+  | 'strategy'
+  | 'campaigns'
   | 'create'
   | 'series'
   | 'approvals'
@@ -15,6 +17,8 @@ export type ContentStudioSection =
   | 'library'
   | 'engage'
   | 'connections'
+  | 'results'
+  | 'brand'
   | 'analytics'
   | 'settings'
 
@@ -71,7 +75,9 @@ export type ContentSettings = LinkedInSettings
 export type ContentSource = ContentBrief
 
 export const CONTENT_STUDIO_NAV: ContentStudioNavItem[] = [
-  { section: 'home', label: 'Home', path: '/content', description: 'See what needs your attention.' },
+  { section: 'home', label: 'Home', path: '/content', description: 'See your next best marketing action.' },
+  { section: 'strategy', label: 'Strategy', path: '/content/strategy', description: 'Decide what to market with your strategy copilot.' },
+  { section: 'campaigns', label: 'Campaigns', path: '/content/campaigns', description: 'Plan, create, and run coordinated campaigns.' },
   { section: 'create', label: 'Create', path: '/content/create', description: 'Turn an idea into a post.' },
   { section: 'series', label: 'Post series', path: '/content/series', description: 'Create and schedule a sequence of posts.' },
   { section: 'approvals', label: 'Approvals', path: '/content/approvals', description: 'Review posts before they publish.' },
@@ -79,6 +85,8 @@ export const CONTENT_STUDIO_NAV: ContentStudioNavItem[] = [
   { section: 'library', label: 'Content Library', path: '/content/library', description: 'Manage saved content, sources, and brand guidance.' },
   { section: 'engage', label: 'Engage', path: '/content/engage', description: 'Review replies, run approved automations, and follow up with leads.' },
   { section: 'connections', label: 'Connections', path: '/content/connections', description: 'Check connected social accounts.' },
+  { section: 'results', label: 'Results', path: '/content/results', description: 'Understand what worked and decide what to do next.' },
+  { section: 'brand', label: 'Brand', path: '/content/brand', description: 'Review what Quilltap knows about your business.' },
   { section: 'analytics', label: 'Analytics', path: '/content/analytics', description: 'Compare results and find practical improvements.' },
   { section: 'settings', label: 'Settings', path: '/content/settings', description: 'Manage your profile, workspace, plan, and billing.' },
 ]

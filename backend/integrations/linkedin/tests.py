@@ -20,6 +20,7 @@ from .assets import image_asset_url
 from .services.content import GeneratedPostContent, LinkedInContentGenerator
 from .services.images import (
     ImageGenerationConfigurationError,
+    ImageGenerationQuotaError,
     ImageProviderUnavailableError,
     LinkedInImageGenerator,
 )
@@ -181,6 +182,43 @@ class LinkedInImageGeneratorTests(TestCase):
         LINKEDIN_GENERATE_IMAGES=True,
         LINKEDIN_IMAGE_PROVIDER="cloudflare",
         CLOUDFLARE_ACCOUNT_ID="account-id",
+        CLOUDFLARE_API_TOKEN="cloudflare-token",
+        CLOUDFLARE_IMAGE_MODEL="@cf/leonardo/phoenix-1.0",
+        CLOUDFLARE_IMAGE_STEPS=25,
+    )
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_cloudflare_phoenix_uses_documented_json_schema(self, request_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.headers = {"content-type": "image/png"}
+        response.content = b"\x89PNG\r\n\x1a\nphoenix-image"
+        response.json.side_effect = ValueError("not JSON")
+        request_post.return_value = response
+
+        _, metadata, image_data = LinkedInImageGenerator().generate(
+            "post-id",
+            "A bridge representing trust",
+            network="LINKEDIN",
+        )
+
+        request = request_post.call_args
+        self.assertEqual(
+            request.kwargs["json"],
+            {
+                "prompt": request.kwargs["json"]["prompt"],
+                "num_steps": 25,
+                "width": 1024,
+                "height": 536,
+            },
+        )
+        self.assertNotIn("files", request.kwargs)
+        self.assertEqual(metadata["model"], "@cf/leonardo/phoenix-1.0")
+        self.assertEqual(image_data, b"\x89PNG\r\n\x1a\nphoenix-image")
+
+    @override_settings(
+        LINKEDIN_GENERATE_IMAGES=True,
+        LINKEDIN_IMAGE_PROVIDER="cloudflare",
+        CLOUDFLARE_ACCOUNT_ID="account-id",
         CLOUDFLARE_ACCOUNT_IDS=("account-id",),
         CLOUDFLARE_API_TOKEN="exhausted-token",
         CLOUDFLARE_API_TOKENS=("exhausted-token", "available-token"),
@@ -298,6 +336,30 @@ class LinkedInImageGeneratorTests(TestCase):
         self.assertIn("generativelanguage.googleapis.com", request_post.call_args_list[1].args[0])
         self.assertEqual(metadata["provider"], "gemini")
         self.assertEqual(image_data, b"gemini-fallback-image")
+
+    @override_settings(
+        LINKEDIN_GENERATE_IMAGES=True,
+        LINKEDIN_IMAGE_PROVIDER="auto",
+        CLOUDFLARE_ACCOUNT_ID="account-id",
+        CLOUDFLARE_ACCOUNT_IDS=("account-id",),
+        CLOUDFLARE_API_TOKEN="exhausted-token",
+        CLOUDFLARE_API_TOKENS=("exhausted-token",),
+        GEMINI_API_KEY="exhausted-key",
+        GEMINI_API_KEYS=(),
+        OPENAI_API_KEY="",
+    )
+    @patch("integrations.linkedin.services.images.requests.post")
+    def test_auto_classifies_all_provider_quota_failures_as_quota(self, request_post):
+        cloudflare = Mock(status_code=429)
+        cloudflare.raise_for_status.side_effect = requests.HTTPError(response=cloudflare)
+        cloudflare.json.return_value = {"errors": [{"message": "Quota exhausted"}]}
+        gemini = Mock(status_code=429)
+        gemini.raise_for_status.side_effect = requests.HTTPError(response=gemini)
+        gemini.json.return_value = {"error": {"message": "Quota exhausted"}}
+        request_post.side_effect = [cloudflare, gemini]
+
+        with self.assertRaises(ImageGenerationQuotaError):
+            LinkedInImageGenerator().generate("post-id", "A delivery route")
 
     @override_settings(
         LINKEDIN_GENERATE_IMAGES=True,

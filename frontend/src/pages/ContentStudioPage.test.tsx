@@ -13,7 +13,8 @@ import { ContentCalendarView } from '../components/content/views/ContentCalendar
 import { ContentConnectionsView } from '../components/content/views/ContentConnectionsView'
 import { ContentCreateView } from '../components/content/views/ContentCreateView'
 import { ContentSeriesView } from '../components/content/views/ContentSeriesView'
-import { ContentHomeView } from '../components/content/views/ContentHomeView'
+import { MarketingHomeView } from '../components/content/views/MarketingHomeView'
+import { BrandView } from '../components/content/views/BrandView'
 import { ContentLibraryView } from '../components/content/views/ContentLibraryView'
 import { ContentSettingsView } from '../components/content/views/ContentSettingsView'
 import { ContentStudioPage } from './ContentStudioPage'
@@ -21,7 +22,7 @@ import { ContentStudioPage } from './ContentStudioPage'
 function renderStudio(path = '/content') {
   return render(<MemoryRouter initialEntries={[path]}><Routes>
     <Route path="content" element={<ContentStudioPage />}>
-      <Route index element={<ContentHomeView />} />
+      <Route index element={<MarketingHomeView />} />
       <Route path="create" element={<ContentCreateView />} />
       <Route path="series" element={<ContentSeriesView />} />
       <Route path="approvals" element={<ContentApprovalsView />} />
@@ -29,6 +30,7 @@ function renderStudio(path = '/content') {
       <Route path="library" element={<ContentLibraryView />} />
       <Route path="connections" element={<ContentConnectionsView />} />
       <Route path="settings" element={<ContentSettingsView />} />
+      <Route path="brand" element={<BrandView />} />
     </Route>
     <Route path="linkedin/*" element={<Navigate to="/content" replace />} />
   </Routes></MemoryRouter>)
@@ -57,21 +59,21 @@ describe('Quilltap', () => {
     vi.spyOn(socialComposerApi, 'submitForReview').mockImplementation(async () => ({ ...makeDemoPost('Review', 'Ready to review', ['LINKEDIN']), state: 'NEEDS_REVIEW' }))
   })
 
-  it('shows the compact sidebar and keeps creation actions in one place', async () => {
+  it('shows the simplified marketing loop navigation', async () => {
     renderStudio()
     expect(await screen.findByRole('heading', { name: 'Quilltap' })).toBeInTheDocument()
     const navigation = screen.getByRole('navigation', { name: 'Quilltap sections' })
-    for (const label of ['Home', 'Create', 'Approvals', 'Calendar', 'Content Library', 'Connections', 'Analytics']) {
+    for (const label of ['Home', 'Strategy', 'Campaigns', 'Approvals', 'Results', 'Brand']) {
       expect(navigation).toHaveTextContent(label)
     }
     expect(navigation).not.toHaveTextContent('Settings')
     expect(screen.queryByRole('link', { name: /^Create post/i })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: /new post/i })).toHaveLength(1)
-    expect(screen.getByRole('link', { name: /new post/i })).toHaveAttribute('href', '/content/create?new=1')
+    expect(screen.getByRole('link', { name: 'Create' })).toHaveAttribute('href', '/content/create')
+    expect(screen.getByRole('link', { name: /Discuss the strategy/i })).toHaveAttribute('href', '/content/strategy')
     cleanup()
-    renderStudio('/content/library')
-    await screen.findByRole('heading', { name: 'Content Library' })
-    expect(screen.queryByRole('link', { name: /new post/i })).not.toBeInTheDocument()
+    renderStudio('/content/brand')
+    await screen.findByRole('heading', { name: 'Brand' })
+    expect(screen.getByRole('heading', { name: 'Northstar Reports' })).toBeInTheDocument()
   })
 
   it('explains brand defaults and preserves chosen length when the objective changes', async () => {
@@ -232,7 +234,7 @@ describe('Quilltap', () => {
     expect(screen.getByText('It is now waiting in Approvals for a reviewer.')).toBeInTheDocument()
   })
 
-  it('navigates directly to Calendar, billing Settings, and Brand in the Library', async () => {
+  it('keeps Calendar and Settings as tools while Brand stays in the core loop', async () => {
     renderStudio('/content/create')
     await screen.findByText('Start with what you have')
     fireEvent.click(screen.getByRole('link', { name: /^calendar$/i }))
@@ -240,13 +242,9 @@ describe('Quilltap', () => {
     fireEvent.click(screen.getByRole('link', { name: /Open Quilltap settings/i }))
     expect(screen.getByRole('heading', { name: 'Your account and workspace' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Brand and business' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: /^content library$/i }))
-    fireEvent.click(await screen.findByRole('link', { name: /Brand & Publishing/i }))
-    expect(await screen.findByRole('heading', { name: 'Brand and business' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('LumaDesk')).toBeInTheDocument()
-    const advanced = screen.getByText('Advanced workspace settings').closest('details')
-    expect(advanced).toBeInTheDocument()
-    expect(advanced).not.toHaveAttribute('open')
+    fireEvent.click(screen.getByRole('link', { name: /^brand$/i }))
+    expect(await screen.findByRole('heading', { name: 'Brand' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Northstar Reports' })).toBeInTheDocument()
   })
 
   it('asks for workspace business details on first Create and allows skipping', async () => {
@@ -304,7 +302,7 @@ describe('Quilltap', () => {
     expect(generateButton).toHaveTextContent('Generating…')
   })
 
-  it('starts a blank post from Home while Create remains resumable', async () => {
+  it('keeps the utility composer resumable and supports starting a new post', async () => {
     renderStudio('/content/create')
     fireEvent.change(await screen.findByPlaceholderText(/Share the point/i), { target: { value: 'Saved unfinished idea' } })
     fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
@@ -313,7 +311,8 @@ describe('Quilltap', () => {
     expect(await screen.findByDisplayValue('Saved unfinished idea')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: /^home$/i }))
     await screen.findByRole('heading', { name: 'Quilltap' })
-    fireEvent.click(screen.getByRole('link', { name: /new post/i }))
+    fireEvent.click(screen.getByRole('link', { name: /^create$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'New post' }))
     expect(await screen.findByPlaceholderText(/Share the point/i)).toHaveValue('')
   })
 

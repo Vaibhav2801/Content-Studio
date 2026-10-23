@@ -6,6 +6,7 @@ import './StudioRedesign.css'
 import './StudioSystem.css'
 import './QuilltapTheme.css'
 import './SidebarLogoFix.css'
+import './StrategyWorkspace.css'
 
 export function ContentStudioPage() {
   return <ToastProvider><ContentStudioProvider><ContentStudioShell /></ContentStudioProvider></ToastProvider>

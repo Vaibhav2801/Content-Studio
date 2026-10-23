@@ -197,23 +197,31 @@ Return only the final image.
             except Exception as exc:
                 if provider == "cloudflare":
                     raise
-                errors.append(f"Cloudflare: {exc}")
+                errors.append(("Cloudflare", exc))
         if provider in {"auto", "gemini"} and _gemini_keys():
             try:
                 return self._generate_gemini(post_id, directed_prompt, spec=spec)
             except Exception as exc:
                 if provider == "gemini":
                     raise
-                errors.append(f"Gemini: {exc}")
+                errors.append(("Gemini", exc))
         if provider in {"auto", "openai"} and settings.OPENAI_API_KEY:
             try:
                 return self._generate_openai(post_id, directed_prompt, spec=spec)
             except Exception as exc:
                 if provider == "openai":
                     raise
-                errors.append(f"OpenAI: {exc}")
+                errors.append(("OpenAI", exc))
         if errors:
-            raise RuntimeError("; ".join(errors))
+            detail = "; ".join(f"{provider_name}: {error}" for provider_name, error in errors)
+            provider_errors = [error for _, error in errors]
+            if all(isinstance(error, ImageGenerationQuotaError) for error in provider_errors):
+                raise ImageGenerationQuotaError(detail)
+            if all(isinstance(error, ImageGenerationConfigurationError) for error in provider_errors):
+                raise ImageGenerationConfigurationError(detail)
+            if any(isinstance(error, ImageProviderUnavailableError) for error in provider_errors):
+                raise ImageProviderUnavailableError(detail)
+            raise ImageGenerationError(detail)
         return "", {
             "status": "not_configured",
             "detail": "Add Cloudflare account/token credentials, GEMINI_API_KEY, or OPENAI_API_KEY",
@@ -233,6 +241,17 @@ Return only the final image.
                     "steps": (None, str(steps)),
                     "width": (None, str(spec["width"])),
                     "height": (None, str(spec["height"])),
+                },
+            }
+        # Leonardo image models use the full-size JSON schema and call the
+        # diffusion-step field ``num_steps`` (Phoenix rejects generic ``steps``).
+        elif model.startswith("@cf/leonardo/"):
+            response_kwargs = {
+                "json": {
+                    "prompt": prompt,
+                    "num_steps": steps,
+                    "width": spec["width"],
+                    "height": spec["height"],
                 },
             }
         else:
